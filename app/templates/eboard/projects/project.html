@@ -1,0 +1,1414 @@
+{% extends "base.html" %}
+{% import "bootstrap/wtf.html" as wtf %}
+{% import '_macros.html' as macros %}
+
+{% block title %}JAGO - e-Board{% endblock %}
+
+
+{% block styles %}
+{{ super() }}
+<style>
+
+.project-plan-wrapper {
+    /*border: 1px solid black;*/
+    border-bottom: 1px solid gray;
+}
+
+.project-info-wrapper {
+}
+
+.project-notes-wrapper {
+    border-bottom: 1px solid gray;
+    /*border: 1px solid black;*/
+}
+
+.project-plan {
+    /*border: 1px solid black;*/
+    margin-left: 0px;
+    padding-left: 1em;
+}
+
+.project-milestone {
+    padding: 3px 15px;
+}
+
+.milestone-label {
+    position: relative;
+    display: inline-block;
+    width: 100%;
+    padding: 10px 10px 10px 5px;
+    border-bottom: 1px solid black;
+}
+
+.milestone-label:hover {
+    background-color: rgb(205, 0, 103);
+    color: white;
+    cursor: pointer;
+} 
+
+#add-milestone {
+    border: none;
+}
+
+.milestone-tasks {
+    display: none;
+    list-style: none;
+    margin-left: 0px;
+    padding-left: 0px;
+    text-indent: 1em;
+}
+
+.milestone-task {
+    padding: 10px 5px;
+    cursor: pointer;
+}
+
+.milestone-task:hover {
+    background-color: rgb(247, 219, 232);
+    color: black;
+}
+
+.task-btn {
+    display: inline-block;
+    float: right;
+    //padding-left: 10px;
+}
+
+.add-task {
+    color: rgb(159,002,081);
+    font-style: italic;
+    font-weight: bold;
+}
+
+.arrow {
+    display: inline-block;
+    position: absolute;
+    right: 0px;
+}
+
+.arrow-up {
+    width: 0; 
+    height: 0; 
+    border-left: 10px solid transparent;
+    border-right: 10px solid transparent;
+    border-bottom: 10px solid rgb(159,002,081);
+}
+
+.arrow-down {
+    width: 0; 
+    height: 0; 
+    border-left: 10px solid transparent;
+    border-right: 10px solid transparent;
+    border-top: 10px solid rgb(159,002,081);
+}
+
+.milestone-options {
+    display: none;
+    list-style: none;
+    margin-left: 0px;
+    padding-left: 0px;
+    border-bottom: 1px solid black;
+}
+
+.milestone-option {
+    display: inline;
+    border-right: 1px solid black;
+}
+
+.milestone-option:last-child {
+    border-right: none;
+}
+
+.milestone-option:hover {
+    background-color: rgb(205, 0, 103);
+    color: white;
+    cursor: pointer;
+}
+
+.milestone-option > div {
+    display: inline-block;
+    padding: 0px 15px;
+}
+
+.project-extra-options {
+    margin-top: 20px;
+}
+
+.project-milestone:last-child {
+   list-style-type: none; 
+}
+
+.project-notes {
+    /*border: 1px solid black;*/
+    margin-left: 0px;
+    padding-left: 1em;
+}
+
+.project-note {
+    padding: 3px 15px;
+}
+
+.project-note:last-child {
+    list-style-type: none;
+}
+
+ul.project-notes {
+    list-style-type: none;
+    padding: 0px;
+    margin: 16px 0px 0px 0px;
+    border-top: 1px solid #e0e0e0;
+}
+ul.project-notes li.project-note {
+    padding: 8px;
+    border-bottom: 1px solid #e0e0e0;
+}
+ul.project-notes li.project-note:hover {
+    background-color: #f0f0f0;
+}
+div.note-date {
+    float: right;
+}
+div.note-title {
+    font-weight: bold;
+}
+div.note-thumbnail {
+    position: absolute;
+}
+div.note-content {
+    min-height: 48px;
+}
+div.note-body {
+    padding: 10px 0px 0px 0px;
+}
+div.note-tags {
+    font-size: small;
+    color: navy;
+    font-style: italic;
+}
+select#tag {
+    width:auto !important;
+}
+
+.project-page-header {
+    /*padding: 0px !important;*/
+    margin: 0px !important;
+    border-bottom: 1px solid gray;
+}
+
+ul#project-upcoming-tasks {
+    list-style-type: none;
+    margin-left: 0px;
+    padding-left: 0px;
+}
+
+ul#project-upcoming-tasks li {
+    border-bottom: 1px solid #808080;
+    padding: 10px 0px 0px 0px;
+}
+
+#project-main-header {
+    cursor: pointer;
+}
+
+#project-main-header:hover {
+    color: rgb(205, 0, 102);
+}
+
+.progress {
+    margin-bottom: 0px;
+    margin-top: 1em;
+}
+#progress-deadline {
+    float: right;
+}
+
+</style>
+<link rel="stylesheet" href="{{url_for('static', filename='css/bootstrap-datetimepicker.css')}}">
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="{{url_for('static', filename='scripts/bootstrap-datetimepicker.min.js')}}"></script>
+<script src="{{url_for('static', filename='scripts/eboard-tagspicker.js')}}"></script>
+<script src="{{url_for('static', filename='scripts/eboard-tagslist.js')}}"></script>  
+<script>
+
+    // Create two tags picker. One for tasks and one for notes.
+    // tagsPicker is defined in eboard-tagspicer.js
+
+    tagsPicker = {};
+    tagsPicker.task = new TagsPicker({
+        tags:  {{ tags | tojson | safe }},
+        selectElement: document.getElementById("task-edit-tags-select"),
+        outputElement: document.getElementById("task-edit-tags-output"),
+        onnewtag: function(self) {
+            this.setActive(true);
+            $('#new-tag-model').modal('show');  
+        },
+        onselect: function(id, name) {
+            var self = this;
+            var tag = createTagElement(id, name, function(event) {
+                var element = event.target.parentNode;
+                if (self.unselect(id)) {
+                    element.parentNode.parentNode.removeChild(
+                        element.parentNode);
+                }
+            });
+
+            var li = document.createElement("li");
+            li.setAttribute("class", "list-group-item tag-selected");
+            li.appendChild(tag);
+
+            this.selectElement.parentNode.parentNode.appendChild(li);
+        },
+        onclear: function() {
+            $(".tag-selected").remove();
+        }
+    });
+
+    tagsPicker.note = new TagsPicker({
+        tags:  {{ tags | tojson | safe }},
+        selectElement: document.getElementById("note-edit-tags-select"),
+        outputElement: document.getElementById("note-edit-tags-output"),
+        onnewtag: function() {
+            this.setActive(true);
+            $('#new-tag-model').modal('show');  
+        },
+        onselect: function(id, name) {
+            var self = this;
+            var tag = createTagElement(id, name, function(event) {
+                var element = event.target.parentNode;
+                if (self.unselect(id)) {
+                    element.parentNode.parentNode.removeChild(
+                        element.parentNode);
+                }
+            });
+
+            var li = document.createElement("li");
+            li.setAttribute("class", "list-group-item tag-selected");
+            li.appendChild(tag);
+
+            this.selectElement.parentNode.parentNode.appendChild(li);
+        },
+        onclear: function() {
+            $(".tag-selected").remove();
+        }
+    });
+
+
+    function projectErrorHandler(xhr, ajaxOptions, thrownError) {
+        showErrorInfo(xhr.status + " - " + thrownError);
+    }
+
+    function getProjectInfo(projectid, success, error) {
+        $.ajax({
+            url: 'get',
+            type: 'POST',
+            contentType: 'application/json; charset=utf-8',
+            data: JSON.stringify({ id: projectid }),
+            cache: false,
+            dataType: "json",
+            success: success,
+            error: error ? error : projectErrorHandler
+        });        
+    }
+
+    function getMilestoneInfo(milestoneid, success, error) {
+        $.ajax({
+            url: 'milestone/get',
+            type: 'POST',
+            contentType: 'application/json; charset=utf-8',
+            data: JSON.stringify({ milestoneid: milestoneid }),
+            cache: false,
+            dataType: "json",
+            success: success,
+            error: error ? error : projectErrorHandler
+        });
+    }
+
+    function getTaskInfo(taskid, success, error) {
+        $.ajax({
+            url: 'task/get',
+            type: 'POST',
+            contentType: 'application/json; charset=utf-8',
+            data: JSON.stringify({ taskid: taskid }),
+            cache: false,
+            dataType: "json",
+            success: success,
+            error: error ? error : projectErrorHandler
+        });        
+    }
+
+    function getNoteInfo(noteid, success, error) {
+        $.ajax({
+            url: 'note/get',
+            type: 'POST',
+            contentType: 'application/json; charset=utf-8',
+            data: JSON.stringify({ id: noteid }),
+            cache: false,
+            dataType: "json",
+            success: success,
+            error: error ? error : projectErrorHandler
+        });        
+    }
+
+    function moveMilestone(milestoneid, direction, success, error) {
+        $.ajax({
+            url: 'milestone/move',
+            type: 'POST',
+            contentType: 'application/json; charset=utf-8',
+            data: JSON.stringify({ milestoneid: milestoneid, direction: direction }),
+            cache: false,
+            dataType: "json",
+            success: success,
+            error: error ? error : projectErrorHandler           
+        });
+    }
+
+    function createMilestoneElement(id, title) {
+        var li = document.createElement("li");
+        li.className = "project-milestone";
+        li.setAttribute("data-milestoneid", id);
+
+        var div = document.createElement("div");
+        div.className = "milestone-label";
+        div.innerHTML = "<span class='milestone-title'>" + title + "</span><div class='arrow arrow-down'></div>";
+
+        var options = document.createElement("ul");
+        options.className = "milestone-options";
+        options.appendChild(createMilestoneOption("Add Task", "milestone-option-add-task"));
+        options.appendChild(createMilestoneOption("Move Up", "milestone-option-move-up"));
+        options.appendChild(createMilestoneOption("Move Down", "milestone-option-move-down"));
+        options.appendChild(createMilestoneOption("Edit", "milestone-option-edit"));
+        options.appendChild(createMilestoneOption("Remove", "milestone-option-remove"));
+
+        var tasks = document.createElement("ul");
+        tasks.className = "milestone-tasks";
+
+        li.appendChild(div);
+        li.appendChild(options);
+        li.appendChild(tasks);
+
+        return li;
+    }
+
+    function createMilestoneOption(name, classname) {
+        var li = document.createElement("li");
+        li.className = "milestone-option";
+        var div = document.createElement("div");
+        div.className = classname;
+        div.innerHTML = name;
+        li.appendChild(div);
+        return li;
+    }
+
+    function createTaskElement(id, title, status) {
+        var li = document.createElement("li");
+        li.className = "milestone-task";
+        li.setAttribute("data-task-id", id);
+
+        var span = document.createElement("span");
+        span.className = "task-title";
+        span.innerHTML = title;
+
+        var divCheck;
+        if (status == "active") {
+            divCheck = createTaskImg("{{url_for('static', filename='images/unchecked_checkbox.png')}}",
+                "task-btn-check", "unchecked-checkbox");
+        } else {
+             divCheck = createTaskImg("{{url_for('static', filename='images/checked_checkbox.png')}}",
+                "task-btn-check", "checked-checkbox");           
+        }
+        li.appendChild(span);
+        li.appendChild(divCheck);
+        li.appendChild(createTaskImg(
+            "{{url_for('static', filename='images/edit-button.png')}}",
+            "task-btn-edit", "edit-task"
+        ));
+        li.appendChild(createTaskImg(
+            "{{url_for('static', filename='images/remove-button.png')}}",
+            "task-btn-remove", "remove-task"
+        ));
+        li.appendChild(createTaskImg(
+            "{{url_for('static', filename='images/move-button.png')}}",
+            "task-btn-move", "move-task"
+        ));
+
+        return li;
+    }
+
+    function createTaskImg(imgsrc, classname, alt) {
+        var div = document.createElement("div");
+        div.className = "task-btn " + classname;
+        var img = document.createElement("img");
+        img.src = imgsrc;
+        img.alt = alt;
+        img.width = "26";
+        img.height = "26";
+        div.appendChild(img);
+        return div;
+    }
+
+    function createNoteElement(note) {
+        var li = document.createElement("li");
+        li.className = "project-note";
+        li.setAttribute("data-note-id", note.id);
+
+        var divContent = document.createElement("div");
+        divContent.className =  "note-content";
+
+        var divDate = document.createElement("div");
+        divDate.className = "note-date";
+        divDate.innerHTML = moment(note.timestamp).format("LLL");
+
+        var divTitle = document.createElement("div");
+        divTitle.className = "note-title";
+        divTitle.innerHTML = note.title;
+
+        var divTags = document.createElement("div");
+        divTags.className = "note-tags";
+        divTags.innerHTML = note.tags.map(function(obj) { return obj.name; }).join(", ");
+
+        var divBody = document.createElement("div");
+        divBody.className = "note-body";
+        divBody.innerHTML = note.body;
+
+        var divFooter = document.createElement("div");
+        divFooter.className = "note-footer";
+
+        var divEdit = document.createElement("div");
+        divEdit.className = "note-btn-edit btn btn-primary btn-xs";
+        divEdit.setAttribute("data-note-id", note.id);
+        divEdit.role = "button";
+        divEdit.innerHTML = "Edit";
+
+        var divRemove = document.createElement("div");
+        divRemove.className = "note-btn-remove btn btn-danger btn-xs";
+        divRemove.setAttribute("data-note-id", note.id);
+        divRemove.role = "button";
+        divRemove.innerHTML = "Remove";
+
+        divFooter.appendChild(divEdit);
+        divFooter.appendChild(divRemove);
+
+        divContent.appendChild(divDate);
+        divContent.appendChild(divTitle);
+        divContent.appendChild(divTags);
+        divContent.appendChild(divBody);
+        divContent.appendChild(divFooter);
+
+        li.appendChild(divContent);
+        return li;
+    }
+
+    function showProjectInfo() {
+        var projectId = {{ project.id }};
+        getProjectInfo(projectId, function(response) {
+            if (response.status == "success") {
+                    $(".project-edit").hide();
+                    $("#project-edit-header").html("Project Info");
+                    $("#project-info-name").html(response.data.name);
+                    $("#project-info-deadline").html(moment(response.data.deadline).format("LL"));
+                    $("#project-info-description").html(response.data.description);
+                    $("#project-upcoming-tasks").empty();
+                    for (var i = 0; i < response.data.tasks2do.length; i++) {
+                        $("#project-upcoming-tasks").append(
+                            "<li><em>" + response.data.tasks2do[i].title + "</em> on " +
+                            moment(response.data.tasks2do[i].deadline).format("LLL") + " - <strong>" +
+                            response.data.tasks2do[i].title + "</strong></li>"
+                        );
+                    }
+                    $("#project-info").fadeIn(500);   
+            } else {
+                showErrorInfo(response.data.info);
+            }
+        });
+    }
+
+    function showTaskInfo(taskid) {
+        getTaskInfo(taskid, function(response) { 
+            if (response.status == "success") {
+                var data = response.data;
+                $(".project-edit").hide();
+                $("#task-info").fadeIn(500);
+                $("#project-edit-header").html("Task Info");
+                $("#task-info-title").html(data.title);
+                var deadline = moment(data.deadline);
+                $("#task-info-deadline").html(deadline.format("LLL") + " (" + moment().to(deadline) + ")");
+                $("#task-info-notes").html(data.notes); 
+                $("#task-info-tags").html(data.tags.map(function(elem) { return elem.name; }).join(", "));
+            } else {
+                showErrorInfo(response.data.info);
+            }
+        });
+    }
+
+    function showMilestoneInfo(id) {
+        getMilestoneInfo(id, function(response) { 
+            if (response.status == "success") {
+                $(".project-edit").hide();
+                $("#milestone-info").fadeIn(500);
+                $("#project-edit-header").html("Milestone Info");
+                $("#milestone-info-title").html(response.data.title);
+                $("#milestone-info-description").html(response.data.description);     
+            } else {
+                showErrorInfo(response.data.info);
+            }
+        }); 
+    }
+
+    function showErrorInfo(info) {
+        $(".project-edit").hide();
+        $("#project-edit-header").html("Project Error");
+        $("#project-error-info").html(info);
+        $("#project-error").fadeIn(500);        
+    }
+
+    //********************************************************************************
+
+    $(document).on("click", ".milestone-label", function() {
+        $(this).siblings().filter(".milestone-tasks").toggle();
+        $(this).siblings().filter(".milestone-options").toggle();
+        $(this).find(".arrow").toggleClass("arrow-down arrow-up");
+
+        if ($(this).next().is(":visible")) {
+            showMilestoneInfo($(this).parent().data("milestoneid"));
+        }
+    });
+
+    $(document).on("click", ".milestone-option-edit", function() {
+        getMilestoneInfo($(this).parent().parent().parent().data("milestoneid"), 
+            function(response) { 
+                if (response.status == "success") {
+                    $(".project-edit").hide();
+                    $("#milestone-edit").show();
+                    $("#project-edit-header").html("Edit Milestone");
+                    $("#milestone-edit-title").val(response.data.title);
+                    $("#milestone-edit-description").val(response.data.description);
+                    $("#milestone-edit-id").val(response.data.id);
+                } else {
+                    showErrorInfo(response.data.info);
+                }
+            }
+        );
+    });
+
+    $(document).on("click", ".milestone-option-add-task", function() {
+        $(".project-edit").hide();
+        $("#task-edit").show();
+        $("#project-edit-header").html("Add Task");
+        $("#task-edit-milestoneid").val($(this).parent().parent().parent().data("milestoneid"));
+        $("#task-edit-title").val("");
+        $("#task-edit-deadline").val("");
+        $("#task-edit-notes").val(""); 
+        $("#task-edit-id").val("");  
+        tagsPicker.task.clear();
+    });
+
+    $(document).on("click", ".milestone-option-move-up", function() {
+        moveMilestone($(this).parent().parent().parent().data("milestoneid"), 1, function(response) {
+            if (response.id) {
+                var $obj2move = $(".project-milestone[data-milestoneid='" + response.id + "']");
+                var $refObj = $obj2move.prev();
+                $obj2move.fadeOut(0).detach();
+                $refObj.before($obj2move);
+                $obj2move.fadeIn(500);
+            }
+        });
+    });
+
+    $(document).on("click", ".milestone-option-move-down", function() {
+        moveMilestone($(this).parent().parent().parent().data("milestoneid"), -1, function(response) {
+            if (response.id) {
+                var $obj2move = $(".project-milestone[data-milestoneid='" + response.id + "']");
+                var $refObj = $obj2move.next();
+                $obj2move.fadeOut(0).detach();
+                $refObj.after($obj2move);
+                $obj2move.fadeIn(500);
+            }
+        });
+    });
+
+    $(document).on("click", ".milestone-option-remove", function() {
+        if (confirm("Are you sure you want to remove this milestone?")) {
+            $.ajax({
+                url: "milestone/remove",
+                type: "POST",
+                contentType: "application/json; charset-utf-8",
+                data: JSON.stringify({
+                    milestoneid: $(this).parent().parent().parent().data("milestoneid")
+                }),
+                cache: false,
+                dataType: "json",
+                success: function(response) {
+                    if (response.status == "success") {
+                        var $obj2remove = $(".project-milestone[data-milestoneid='" + 
+                            response.data.id + "']");
+                        $obj2remove.remove();
+                    } else {
+                        showErrorInfo(response.data.info);
+                    }
+                },
+                error: projectErrorHandler
+            });
+        }
+    });
+
+    $(document).on("click", ".milestone-task", function() {
+        showTaskInfo($(this).data("task-id"));
+    });
+
+    $(document).on("click", ".task-btn-edit", function() {
+        getTaskInfo($(this).parent().data("task-id"), function(response) {
+            if (response.status == "success") {
+                var data = response.data;
+
+                $(".project-edit").hide();
+                $("#task-edit").fadeIn(500);
+                $("#project-edit-header").html("Edit Task");
+                $("#task-edit-title").val(data.title);
+                var deadline = moment(data.deadline);
+                $("#task-edit-deadline").val(deadline.format("YYYY-MM-DD HH:mm"));
+                $("#task-edit-notes").val(data.notes); 
+                $("#task-edit-id").val(data.id);   
+
+                tagsPicker.task.clear(); 
+                data.tags.forEach(function(obj) {
+                    tagsPicker.task.select.call(tagsPicker.task, obj.id);
+                });
+            }
+        });
+        return false;
+    });
+
+    $(document).on("click", ".task-btn-remove", function() {
+        if (confirm("Are you sure you want to remove this task?")) {
+            $.ajax({
+                url: 'task/remove',
+                type: 'POST',
+                contentType: 'application/json; charset=utf-8',
+                data: JSON.stringify({ 
+                    taskid: $(this).parent().data("task-id")
+                }),
+                cache: false,
+                dataType: "json",
+                success: function(response) {
+                    var $taskDiv = $(".milestone-task[data-task-id='" + response.id + "']");
+                    $taskDiv.remove();
+
+                    // What if user edit one task, and remove another one
+                    // showMilestoneInfo(response.milestoneid);
+                },
+                error: projectErrorHandler
+            });
+        }
+        return false;
+    });
+
+    $(document).on("click", ".task-btn-check", function() {
+        var taskStatus = $(this).parent().data("task-status");
+
+        var newStatus = "active";
+        if (taskStatus === "" || taskStatus  === "active") {
+            newStatus = "complete";
+        }
+
+        $.ajax({
+            url: 'task/status',
+            type: 'POST',
+            contentType: 'application/json; charset=utf-8',
+            data: JSON.stringify({ 
+                taskid: $(this).parent().data("task-id"),
+                status: newStatus
+            }),
+            cache: false,
+            dataType: "json",
+            success: function(response) {
+                if (response.status == "success") {
+                    var $taskDiv = $(".milestone-task[data-task-id='" + response.data.id + "']");
+                    if (response.data.status == "active") {
+                        $taskDiv.find(".task-btn-check").find("img").attr("src",
+                            "{{url_for('static', filename='images/unchecked_checkbox.png')}}");    
+                    } else {
+                        $taskDiv.find(".task-btn-check").find("img").attr("src",
+                            "{{url_for('static', filename='images/checked_checkbox.png')}}");  
+                    }
+                    $taskDiv.data("task-status", response.data.status);
+                } else {
+                    showErrorInfo(response.data.info);
+                }
+            },
+            error: projectErrorHandler
+        });       
+        return false;
+    });
+
+    $(document).on("click", ".task-btn-move", function() {
+        var task_id = $(this).parent().data("task-id");
+
+        $.ajax({
+                url: 'milestone/list4task',
+                type: 'POST',
+                contentType: 'application/json; charset=utf-8',
+                data: JSON.stringify({ 
+                    taskid: task_id
+                }),
+                cache: false,
+                dataType: "json",
+                success: function(response) {
+                    if (response.status == "success") {
+                        var $select = $('#move-task-milestones');
+                        $select.empty();
+                        $select.append("<option disabled selected value='none'>--Select Milestone--</option>");
+                        $.each(response.milestones, function(val, text) {
+                            $select.append(
+                                $('<option></option>').val(val).html(text)
+                            );
+                        });
+                        $("#move-task-taskid").val(task_id);
+                        $('#move-task-model').modal('show');
+                    } else {
+                        alert("Error while retriving milestones.");
+                    }
+                },
+                error: projectErrorHandler
+            });   
+        
+        return false;
+    });
+
+    $("#move-task-btn").click(function() {
+        var milestoneId = $("#move-task-milestones").val();
+        var taskId = $("#move-task-taskid").val();
+        $.ajax({
+            url: "task/move",
+            type: "POST",
+            contentType: "application/json; charset=utf-8",
+            data: JSON.stringify({
+                taskid: taskId,
+                milestoneid: milestoneId
+            }),
+            cache: false,
+            dataType: "json",
+            success: function(response) {
+                if (response.status == "success") {
+                    var $task = $(".milestone-task[data-task-id='" + response.id + "']");
+                    var $newMilestone = $(".project-milestone[data-milestoneid='" + 
+                        response.milestoneid + "']").find(".milestone-tasks");
+                    $task.detach();
+                    $task.appendTo($newMilestone);
+                    $('#move-task-model').modal('hide');
+                }
+            },
+            error: projectErrorHandler
+        });
+    });
+
+    $("#add-milestone").click(function() {
+        $(".project-edit").hide();
+        $("#milestone-edit").show();
+        $("#project-edit-header").html("Add Milestone");
+        $("#milestone-edit-title").val("");
+        $("#milestone-edit-description").val("");
+        $("#milestone-edit-id").val("");
+    });
+    $("#milestone-edit-submit").click(function() {
+        $.ajax({
+            url: 'milestone/edit',
+            type: 'POST',
+            contentType: 'application/json; charset=utf-8',
+            data: JSON.stringify({ 
+                id: $("#milestone-edit-id").val(),
+                title: $("#milestone-edit-title").val(),
+                description: $("#milestone-edit-description").val(),
+                projectid: $("#milestone-edit-projectid").val()
+            }),
+            cache: false,
+            dataType: "json",
+            success: function(response) {
+                if (response.status == "success") {
+                    var $obj2update = $(".project-milestone[data-milestoneid='" + response.data.id + "']");
+                    if ($obj2update.length > 0) {
+                        $obj2update.find(".milestone-title").html(response.data.title);
+                    } else {
+                        var milestone = createMilestoneElement(response.data.id, response.data.title);
+                        $(".project-plan").children().last().before(milestone);
+                    }
+                    showMilestoneInfo(response.data.id);
+                } else {
+                    showErrorInfo(response.data.info);
+                }
+            },
+            error: projectErrorHandler
+        });
+    });
+    $("#milestone-edit-abort").click(function() {
+        if ($("#milestone-edit-id").val() == "") {
+            showProjectInfo();
+        } else {
+            showMilestoneInfo($("#milestone-edit-id").val());
+        }
+    });
+
+    $("#task-edit-submit").click(function() {
+        $.ajax({
+            url: 'task/edit',
+            type: 'POST',
+            contentType: 'application/json; charset=utf-8',
+            data: JSON.stringify({ 
+                id: $("#task-edit-id").val(),
+                title: $("#task-edit-title").val(),
+                notes: $("#task-edit-notes").val(),
+                deadline: $("#task-edit-deadline").val(),
+                projectid: $("#task-edit-projectid").val(),
+                milestoneid: $("#task-edit-milestoneid").val(),
+                tags: $("#task-edit-tags-output").val()
+            }),
+            cache: false,
+            dataType: "json",
+            success: function(response) {
+                if (response.status == "success") {
+                    var taskDiv = $(".milestone-task[data-task-id='" + response.data.id + "']")
+                    if (taskDiv.length > 0) { // update task
+                        taskDiv.find(".task-title").html(response.data.title);
+                    } else { // add new task
+                        var taskDiv = createTaskElement(response.data.id, response.data.title, "active");  
+                        var $milestone = $(".project-milestone[data-milestoneid='" + 
+                            $("#task-edit-milestoneid").val() + "']"); 
+                        $milestone.children().filter(".milestone-tasks").append(taskDiv);
+                    }
+                    showTaskInfo(response.data.id);
+                } else {
+                    showErrorInfo(response.data.info);
+                }
+            },
+            error: projectErrorHandler
+        });
+    });
+
+    $("#task-edit-abort").click(function() {
+        if ($("#task-edit-id").val() == "") {
+            showProjectInfo();
+        } else {
+            showTaskInfo($("#task-edit-id").val());
+        }
+    });
+
+    $("#add-note").click(function() {
+        $(".project-edit").hide();
+        $("#note-edit").show();
+        $("#project-edit-header").html("Add Note");
+        $("#note-edit-title").val("");
+        $("#note-edit-body").val("");
+        $("#note-edit-id").val("");
+        tagsPicker.note.clear();
+    });
+
+    $("#note-edit-submit").click(function() {
+        $.ajax({
+            url: 'note/edit',
+            type: 'POST',
+            contentType: 'application/json; charset=utf-8',
+            data: JSON.stringify({ 
+                id: $("#note-edit-id").val(),
+                title: $("#note-edit-title").val(),
+                body: $("#note-edit-body").val(),
+                projectid: $("#note-edit-projectid").val(),
+                tags: $("#note-edit-tags-output").val()
+            }),
+
+            cache: false,
+            dataType: "json",
+            success: function(response) {
+                if (response.status == "success") {
+                    var noteDiv = $(".project-note[data-note-id='" + response.data.id + "']")
+                    if (noteDiv.length > 0) { // update task
+                        noteDiv.find(".note-title").html(response.data.title);
+                        noteDiv.find(".note-body").html(response.data.body);
+                        noteDiv.find(".note-tags").html(response.data.tags.map(
+                            function(obj) { return obj.name }).join(", "));
+                    } else { // add new task
+                        noteDiv = createNoteElement(response.data);
+                        $(".project-notes").prepend(noteDiv);
+                    }
+                    showProjectInfo();
+                } else {
+                    showErrorInfo(response.data.info);
+                }
+            },
+            error: projectErrorHandler
+        });
+    });
+
+    $("#note-edit-abort").click(function() {
+            showProjectInfo();
+    });
+
+    $(document).on("click", ".note-btn-edit", function() {
+        var noteId = $(this).data("note-id");
+        getNoteInfo(noteId, function(response) {
+            if (response.status == "success") {
+                var data = response.data;
+
+                $(".project-edit").hide();
+                $("#note-edit").fadeIn(500);
+                $("#project-edit-header").html("Edit Note");
+                $("#note-edit-title").val(data.title);
+                $("#note-edit-body").val(data.body); 
+                $("#note-edit-id").val(data.id);  
+
+                tagsPicker.note.clear(); 
+                data.tags.forEach(function(obj) {
+                    tagsPicker.note.select.call(tagsPicker.note, obj.id);
+                });
+            } else {
+                showErrorInfo(response.data.info);
+            }
+            document.getElementById("project-info-anchor").scrollIntoView();
+        });
+    });
+    $(document).on("click", ".note-btn-remove", function() {
+        if (confirm("Are you sure you want to remove this note?")) {
+            var noteId = $(this).data("note-id");
+            $.ajax({
+                url: "note/remove",
+                type: "POST",
+                contentType: "application/json; charset-uf-8",
+                data: JSON.stringify({
+                    id: noteId
+                }),
+                cache: false,
+                dataType: "json",
+                success: function(response) {
+                    $(".project-note[data-note-id='" + noteId + "']").fadeOut(250, function() {
+                        $(this).remove();
+                    });
+                },
+                error: projectErrorHandler
+            });
+        }
+    });
+
+    $(".project-btn-edit").click(function() {
+        var projectId = $(this).parent().data("project-id");
+        $.ajax({
+            url: "get",
+            type: "POST",
+            contentType: "application/json; charset-uf-8",
+            data: JSON.stringify({
+                id: projectId
+            }),
+            cache: false,
+            dataType: "json",
+            success: function(response) {
+                if (response.status == "success") {
+                    $(".project-edit").hide();
+                    $("#project-edit").fadeIn(500);
+                    $("#project-edit-header").html("Edit Project");
+                    $("#project-edit-name").val(response.data.name);
+                    $("#project-edit-deadline").val(response.data.deadline);
+                    $("#project-edit-description").val(response.data.body); 
+                    document.getElementById("project-info-anchor").scrollIntoView(); 
+                } else {
+                    showErrorInfo(response.data.info);
+                    document.getElementById("project-info-anchor").scrollIntoView(); 
+                }
+            },
+            error: projectErrorHandler
+        })
+    });
+
+    $("#project-edit-submit").click(function() {
+        $.ajax({
+            url: 'edit',
+            type: 'POST',
+            contentType: 'application/json; charset=utf-8',
+            data: JSON.stringify({ 
+                id: $("#project-edit-id").val(),
+                name: $("#project-edit-name").val(),
+                deadline: $("#project-edit-deadline").val(),
+                description: $("#project-edit-description").val()
+            }),
+            cache: false,
+            dataType: "json",
+            success: function(response) {
+                if (response.status == "success") {
+                    $("#project-edit-id").val(response.data.id);
+                    $("#project-main-header").html("Project " + response.data.name);
+                    $("#project-info-name").html(response.data.name);
+                    $("#project-info-deadline").html(moment(response.data.deadline).format("LL"));
+                    $("#project-info-description").html(response.data.description);
+                    showProjectInfo();
+                } else {
+                    showErrorInfo(response.data.info);
+                }
+            },
+            error: projectErrorHandler
+        });
+    });
+
+    $("#project-main-header").click(function() {
+        showProjectInfo();
+    })
+
+    $("#project-edit-abort").click(function() {
+        showProjectInfo();
+    });
+
+    $(".project-edit").hide();
+    $("#project-info").show();
+    $('#project-deadlinepicker').datetimepicker({
+        format: "YYYY-MM-DD HH:mm"
+    });
+    $('#task-deadlinepicker').datetimepicker({
+        format: "YYYY-MM-DD HH:mm"
+    });
+
+</script>
+{% endblock %}
+
+{% block page_content %}
+{% if project %}
+<div class="page-header project-page-header" data-project-id="{{project.id}}">
+    <h1 id="project-main-header">Project {{project.name}}</h1>
+    <div class="project-btn-edit btn btn-primary btn-xs" role="button">
+        Edit
+    </div>
+    <!-- After removal of the project, user neets to be redirect to other page, so
+    there is no sens in using ajax. -->
+    <a href="{{url_for('eboard.project_remove', projectid=project.id)}}" 
+        onclick="return confirm('Are your sure you want to remove the project, its all milestones, tasks and notes?')"
+        class="btn btn-danger btn-xs" role="button">Remove</a>
+    <div>
+        <div class="progress">
+            <div class="progress-bar progress-bar-success" role="progressbar" 
+                aria-valuenow="{{project.progress}}" aria-valuemin="0" aria-valuemax="100" 
+                style="width: {{project.progress}}%">
+                {{project.progress}}% Complete
+            </div>
+        </div>
+        <div>
+            
+            {{moment(project.created).format("YYYY-MM-DD")}}
+            <span id="progress-deadline">
+                {{moment(project.deadline).format("YYYY-MM-DD")}}
+            </span>
+        </div>
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-7">
+        <div class="project-plan-wrapper">
+            <h3 class="project-header">Project Plan</h3>
+            <ol class="project-plan">
+                {% for milestone in project.milestones|sort(attribute='position') %}
+                    <li class="project-milestone" data-milestoneid="{{milestone.id}}">
+                        <div class="milestone-label">
+                            <span class="milestone-title">{{ milestone.title }}</span>
+                            <div class="arrow arrow-down"></div>
+                        </div>
+                        <ul class="milestone-options">
+                            <li class="milestone-option">
+                                <div class="milestone-option-add-task">Add Task</div>
+                            </li>
+                            <li class="milestone-option">
+                                <div class="milestone-option-move-up">Move Up</div>
+                            </li>
+                            <li class="milestone-option">
+                                <div class="milestone-option-move-down">Move Down</div>
+                            </li>
+                            <li class="milestone-option">
+                                <div class="milestone-option-edit">Edit</div>
+                            </li>
+                            <li class="milestone-option">
+                                <div class="milestone-option-remove">Remove</div>
+                            </li>
+                        </ul>
+                        <ul class="milestone-tasks">
+                            {% for task in milestone.tasks|sort(attribute="created", reverse=False) %}
+                                <li class = "milestone-task" data-task-id = "{{task.id}}" 
+                                    data-task-status = "{{task.status.name}}">
+                                    <span class="task-title">{{task.title}}</span>
+                                    <div class="task-btn task-btn-check">
+                                        {% if task.status.name == "active" %}
+                                            <img src="{{url_for('static', filename='images/unchecked_checkbox.png')}}"
+                                                alt="unechecked-checkbox" width="26" height="26">
+                                        {% elif task.status.name == "complete" %}
+                                            <img src="{{url_for('static', filename='images/checked_checkbox.png')}}"
+                                                alt="checked_checkbox" width="26" height="26">
+                                        {% elif task.status.name == "cancelled" %}
+                                            <img src="{{url_for('static', filename='images/withdraw_checkbox.png')}}"
+                                                alt="checked_checkbox" width="26" height="26">
+                                        {% endif %}
+                                    </div>
+                                    <div class="task-btn task-btn-edit">
+                                        <img src="{{url_for('static', filename='images/edit-button.png')}}" 
+                                            alt="edit-task" width="26" height="26">
+                                    </div>
+                                    <div class="task-btn task-btn-remove">
+                                        <img src="{{url_for('static', filename='images/remove-button.png')}}"
+                                            alt="remove-task" width="26" height="26">
+                                    </div>
+                                    <div class="task-btn task-btn-move">
+                                        <img src="{{url_for('static', filename='images/move-button.png')}}"
+                                            alt="move-task" width="26" height="26">
+                                    </div>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    </li>
+                {% endfor %}
+                <li class="project-milestone project-extra-options">
+                    <div id="add-milestone" class="btn btn-primary" role="button">
+                        Add Milestone
+                    </div>
+                </li>
+            </ol>
+        </div>
+        <div class="project-notes-wrapper">
+            <h3 class="project-header">Project Notes</h3>
+            <ul class="project-notes">
+                {% for note in project.notes | sort(attribute="timestamp", reverse=True) %}
+                    <li class="project-note" data-note-id="{{note.id}}">
+                        <div class="note-content">
+                            <div class="note-date">{{moment(note.timestamp).format("LLL")}} 
+                                ({{moment(note.timestamp).fromNow()}})</div>
+                            <div class="note-title">{{note.title}}</div>
+                            <div class="note-tags">{{note.tags | join(' ', attribute='name')}}</div>
+                            <div class="note-body">{{note.body|safe}}</div>
+                            <div class="note-footer">
+                                <div class="note-btn-edit btn btn-primary btn-xs" data-note-id="{{note.id}}" role="button">
+                                    Edit
+                                </div>
+                                <div class="note-btn-remove btn btn-danger btn-xs" data-note-id="{{note.id}}" role="button">
+                                    Remove
+                                </div>
+                            </div>
+                        </div>
+                    </li>
+                {% endfor %}
+                <li class="project-note project-extra-options">
+                    <div id="add-note" class="btn btn-primary" role="button">
+                        Add Note
+                    </div>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="col-md-5">
+        <div class="project-info-wrapper" id="project-info-anchor">
+            <h3 class="project-header" id="project-edit-header">Project info</h3>
+            <div class="project-edit" id="project-error">
+                 <dl class="dl">
+                    <dt>Info</dt>
+                    <dd id="project-error-info"></dd>
+                </dl>               
+            </div>
+            <div class="project-edit" id="project-info">
+                <dl class="dl">
+                    <dt>Name</dt>
+                    <dd id="project-info-name">{{project.name}}</dd>
+                    <dt>Deadline</dt>
+                    <dd id="project-info-deadline">{{ moment(project.deadline).format("LL") }}</dd>
+                    <dt>Description</dt>
+                    <dd id="project-info-description">{{project.description}}</dd>
+                </dl>
+                <div>
+                    <h4>Upcoming Tasks</h4>
+                    {% if project.tasks2do %}
+                        <ul id="project-upcoming-tasks">
+                            {% for task in project.tasks2do %}
+                                <li><em>{{task.title}} </em> on {{ moment(task.deadline).format("LLL") }} - 
+                                    <strong>{{task.milestone.title}}</strong></li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p>No task</p>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="project-edit" id="project-edit">
+                <form role="form">
+                    <div class="form-group required">
+                        <label class="control-label" for="title">Name</label> 
+                        <input autocomplete="off" class="form-control input-sm" id="project-edit-name" 
+                            name="name" required="" type="text" value="">
+                    </div>
+                    <div class="form-group required">
+                        <label class="control-label" for="deadline">Deadline</label> 
+                        <div class='input-group date' id='project-deadlinepicker'>
+                            <input autocomplete="off" class="form-control input-sm" id="project-edit-deadline" 
+                                name="deadline" required="" type="date" value="">
+                            <span class="input-group-addon">
+                                <span class="glyphicon glyphicon-calendar"></span>
+                            </span>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="control-label" for="notes">Description</label> 
+                        <textarea class="form-control input-sm" id="project-edit-description" name="notes" rows="8"></textarea>
+                    </div>
+                    <input type="hidden" name="projectid" value="{{project.id}}" id="project-edit-id">
+                    <div class="form-group">
+                        <input class="btn btn-primary" id="project-edit-submit" type="button" value="Submit">
+                        <input class="btn btn-danger" id="project-edit-abort" type="button" value="Abort">
+                    </div>
+                </form>
+
+            </div>
+            <div class="project-edit" id="milestone-info">
+                <dl class="dl">
+                    <dt>Title</dt>
+                    <dd id="milestone-info-title"></dd>
+                    <dt>Description</dt>
+                    <dd id="milestone-info-description"></dd>
+                </dl>
+            </div>
+
+            <!-- Add/Edit Milestone -->
+            <div class="project-edit" id="milestone-edit">
+                <form method="post" action="" role="form">
+                    <div class="form-group required">
+                        <label class="control-label" for="title">Title</label> 
+                        <input autocomplete="off" class="form-control input-sm" id="milestone-edit-title" 
+                            name="title" required="" type="text" value="">
+                    </div>
+                    <div class="form-group">
+                        <label class="control-label" for="description">Description</label> 
+                        <textarea class="form-control input-sm" id="milestone-edit-description" 
+                            name="description" required="" rows="8"></textarea>
+                    </div>
+                    <input type="hidden" name="milestoneid" value="" id="milestone-edit-id">
+                    <input type="hidden" name="projectid" value="{{project.id}}" id="milestone-edit-projectid">
+                    <div class="form-group">
+                        <input class="btn btn-primary" id="milestone-edit-submit" type="button" value="Submit">
+                        <input class="btn btn-danger" id="milestone-edit-abort" type="button" value="Abort">
+                    </div>
+                </form>
+            </div>
+            <!-- Add/Edit Milestone -->
+
+            <div class="project-edit" id="task-info">
+                <dl class="dl">
+                    <dt>Title</dt>
+                    <dd id="task-info-title"></dd>
+                    <dt>Deadline</dt>
+                    <dd id="task-info-deadline"></dd>
+                    <dt>Notes</dt>
+                    <dd id="task-info-notes"></dd>
+                    <dt>Tags</dt>
+                    <dd id="task-info-tags"></dd>
+                </dl>
+            </div>
+
+            <!-- Add/Edit Task -->
+            <div class="project-edit" id="task-edit">
+                <form>
+                    <div class="form-group required">
+                        <label class="control-label" for="title">Title</label> 
+                        <input autocomplete="off" class="form-control input-sm" id="task-edit-title" 
+                            name="title" required="" type="text" value="">
+                    </div>
+                    <div class="form-group required">
+                        <label class="control-label" for="deadline">Deadline</label> 
+                        <div class='input-group date' id="task-deadlinepicker">
+                            <input autocomplete="off" class="form-control input-sm" id="task-edit-deadline" 
+                                name="deadline" required="" type="date" value="">
+                            <span class="input-group-addon">
+                                <span class="glyphicon glyphicon-calendar"></span>
+                            </span>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="control-label" for="notes">Notes</label> 
+                        <textarea class="form-control input-sm" id="task-edit-notes" name="notes" rows="6"></textarea>
+                    </div>
+                    
+                    {{ macros.newtag_select("task-edit-tags", "task-edit-tags-select", "task-edit-tags-output") }}
+
+                    <input type="hidden" name="taskid" value="" id="task-edit-id">
+                    <input type="hidden" name="milestoneid" value="" id="task-edit-milestoneid">
+                    <input type="hidden" name="projectid" value="{{project.id}}" id="task-edit-projectid">
+
+                    <div class="form-group">
+                        <input class="btn btn-primary" id="task-edit-submit" type="button" value="Submit">
+                        <input class="btn btn-danger" id="task-edit-abort" type="button" value="Abort">
+                    </div>
+                </form>
+            </div>
+            <!-- Add/Edit Task -->
+
+            <!-- Add/Edit Note -->
+            <div class="project-edit" id="note-edit">
+                <form>
+                    <div class="form-group required">
+                        <label class="control-label" for="title">Title</label> 
+                        <input autocomplete="off" class="form-control input-sm" id="note-edit-title" 
+                            name="title" required="" type="text" value="">
+                    </div>
+                    <div class="form-group">
+                        <label class="control-label" for="notes">Body</label> 
+                        <textarea class="form-control input-sm" id="note-edit-body" name="notes" rows="6"></textarea>
+                    </div>
+
+                    {{ macros.newtag_select("note-edit-tags", "note-edit-tags-select", "note-edit-tags-output") }}
+
+                    <input type="hidden" name="noteid" value="" id="note-edit-id">
+                    <input type="hidden" name="projectid" value="{{project.id}}" id="note-edit-projectid">
+                    <div class="form-group">
+                        <input class="btn btn-primary" id="note-edit-submit" type="button" value="Submit">
+                        <input class="btn btn-danger" id="note-edit-abort" type="button" value="Abort">
+                    </div>
+                </form>
+            </div>
+             <!-- Add/Edit Note -->           
+
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="container">
+    <ul class="project-notes">
+        {% for project in projects %}
+            <li class="project-note" data-note-id="{{project.id}}">
+                <div class="note-content">
+                    <div class="note-date">{{moment(project.deadline).format("LLL")}}</div>
+                    <div class="note-title">{{project.name}}</div>
+                    <div class="note-body">{{project.description}}</div>
+                </div>
+            </li>
+        {% endfor %}
+    </ul>
+    <div id="new-project" class="btn btn-primary" role="button">
+        Create New project
+    </div>
+</div>
+{% endif %}
+{% endblock %} 
+
+{% block content %}
+{{ super() }}
+<!-- Move Task To Other Model -->
+<div class="modal" id="move-task-model" role="dialog" aria-labelledby="gridSystemModalLabel">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                <h4 class="modal-title" id="gridSystemModalLabel">Move Task to Milestone</h4>
+            </div>
+            <div class="modal-body">
+                <p>Move task to one of the project's milestones.</p>
+                <select class="form-control" name="milestone" id="move-task-milestones">
+                </select>
+                <input type="hidden" name="taskid" value="" id="move-task-taskid"/>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">Abort</button>
+                <button type="button" class="btn btn-primary" id="move-task-btn">Ok</button>
+            </div>
+        </div><!-- /.modal-content -->
+    </div><!-- /.modal-dialog -->
+</div><!-- /.modal -->
+{{ macros.newtag_model("new-tag-model", "new-tag-name") }}
+{% endblock %}

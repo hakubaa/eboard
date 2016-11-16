@@ -1,0 +1,8 @@
+*.pyc
+*sqlite*
+*sublime-project
+*sublime-workspace
+dist
+__pycache__
+db.migrate.txt
+venv

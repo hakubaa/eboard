@@ -1,0 +1,147 @@
+{% macro pagination_widget(pagination, endpoint) %}
+
+<ul class="pagination">
+    <li{% if not pagination.has_prev %} class="disabled"{% endif %}>
+        <a href="{% if pagination.has_prev %}{{ url_for(endpoint,
+        page = pagination.page - 1, **kwargs) }}{% else %}#{% endif %}">
+        &laquo;
+        </a>
+    </li>
+    {% for p in pagination.iter_pages() %}
+        {% if p %}
+            {% if p == pagination.page %}
+                <li class="active">
+                    <a href="{{ url_for(endpoint, page = p, **kwargs) }}">{{ p }}</a>
+                </li>
+            {% else %}
+                <li>
+                    <a href="{{ url_for(endpoint, page = p, **kwargs) }}">{{ p }}</a>
+                </li>
+            {% endif %}
+        {% else %}
+            <li class="disabled"><a href="#">&hellip;</a></li>
+        {% endif %}
+    {% endfor %}
+    <li{% if not pagination.has_next %} class="disabled"{% endif %}>
+        <a href="{% if pagination.has_next %}{{ url_for(endpoint,
+        page = pagination.page + 1, **kwargs) }}{% else %}#{% endif %}">
+        &raquo;
+        </a>
+    </li>
+</ul>
+
+{% endmacro %}
+
+{% macro newtag_model(modelid, newtagid) %}
+<!-- Modal Add New Tag -->
+<div class="modal" id="{{modelid}}" role="dialog" aria-labelledby="gridSystemModalLabel">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                <h4 class="modal-title" id="gridSystemModalLabel">Add New Tag</h4>
+            </div>
+            <div class="modal-body">
+                <input class="form-control input-sm" id="{{newtagid}}" name="tagname" placeholder="Enter tag name" 
+                    required="" type="text" value="" autocomplete="off" autofocus>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="new-tag-btn">Add Tag</button>
+            </div>
+        </div><!-- /.modal-content -->
+    </div><!-- /.modal-dialog -->
+</div><!-- /.modal -->
+{% endmacro %}
+
+{% macro newtag_select(tagslistid, tagselectid, tagsoutputid) %}
+<div class="form-group">
+    <label class="control-label" for="tags-list">Tags</label> 
+    <div>
+        <ul class="list-inline" id="{{tagslistid}}">
+            <li>
+                <select class="form-control input-sm ignore" id="{{tagselectid}}" name="tag" value="none">
+                </select>
+            </li>
+        </ul>
+    </div>
+</div>
+<input autocomplete="off" id="{{tagsoutputid}}" name="tags" type="hidden" value="">
+{% endmacro %}
+
+
+{% macro newevent_model(modelid) %}
+<!-- Modal Add New Tag -->
+<div class="modal" id="{{modelid}}" role="dialog" aria-labelledby="event-model-title">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+
+            <div class="event-bookmark" id="event-edit">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                    <h4 class="modal-title" id="event-model-title">Add New Event</h4>
+                    <p>
+                        <strong>From</strong> <em id="header-event-start"></em> 
+                        <strong>to</strong> <em id="header-event-end"></em>
+                    </p>
+                </div>
+                <div class="modal-body">
+                    <form>
+
+                        <div class="form-group required">
+                            <label class="control-label" for="title">Title</label> 
+                            <input autocomplete="off" class="form-control input-sm" id="new-event-title" 
+                                name="title" required="" type="text" value="">
+                        </div>
+                        <div class="form-group">
+                            <label class="control-label" for="notes">Description</label> 
+                            <textarea class="form-control input-sm" id="new-event-description" name="description" rows="6"></textarea>
+                        </div>
+
+                        <input type="hidden" name="eventstart" value="" id="new-event-start">
+                        <input type="hidden" name="eventend" value="" id="new-event-end">
+                        <input type="hidden" name="eventid" value="", id="new-event-id">
+                        <input type="hidden" name="allday" value="", id="new-event-allday">
+
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" id="new-event-btn">Add Event</button>
+                </div>
+            </div>
+
+            <div class="event-bookmark" id="event-info">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                    <h3 class="modal-title" id="event-info-title"></h3>
+                    <div class="btn btn-primary btn-xs" id="event-edit-btn" role="button">
+                        Edit
+                    </div>
+                    <div class="btn btn-danger btn-xs" id="event-remove-btn" role="button">
+                        Remove
+                    </div>
+                </div>
+                <div class="modal-body">
+                    <dl class="dl-horizontal">
+                        <dt>Title</dt>
+                        <dd id="event-info-title2"></dd>
+                        <dt>Start</dt>
+                        <dd id="event-info-start"></dd>
+                        <dt>End</dt>
+                        <dd id="event-info-end"></dd>
+                        <dt>Description</dt>
+                        <dd id="event-info-description"></dd>
+                        <dt class="hidden">Id</dt>
+                        <dt class="hidden" id="event-info-id"></dt>
+                    </dl>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                </div>
+            </div>
+
+        </div><!-- /.modal-content -->
+    </div><!-- /.modal-dialog -->
+</div><!-- /.modal -->
+{% endmacro %}

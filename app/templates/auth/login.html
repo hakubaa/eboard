@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block styles %}
+{{ super() }}
+    <style>
+        body {
+            background-color: #333;
+            color: white;
+        }
+
+        .jago {
+            font-weight: bold;
+        }
+        .jago_j {
+            color: #5cb85c;
+        }
+        .jago_a {
+            color: #5bc0de;
+        }
+        .jago_g {
+            color: #f0ad4e;
+        }
+        .jago_o {
+            color: #d9534f;
+        }
+    </style>
+{% endblock %} 
+
+{% block title %}JAGO - e-Board{% endblock %}
+
+{% block navbar %}
+{% endblock %}
+
+{% block page_content %}
+
+    <div class = "page-header text-center">
+        <h1>
+            <span class="jago">
+            <span class="jago_j">J</span><span class="jago_a">A</span><span class="jago_g">G</span><span class="jago_o">O</span>
+            </span>
+            -
+            e-Board
+        </h1>
+    </div>
+
+    <form method="post" class="form-horizontal" action="" role="form">
+        <div class="col-md-4 col-md-offset-4">
+            {{ form.csrf_token }}
+            <div class="form-group required">
+                {{ form.username.label() }}
+                {{ form.username(class="form-control", 
+                    id="username", required="",
+                    autocomplete="off") }}
+            </div>
+            <div class="form-group required">
+                {{ form.password.label()  }}
+                {{ form.password(class="form-control", id="passwowrd", required="") }}
+            </div>
+            <div class="form-group">
+                <div class="checkbox">
+                    <label>
+                        {{ form.remember_me() }} Remember Me
+                    </label>
+                </div>
+            </div>
+            <div class="form-group">
+                {{ form.submit(class="btn btn-default") }}
+            </div>
+        </div>
+    </form>
+
+{% endblock %}

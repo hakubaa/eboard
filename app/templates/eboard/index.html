@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+{% import '_macros.html' as macros %}
+
+{% block title %}JAGO - e-Board{% endblock %}
+
+{% block page_content %}
+
+{% block styles %}
+{{ super() }}
+<link href = "{{ url_for('static', filename='css/fullcalendar.css')}}" rel='stylesheet' />
+<link href = "{{ url_for('static', filename='css/fullcalendar.print.css')}}" rel='stylesheet' media='print' />
+<style>
+#calendar {
+    max-width: 450px;
+    /*width: 100%;*/
+    margin: 0 auto;
+}
+.list-group-item {
+    border: 1px solid gray;
+}
+.fc-task-deadline,
+.fc-task-deadline div,
+.fc-task-deadline span {
+    background-color: #cc0000;
+    border-color: #cc0000;
+    color: white;
+}
+
+.fc-project-deadline,
+.fc-project-deadline div,
+.fc-project-deadline span {
+    background-color: rgb(205, 0, 103);
+    border-color: rgb(205, 0, 103);
+    color: white;
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src = "{{ url_for('static', filename='scripts/fullcalendar.min.js') }}"></script>
+<script>
+
+function getEventInfo(id, success) {
+    $.ajax({
+        url: "calendar/events/get",
+        type: "POST",
+        contentType: "application/json; charset=utf-8",
+        data: JSON.stringify({id: id}),
+        cache: false,
+        dataType: "json",
+        success: success
+    });
+}
+
+$('#calendar').fullCalendar({
+        header: {
+            left: 'prev,next today',
+            center: 'title',
+            right: ""
+        },
+        allDaySlot: true,
+        selectable: false,
+        selectHelper: false,
+        editable: false,
+
+        defaultView: "basicDay", //"agendaDay",
+
+        eventClick: function(event, jsEvent, view) {
+            getEventInfo(event._id, function(response) {
+                if (response.status == "success") {
+                    var data = response.data;
+                    $("#event-info-start").html(moment(data.start).format("LLL"));
+                    $("#event-info-end").html(moment(data.end).format("LLL"));
+                    $("#event-info-title").html(data.title);
+                    $("#event-info-title2").html(data.title);
+                    $("#event-info-description").html(data.description);
+                    $("#event-edit-btn, #event-remove-btn").hide();
+                    $(".event-bookmark").hide();
+                    $("#event-info").show();
+                    $("#event-model").modal("show");
+                } else {
+                    alert("FUCK. Sth went wrong!!!!");
+                }
+            });
+        },
+
+        // 24 hours please
+        timeFormat: 'H:mm', 
+        axisFormat: 'H:mm',
+        eventLimit: true, // allow "more" link when too many events
+        events: {
+            url: "calendar/events/source",
+            type: "POST"
+        }
+    });
+</script>
+{% endblock %}
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-6">
+            <div class="panel panel-primary">
+                <div class="panel-heading">Daily Schedule</div>
+                <div class="panel-body">
+                    <div id='calendar'></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+
+            <div class="panel panel-primary">
+                <div class="panel-heading">
+                    <h3 class="panel-title">Active Projects</h3>
+                </div>
+                <div class="panel-body">
+                    {% if projects %}  
+                        {% for project in projects %}
+                            <ul class="list-group">
+                                <li class="list-group-item">
+                                    <h4 class="list-group-item-heading">{{project.name}}</h4>
+                                    <p class="list-group-item-text">{{project.description.split(" ")[:50] |join(" ")}} 
+                                        {% if project.description.split(" ")|length > 50 %}
+                                            (...)
+                                        {% endif %}
+                                    </p>
+                                </li>
+                            </ul>
+                        {% endfor %}
+                    {% else %}
+                        Nothing? You lazy buffalo!!!
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="panel panel-primary">
+                <div class="panel-heading">
+                    <h3 class="panel-title">Upcoming deadlines</h3>
+                </div>
+                <div class="panel-body">
+                    {% if deadlines %}  
+                    <ul class = "list-group">
+                        {% for deadline in deadlines %}
+                            {% if moment(deadline.deadline).fromNow() %}
+                                {% if deadline.delayed %}
+                                    <li class="list-group-item list-group-item-danger">
+                                {% else %}
+                                    <li class="list-group-item list-group-item-info">
+                                {% endif %}
+                                    {{deadline.title}} on {{moment(deadline.deadline).format("YYYY-MM-DD HH:mm")}}
+                                    ({{moment(deadline.deadline).fromNow()}})
+                                </li> 
+                            {% endif %}  
+                        {% endfor %}         
+                    </ul>
+                    {% else %}
+                    Nothing? Have you got holidays?
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="panel panel-primary">
+                <div class="panel-heading">
+                    <h3 class="panel-title">Recent Notes</h3>
+                </div>
+                <div class="panel-body">
+                    {% if notes %}  
+                        {% for note in notes %}
+                            <ul class="list-group">
+                                <li class="list-group-item">
+                                    <h4 class="list-group-item-heading">{{note.title}}</h4>
+                                    <p class="list-group-item-text">{{note.body.split(" ")[:50] |join(" ")}} 
+                                        {% if note.body.split(" ")|length > 50 %}
+                                            (...)
+                                        {% endif %}
+                                    </p>
+                                </li>
+                            </ul>
+                        {% endfor %}
+                    {% else %}
+                        Nothing? Try to be a little bit more creative :)
+                    {% endif %}
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+
+
+
+
+{% endblock %}
+
+{% block content %}
+{{ super() }}
+{{ macros.newevent_model("event-model") }}
+{% endblock %}

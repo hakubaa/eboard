@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% import "bootstrap/wtf.html" as wtf %}
+{% import "_macros.html" as macros %}
+
+{% block title %}JAGO - e-Board{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<style>
+ul.notes {
+    list-style-type: none;
+    padding: 0px;
+    margin: 16px 0px 0px 0px;
+    border-top: 1px solid #e0e0e0;
+}
+ul.notes li.note {
+    padding: 8px;
+    border-bottom: 1px solid #e0e0e0;
+}
+ul.notes li.note:hover {
+    background-color: #f0f0f0;
+}
+div.note-date {
+    float: right;
+}
+div.note-title {
+    font-weight: bold;
+}
+div.note-thumbnail {
+    position: absolute;
+}
+div.note-content {
+    min-height: 48px;
+}
+div.note-body {
+    padding: 10px 0px 0px 0px;
+}
+div.note-tags {
+    font-size: small;
+    color: navy;
+    font-style: italic;
+}
+select#tag {
+    width:auto !important;
+}
+
+select#project {
+    width:auto !important;
+}
+
+</style>
+{% endblock %}
+
+{% block page_content %}
+<div class="container">
+    <form class="form-horizontal" method="POST" action="">
+        {{ form.csrf_token }}
+        <div class="form-group">
+            <label for="tag" class="col-sm-1 control-label">
+                Tags
+            </label>
+            <div class="col-sm-11">
+                {{ form.tag(class="form-control", onchange="this.form.submit()") }}
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="project" class="col-sm-1 control-label">Project</label>
+            <div class="col-sm-11">
+                {{ form.project(class="form-control", onchange="this.form.submit()") }}
+            </div>
+        </div>
+    </form>
+</div>
+{% if notes %}
+<div class="container">
+    <ul class="notes">
+        {% for note in notes %}
+            <li class="note">
+                <div class="note-content">
+                    <div class="note-date">{{moment(note.timestamp).format("LLL")}} 
+                        ({{moment(note.timestamp).fromNow()}})</div>
+                    <div class="note-title">
+                        {{note.title}}
+                        {% if note.project_id %}
+                            <a href="project/{{note.project_id}}">
+                            ({{note.project_name}})
+                            </a>
+                        {% endif %}
+                    </div>
+                    <div class="note-tags">{{note.tags | join(' ', attribute='name')}}</div>
+                    <div class="note-body">{{note.body}}</div>
+                    <div class="note-footer">
+                        <a href="{{ url_for('eboard.editnote', noteid=note.id) }}">
+                            <span class="label label-primary">Edit</span>
+                        </a>
+                        <a href="{{ url_for('eboard.removenote', noteid=note.id) }}" 
+                            onclick="return confirm('Are your sure you want to remove this note?')">
+                            <span class="label label-danger">Remove</span>
+                        </a>
+                    </div>
+                </div>
+            </li>
+        {% endfor %}
+    </ul>
+</div>
+<div class="pagination">
+{{ macros.pagination_widget(pagination, 'eboard.notes') }}
+</div>
+{% else %}
+<div class="container">
+    <p>Create your fist note</p>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_navbar %}
+    <div class="navbar subnavbar" role="navigation">
+        <p class="navbar-text subnavbar-text">Notes /</p>
+        <ul class="nav navbar-nav subnavbar-nav">
+            <li><a href="{{ url_for('eboard.editnote') }}">New Note</a></li>
+        </ul>
+    </div>
+{% endblock %}
