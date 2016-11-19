@@ -21,9 +21,15 @@ class DevelopmentConfig(Config):
 class ProductionConfig(Config):
     SERVER = "http://eboard-jago.rhcloud.com"
 
+class TestingConfig(Config):
+    TESTING = True
+    SQLALCHEMY_TRACK_MODIFICATIONS = True
+    SQLALCHEMY_DATABASE_URI = "sqlite://"
+
 config = {
         "development": DevelopmentConfig,
         "production": ProductionConfig,
-        "default": ProductionConfig
+        "default": ProductionConfig,
+        "testing": TestingConfig
         }
 

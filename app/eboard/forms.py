@@ -1,13 +1,13 @@
 from flask_wtf import Form
 from wtforms import StringField, PasswordField, TextAreaField, \
                     SubmitField, FileField, DateTimeField, SelectField
-from wtforms.validators import Required, Email, Length
+from wtforms.validators import DataRequired, Email, Length
 from app.models import Tag, Project
 from app import db
 
 class UploadBookForm(Form):
-    title = StringField("Title", validators = [Required()])
-    file = FileField("File", validators = [Required()])
+    title = StringField("Title", validators = [DataRequired()])
+    file = FileField("File", validators = [DataRequired()])
     link = StringField("Link")
     author = StringField("Author(s)")
     description = TextAreaField("Description")
@@ -15,17 +15,17 @@ class UploadBookForm(Form):
 
 
 class TaskForm(Form):
-    title = StringField("Title", validators = [Required()])
+    title = StringField("Title", validators = [DataRequired()])
     deadline = DateTimeField("Deadline", format='%Y-%m-%d %H:%M', \
-        validators = [Required()])
+        validators = [DataRequired()])
     notes = TextAreaField("Notes")
     submit = SubmitField("Submit")
     tags = StringField("Tags")
 
         
 class NoteForm(Form):
-    title = StringField("Title", validators=[Required()])
-    body = TextAreaField("What's on your mind?", validators = [Required()])
+    title = StringField("Title", validators=[DataRequired()])
+    body = TextAreaField("What's on your mind?", validators = [DataRequired()])
     tags = StringField("Tags")
     submit = SubmitField("Submit")
 
@@ -43,7 +43,7 @@ class NoteFilterForm(Form):
             [ (str(project.id), project.name) for project in projects ]
 
 class ProjectForm(Form):
-    name = StringField("Name", validators=[Required()])
+    name = StringField("Name", validators=[DataRequired()])
     description = TextAreaField("Description")
     deadline = DateTimeField("Deadline", format='%Y-%m-%d %H:%M')
     tags = StringField("Tags")
@@ -51,6 +51,6 @@ class ProjectForm(Form):
 
 
 class MilestoneForm(Form):
-    title = StringField("Title", validators=[Required()])
+    title = StringField("Title", validators=[DataRequired()])
     description = TextAreaField("Description")
     submit = SubmitField("Submit")    

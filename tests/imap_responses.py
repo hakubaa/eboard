@@ -1,0 +1,1 @@
+fetch_response = ('OK', [(b'2043 (BODY[HEADER.FIELDS (DATE SUBJECT FROM)] {123}', b'From: CodinGame <coders@codingame.com>\r\nSubject: New on CodinGame: Check it out!\r\nDate: Thu, 17 Nov 2016 20:28:04 +0000\r\n\r\n'), b')'])
