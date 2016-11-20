@@ -42,19 +42,6 @@ class GetHeaderTest(FlaskTestCase):
             "CodinGame <coders@codingame.com>"
         )
 
-    def test_find_subject_returns_proper_data(self, imap_mock):
-        text = b'From: CodinGame <coders@codingame.com>\r\nSubject: New on CodinGame: Check it out!\r\nDate: Thu, 17 Nov 2016 20:28:04 +0000\r\n\r\n'
-        field = 'From'
-        self.assertEqual(
-            ImapClient.find_subject(text, field), 
-            "CodinGame <coders@codingame.com>"
-        )
-
-    def test_find_subject_returns_none_for_miss_search(self, imap_moc):
-        text = b'Froms: CodingGame <sdfksdf>'
-        field = "From"
-        self.assertIsNone(ImapClient.find_subject(text, field))
-
     def test_returns_headers_of_many_messages(self, imap_mock):
         fetch_mock = self.mock_fetch(imap_mock, response = imap_responses.fetch2)
         iclient = ImapClient("imap.gmail.com")

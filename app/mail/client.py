@@ -97,12 +97,3 @@ class ImapClient:
 
 
     def get_email(self, id): pass
-
-
-    def find_subject(text, field, *, ignorecase=True, encoding="utf-8"): 
-        if isinstance(text, bytes):
-            text = text.decode(encoding)
-        pattern = re.compile("%s: (?P<subject>.*)\r\n" % field,
-                             flags = re.IGNORECASE if ignorecase else 0)
-        match = pattern.search(text)
-        return match.group("subject") if match else None
