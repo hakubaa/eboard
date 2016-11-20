@@ -25,6 +25,9 @@ class TestingConfig(Config):
     TESTING = True
     SQLALCHEMY_TRACK_MODIFICATIONS = True
     SQLALCHEMY_DATABASE_URI = "sqlite://"
+    SERVER_NAME = "localhost"
+    SERVER = "http://localhost:5000"
+    WTF_CSRF_ENABLED = False
 
 config = {
         "development": DevelopmentConfig,

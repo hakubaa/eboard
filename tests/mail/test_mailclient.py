@@ -3,7 +3,7 @@ from unittest.mock import patch, Mock, ANY
 
 from tests.base import FlaskTestCase
 from app.mail.client import ImapClient
-from tests import imap_responses
+from tests.mail import imap_responses
 
 
 @patch("app.mail.client.imaplib")

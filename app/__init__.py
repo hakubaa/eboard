@@ -35,4 +35,7 @@ def create_app(config_name):
     from .eboard import eboard as eboard_blueprint
     app.register_blueprint(eboard_blueprint, url_prefix = "/eboard")
 
+    from .mail import mail as mail_blueprint
+    app.register_blueprint(mail_blueprint, url_prefix = "/mail")
+
     return app

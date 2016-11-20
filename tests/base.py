@@ -1,7 +1,7 @@
 import unittest
 import os
 
-from app import create_app
+from app import create_app, db
 
 
 class FlaskTestCase(unittest.TestCase):
@@ -10,6 +10,8 @@ class FlaskTestCase(unittest.TestCase):
         self.app = create_app("testing")
         self.app_context = self.app.app_context()
         self.app_context.push()
+        # db.create_all()
+        self.client = self.app.test_client(use_cookies = True)
 
     def tearDown(self):
         self.app_context.pop()

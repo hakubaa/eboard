@@ -49,6 +49,11 @@ class ImapClient:
     def get_header(
         self, ids, *, fields=None, uid=False
     ): 
+        '''
+        Returns the list with headers for given e-mails id-s/uid-s. Accepts
+        iterables, string, bytes or single numbers. Fields argument enables
+        to retrive only selected fields (for bandwith optimization).
+        '''
         headers = list()
 
         if isinstance(ids, bytes):
