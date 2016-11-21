@@ -1,5 +1,9 @@
+import json
+import re
+
 from flask import (
-    render_template, redirect, url_for, request, flash, g
+    render_template, redirect, url_for, request, flash, g,
+    jsonify
 )
 from flask_login import current_user, login_required
 
@@ -8,6 +12,7 @@ from .forms import LoginForm
 from .client import ImapClient
 
 
+# check timestamps (compare client creation with current time)
 imap_clients = dict()
 
 
@@ -40,13 +45,34 @@ def login():
 
     return render_template("mail/login.html", form=form)
 
+
 @mail.route("/client", methods=["GET"])
 @login_required
 def client():
-    print(imap_clients)
     imap_client = imap_clients.get(current_user.id, None)
     if imap_client:
-        return "<h1>HURRA</h1>"
+        return render_template("mail/client.html")
+    return redirect(url_for("mail.login"))
+
+
+@mail.route("/list_mailbox", methods=["GET", "POST"])
+def imap_list_mailbox():
+    imap_client = imap_clients.get(current_user.id, None)
+    if imap_client:
+        status, data = imap_client.list()
+        mailboxes = list()
+        p = re.compile('"(?P<name>[^" ]*)"$')
+        for mailbox in data:
+            m = p.search(mailbox.decode())
+            if m:
+                mailboxes.append(m.group("name"))
+        response = {
+            "status": "OK",
+            "data": mailboxes
+        }
     else:
-        return "<h1>FUCK</h1>"
-    return render_template("mail/client.html")
+        response = { 
+            "status": "ERROR", 
+            "data": { "msg": "Not authorized access." } 
+        }
+    return jsonify(response)

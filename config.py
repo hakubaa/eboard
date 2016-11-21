@@ -28,6 +28,8 @@ class TestingConfig(Config):
     SERVER_NAME = "localhost"
     SERVER = "http://localhost:5000"
     WTF_CSRF_ENABLED = False
+    LOGIN_DISABLED = True
+
 
 config = {
         "development": DevelopmentConfig,
