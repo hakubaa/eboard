@@ -12,15 +12,85 @@ from app.models import User
 
 from tests.mail import imap_responses
 
+
 @patch("app.mail.views.imap_clients")
 @patch("app.mail.views.current_user")
-class MailAjaxViewsTest(TestCase):
+class GetHeadersViewTest(TestCase):
 
     def create_app(self):
         return create_app("testing")
 
     def mock_imap_client(self, iclients_mock,
-                          response=imap_responses.list_mailbox):
+                         response = imap_responses.get_headers):
+        client_mock = Mock()
+        iclients_mock.get.return_value = client_mock
+        client_mock.get_headers.return_value = response
+        client_mock.len_mailbox.return_value = ("OK", 100)
+        return client_mock
+
+    def test_returns_error_status_when_noauth_user(
+        self, user_mock, iclients_mock
+    ):
+        iclients_mock.get.return_value = False
+        response = self.client.get(url_for("mail.imap_list"))
+        data = json.loads(response.data.decode("utf-8"))
+        self.assertEqual(data["status"], "ERROR")
+
+    def test_calls_len_mailbox_with_proper_name(
+        self, user_mock, iclients_mock
+    ):
+        client_mock = self.mock_imap_client(iclients_mock)  
+        response = self.client.get(url_for("mail.imap_get_headers"),
+                                   query_string = dict(mailbox="Praca"))
+        client_mock.len_mailbox.assert_called_once_with("Praca")
+
+    def test_calls_get_headers_with_the_proper_range(
+        self, user_mock, iclients_mock
+    ):
+        client_mock = self.mock_imap_client(iclients_mock) 
+        response = self.client.get(
+            url_for("mail.imap_get_headers"),
+            query_string = dict(mailbox="Praca", ids_from=0, ids_to=100)
+        )
+        client_mock.get_headers.assert_called_once_with(
+            range(100, 0, -1), 
+            fields = ["Subject", "Date", "From"]
+        )
+
+    def test_returns_list_with_headers(
+        self, user_mock, iclients_mock
+    ):
+        client_mock = self.mock_imap_client(iclients_mock) 
+        response = self.client.get(
+            url_for("mail.imap_get_headers"),
+            query_string = dict(mailbox="Praca", ids_from=0, ids_to=100)
+        )
+        data = json.loads(response.data.decode("utf-8"))
+        self.assertEqual(data["status"], "OK")
+        self.assertEqual(len(data["data"]), 100)
+
+    def test_returns_ok_when_empty_mailbox(
+        self, user_mock, iclients_mock
+    ):
+        client_mock = self.mock_imap_client(iclients_mock) 
+        client_mock.len_mailbox.return_value = ("OK", 0)
+        response = self.client.get(
+            url_for("mail.imap_get_headers"),
+            query_string = dict(mailbox="Praca", ids_from=0, ids_to=100)
+        )      
+        data = json.loads(response.data.decode("utf-8"))
+        self.assertEqual(data["status"], "OK")
+
+
+@patch("app.mail.views.imap_clients")
+@patch("app.mail.views.current_user")
+class ListViewTest(TestCase):
+
+    def create_app(self):
+        return create_app("testing")
+
+    def mock_imap_client(self, iclients_mock,
+                          response=imap_responses.list_):
         client_mock = Mock()
         iclients_mock.get.return_value = client_mock
         client_mock.list.return_value = response
@@ -28,12 +98,12 @@ class MailAjaxViewsTest(TestCase):
 
     def test_for_calling_list_method(self, user_mock, iclients_mock):
         client_mock = self.mock_imap_client(iclients_mock)
-        response = self.client.get(url_for("mail.imap_list_mailbox"))
+        response = self.client.get(url_for("mail.imap_list"))
         self.assertTrue(client_mock.list.called)
 
     def test_returns_json_list_with_mailboxes(self, user_mock, iclients_mock):
         client_mock = self.mock_imap_client(iclients_mock)
-        response = self.client.get(url_for("mail.imap_list_mailbox"))
+        response = self.client.get(url_for("mail.imap_list"))
         data = json.loads(response.data.decode("utf-8"))
         self.assertEqual(data["status"], "OK")
         self.assertIn("INBOX", data["data"])
@@ -45,19 +115,18 @@ class MailAjaxViewsTest(TestCase):
         client_mock = Mock()
         client_mock.list = Mock()
         iclients_mock.get.return_value = False
-        response = self.client.get(url_for("mail.imap_list_mailbox"))
+        response = self.client.get(url_for("mail.imap_list"))
         self.assertFalse(client_mock.list.called)
 
     def test_returns_error_status_when_noauth_user(
         self, user_mock, iclients_mock
     ):
         iclients_mock.get.return_value = False
-        response = self.client.get(url_for("mail.imap_list_mailbox"))
+        response = self.client.get(url_for("mail.imap_list"))
         data = json.loads(response.data.decode("utf-8"))
         self.assertEqual(data["status"], "ERROR")
 
 
-@unittest.skip
 class MailViewsTest(TestCase):
 
     def create_app(self):

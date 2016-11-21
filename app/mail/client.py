@@ -46,7 +46,14 @@ class ImapClient:
         else:
             return (select_status, msg)
 
-    def get_header(
+    def len_mailbox(self, mailbox="INBOX"):
+        '''Returns number of messages in a mailbox'''
+        select_status, data = self.mail.select(mailbox)
+        if select_status == "OK":
+            return "OK", int(data[0].decode("utf-8"))
+        return select_status, data
+
+    def get_headers(
         self, ids, *, fields=None, uid=False
     ): 
         '''
@@ -98,7 +105,7 @@ class ImapClient:
         else:
             return (fetch_status, data)
 
-    def get_body(self, id): pass
 
+    def get_body(self, id): pass
 
     def get_email(self, id): pass
