@@ -1,5 +1,6 @@
 import unittest
 from unittest.mock import patch, Mock, ANY
+import email
 
 from tests.base import FlaskTestCase
 from app.mail.client import ImapClient
@@ -7,9 +8,9 @@ from tests.mail import imap_responses
 
 
 @patch("app.mail.client.imaplib")
-class GetHeaderTest(FlaskTestCase):
+class GetEmailsTest(FlaskTestCase):
 
-    def mock_fetch(self, imap_mock, response = imap_responses.fetch):
+    def mock_fetch(self, imap_mock, response = imap_responses.get_emails):
         mock_ = Mock()
         mock_.return_value = response
         imap_mock.IMAP4_SSL.return_value.fetch = mock_
@@ -18,13 +19,70 @@ class GetHeaderTest(FlaskTestCase):
     def test_calls_fetch_method(self, imap_mock):
         fetch_mock = self.mock_fetch(imap_mock)
         iclient = ImapClient("imap.gmail.com")
-        iclient.get_header(b'1')
+        iclient.get_emails(b'1')
+        self.assertTrue(fetch_mock.called)
+
+    def test_returns_list_of_message_objects(self, imap_mock):
+        fetch_mock = self.mock_fetch(imap_mock)
+        iclient = ImapClient("imap.gmail.com")
+        status, emails = iclient.get_emails(b'1, 2')
+        self.assertEqual(len(emails), 2)
+        self.assertIsInstance(emails[0], email.message.Message)
+
+    def test_passess_ids_to_fetch_method(self, imap_mock):
+        fetch_mock = self.mock_fetch(imap_mock)
+        iclient = ImapClient("imap.gmail.com")
+        status, emails = iclient.get_emails(b'1, 2, 3')
+        fetch_mock.assert_called_with(b'1, 2, 3', ANY)
+
+    def test_accepts_list_of_ids(self, imap_mock):
+        fetch_mock = self.mock_fetch(imap_mock)
+        iclient = ImapClient("imap.gmail.com")
+        status, emails = iclient.get_emails([1, 2, 3])
+        fetch_mock.assert_called_with(b'1,2,3', ANY)
+
+    def test_accepts_string_of_ids(self, imap_mock):
+        fetch_mock = self.mock_fetch(imap_mock)
+        iclient = ImapClient("imap.gmail.com")
+        status, emails = iclient.get_emails("1, 2, 3")
+        fetch_mock.assert_called_with(b'1,2,3', ANY)
+
+    def test_accepts_single_id(self, imap_mock):
+        fetch_mock = self.mock_fetch(imap_mock)
+        iclient = ImapClient("imap.gmail.com")
+        status, emails = iclient.get_emails(1)
+        fetch_mock.assert_called_with(b'1', ANY)
+
+    def test_calls_uid_method_when_uid_set(self, imap_mock):
+        fetch_mock = self.mock_fetch(imap_mock)
+        uid_mock = Mock()
+        uid_mock.return_value = imap_responses.fetch
+        imap_mock.IMAP4_SSL.return_value.uid = uid_mock
+        iclient = ImapClient("imap.gmail.com")
+        iclient.get_emails(b'2043', uid=True)
+        self.assertFalse(fetch_mock.called)     
+        self.assertTrue(uid_mock.called)
+
+
+@patch("app.mail.client.imaplib")
+class GetHeadersTest(FlaskTestCase):
+
+    def mock_fetch(self, imap_mock, response = imap_responses.get_headers):
+        mock_ = Mock()
+        mock_.return_value = response
+        imap_mock.IMAP4_SSL.return_value.fetch = mock_
+        return mock_
+
+    def test_calls_fetch_method(self, imap_mock):
+        fetch_mock = self.mock_fetch(imap_mock)
+        iclient = ImapClient("imap.gmail.com")
+        iclient.get_headers(b'1')
         self.assertTrue(fetch_mock.called)
 
     def test_returns_list_of_dicts_with_fields_as_keys(self, imap_mock):
         fetch_mock = self.mock_fetch(imap_mock)
         iclient = ImapClient("imap.gmail.com")
-        status, header = iclient.get_header(b'1', fields = ["Subject", "From"])
+        status, header = iclient.get_headers(b'1', fields = ["Subject", "From"])
         self.assertTrue(isinstance(header, list))
         self.assertIn("Subject", header[0])
         self.assertIn("From", header[0])
@@ -32,7 +90,7 @@ class GetHeaderTest(FlaskTestCase):
     def test_check_for_proper_data_in_header(self, imap_mock):
         fetch_mock = self.mock_fetch(imap_mock)
         iclient = ImapClient("imap.gmail.com")
-        status, header = iclient.get_header(b'1', fields = ["Subject", "From"])
+        status, header = iclient.get_headers(b'1', fields = ["Subject", "From"])
         self.assertTrue(
             header[0]["Subject"],
             "New on CodinGame: Check it out!"
@@ -45,43 +103,43 @@ class GetHeaderTest(FlaskTestCase):
     def test_returns_headers_of_many_messages(self, imap_mock):
         fetch_mock = self.mock_fetch(imap_mock, response = imap_responses.fetch2)
         iclient = ImapClient("imap.gmail.com")
-        status, header = iclient.get_header(b'1', fields = ["Subject", "From"])
+        status, header = iclient.get_headers(b'1', fields = ["Subject", "From"])
         self.assertEqual(len(header), 2)
 
     def test_passess_ids_to_fetch_method(self, imap_mock):
         fetch_mock = self.mock_fetch(imap_mock, response = imap_responses.fetch2)
         iclient = ImapClient("imap.gmail.com")
-        status, header = iclient.get_header(b'1, 2, 3', fields = ["Subject", "From"])
+        status, header = iclient.get_headers(b'1, 2, 3', fields = ["Subject", "From"])
         fetch_mock.assert_called_with(b'1, 2, 3', ANY)
 
     def test_accepts_list_of_ids(self, imap_mock):
         fetch_mock = self.mock_fetch(imap_mock, response = imap_responses.fetch2)
         iclient = ImapClient("imap.gmail.com")
-        status, header = iclient.get_header([1, 2, 3], fields = ["Subject", "From"])
+        status, header = iclient.get_headers([1, 2, 3], fields = ["Subject", "From"])
         fetch_mock.assert_called_with(b'1,2,3', ANY)
 
     def test_accepts_string_of_ids(self, imap_mock):
         fetch_mock = self.mock_fetch(imap_mock, response = imap_responses.fetch2)
         iclient = ImapClient("imap.gmail.com")
-        status, header = iclient.get_header("1, 2, 3", fields = ["Subject", "From"])
-        fetch_mock.assert_called_with(b'1, 2, 3', ANY)
+        status, header = iclient.get_headers("1, 2, 3", fields = ["Subject", "From"])
+        fetch_mock.assert_called_with(b'1,2,3', ANY)
 
     def test_accepts_single_id(self, imap_mock):
         fetch_mock = self.mock_fetch(imap_mock, response = imap_responses.fetch2)
         iclient = ImapClient("imap.gmail.com")
-        status, header = iclient.get_header(1, fields = ["Subject", "From"])
+        status, header = iclient.get_headers(1, fields = ["Subject", "From"])
         fetch_mock.assert_called_with(b'1', ANY)
 
     def test_returns_id_of_the_message(self, imap_mock):
         fetch_mock = self.mock_fetch(imap_mock, response = imap_responses.fetch)
         iclient = ImapClient("imap.gmail.com")
-        status, header = iclient.get_header(b'2043', fields = ["Subject", "From"])
+        status, header = iclient.get_headers(b'2043', fields = ["Subject", "From"])
         self.assertEqual(header[0]["id"], 2043)
 
     def test_passes_fields_to_fetch(self, imap_mock):
         fetch_mock = self.mock_fetch(imap_mock, response = imap_responses.fetch)
         iclient = ImapClient("imap.gmail.com")
-        status, header = iclient.get_header(b'2043', fields = ["Subject", "From"])[0]
+        status, header = iclient.get_headers(b'2043', fields = ["Subject", "From"])[0]
         self.assertIn("Subject", fetch_mock.call_args[0][1])
         self.assertIn("From", fetch_mock.call_args[0][1])
         self.assertNotIn("Date", fetch_mock.call_args[0][1])
@@ -92,10 +150,9 @@ class GetHeaderTest(FlaskTestCase):
         uid_mock.return_value = imap_responses.fetch
         imap_mock.IMAP4_SSL.return_value.uid = uid_mock
         iclient = ImapClient("imap.gmail.com")
-        iclient.get_header(b'2043', uid=True)
+        iclient.get_headers(b'2043', uid=True)
         self.assertFalse(fetch_mock.called)     
         self.assertTrue(uid_mock.called)
-
 
 
 @patch("app.mail.client.imaplib")

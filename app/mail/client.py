@@ -2,6 +2,8 @@ import imaplib
 import socket
 import collections
 import re
+import email
+
 from email.parser import HeaderParser
 
 
@@ -53,6 +55,18 @@ class ImapClient:
             return "OK", int(data[0].decode("utf-8"))
         return select_status, data
 
+    def _ids_to_bytes(self, ids):
+        if isinstance(ids, bytes):
+            ids_bytes = ids
+        elif isinstance(ids, str):
+            ids_bytes = bytes(ids.replace(" ", ""), "utf-8")
+        elif isinstance(ids, collections.Iterable):
+            ids_bytes = b','.join(item if isinstance(item, bytes) 
+                                  else bytes(str(item), "utf-8") for item in ids)
+        else: # assume ids is a number
+            ids_bytes = bytes(str(ids), "utf-8")
+        return ids_bytes
+
     def get_headers(
         self, ids, *, fields=None, uid=False
     ): 
@@ -62,17 +76,7 @@ class ImapClient:
         to retrive only selected fields (for bandwith optimization).
         '''
         headers = list()
-
-        if isinstance(ids, bytes):
-            ids_bytes = ids
-        elif isinstance(ids, str):
-            ids_bytes = bytes(ids, "utf-8")
-        elif isinstance(ids, collections.Iterable):
-            ids_bytes = b','.join(item if isinstance(item, bytes) 
-                                  else bytes(str(item), "utf-8") for item in ids)
-        else: # assume ids is a number
-            ids_bytes = bytes(str(ids), "utf-8")
-
+        ids_bytes = self._ids_to_bytes(ids)
         parser = HeaderParser()
 
         if fields:
@@ -88,24 +92,42 @@ class ImapClient:
         if fetch_status == "OK":
             for item in data:
                 if item == b')': continue   
-                assert len(item) == 2, "Unexpected number of items in fetch response." 
-                
-                # Find message'id
-                if uid:
-                    pattern = re.compile(".*UID (?P<id>\d+)")
-                else:
-                    pattern = re.compile("(?P<id>\d+)")
-                match = pattern.search(item[0].decode("utf-8"))
+                if isinstance(item, tuple): 
+                    # Find message'id
+                    if uid:
+                        pattern = re.compile(".*UID (?P<id>\d+)")
+                    else:
+                        pattern = re.compile("(?P<id>\d+)")
+                    match = pattern.search(item[0].decode("utf-8"))
 
-                header = dict(parser.parsestr(item[1].decode()))
-                header["id"] = int(match.group("id")) if match else None
-                headers.append(header)
+                    header = dict(parser.parsestr(item[1].decode()))
+                    header["id"] = int(match.group("id")) if match else None
+                    headers.append(header)
 
             return ("OK", headers)
         else:
             return (fetch_status, data)
 
+    def get_emails(self, ids, *, msg_parts = "(RFC822)", uid=False): 
+        '''
+        Returns the list of emails (email.message.Message) for given id-s/uid-s. 
+        Accepts iterables, string, bytes or single numbers.
+        '''
+        emails = list()
+        ids_bytes = self._ids_to_bytes(ids)
 
-    def get_body(self, id): pass
+        if uid:
+            fetch_status, data = self.mail.uid("fetch", ids_bytes, msg_parts)
+        else:
+            fetch_status, data = self.mail.fetch(ids_bytes, msg_parts)
 
-    def get_email(self, id): pass
+        if fetch_status == "OK":
+            for item in data:
+                if item == b')': continue   
+                if isinstance(item, tuple):
+                    msg = email.message_from_string(item[1].decode())
+                    emails.append(msg)
+
+            return ("OK", emails)
+        else:
+            return (fetch_status, data)
