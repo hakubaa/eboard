@@ -1,0 +1,2 @@
+- create method to decode headers: https://tools.ietf.org/html/rfc2047
+http://blog.magiksys.net/parsing-email-using-python-header

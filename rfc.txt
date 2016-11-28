@@ -1,0 +1,28 @@
+RFC 2045 - Multipurpose Internet Mail Extensions (MIME) Part One:
+
+If a Content-Transfer-Encoding header field appears as part of a
+message header, it applies to the entire body of that message.  If a
+Content-Transfer-Encoding header field appears as part of an entity's
+headers, it applies only to the body of that entity.  If an entity is
+of type "multipart" the Content-Transfer-Encoding is not permitted to
+have any value other than "7bit", "8bit" or "binary".  Even more
+severe restrictions apply to some subtypes of the "message" type.
+
+Certain Content-Transfer-Encoding values may only be used on certain
+media types.  In particular, it is EXPRESSLY FORBIDDEN to use any
+encodings other than "7bit", "8bit", or "binary" with any composite
+media type, i.e. one that recursively includes other Content-Type
+fields.  Currently the only composite media types are "multipart" and
+"message".  All encodings that are desired for bodies of type
+multipart or message must be done at the innermost level, by encoding
+the actual body that needs to be encoded.
+
+Any entity with an unrecognized Content-Transfer-Encoding must be
+treated as if it has a Content-Type of "application/octet-stream",
+regardless of what the Content-Type header field actually says.
+
+
+RFC 2046 - Multipurpose Internet Mail Extensions (MIME) Part Two:
+RFC 2047 - MIME (Multipurpose Internet Mail Extensions) Part Three: Message Header Extensions for Non-ASCII Text
+RFC 2048 - Multipurpose Internet Mail Extensions (MIME) Part Four: Registration Procedures
+RFC 2049 - Multipurpose Internet Mail Extensions (MIME) Part Five: Conformance Criteria and Examples

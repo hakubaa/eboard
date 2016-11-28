@@ -1,5 +1,6 @@
 import json
 import re
+import imaplib
 
 from flask import (
     render_template, redirect, url_for, request, flash, g,
@@ -32,14 +33,14 @@ def login():
         imap_client = None
         try:
             imap_client = ImapClient(imap_addr, timeout = 5) # 5 seconds
-        except:
+        except imaplib.IMAP4.error:
             flash("Unable to connect with service provider. Pleade verify " + 
                   "whether the imap address is correct.")
 
         if imap_client:
             try:
                 imap_client.login(username, password)
-            except:
+            except imaplib.IMAP4.error:
                flash("Invalid username or password.")
                    
             if imap_client.state == "AUTH":      
@@ -63,7 +64,11 @@ def client():
 def imap_list():
     imap_client = imap_clients.get(current_user.id, None)
     if imap_client:
-        status, data = imap_client.list()
+        try:
+            status, data = imap_client.list()
+        except imaplib.IMAP4.error:
+            status = "ERROR"
+
         if status == "OK":
             mailboxes = list()
             p = re.compile('"(?P<name>[^" ]*)"$')
@@ -92,9 +97,13 @@ def imap_list():
 def imap_get_headers():
     imap_client = imap_clients.get(current_user.id, None)
     if imap_client:
-        status, count = imap_client.len_mailbox(
-            request.args.get("mailbox", "INBOX")
-        )
+        try:
+            status, count = imap_client.len_mailbox(
+                request.args.get("mailbox", "INBOX")
+            )
+        except imaplib.IMAP4.error:
+            status = "ERROR"
+
         if status == "OK":
             if count > 0:
                 ids = range(count, 0, -1) # Create ids of mails
@@ -102,14 +111,19 @@ def imap_get_headers():
                                "ids_from", DEFAULT_IDS_FROM)), 0)
                 ids_to = min(int(request.args.get(
                              "ids_to", DEFAULT_IDS_TO)), len(ids))
+
                 if ids_from >= ids_to:
                     status = "ERROR"
                     msg = "Invalid e-mails' ranges (ids_from <= ids_to)."
                 else:
-                    status, data = imap_client.get_headers(
-                        ids[slice(ids_from, ids_to)],
-                        fields=["Subject", "Date", "From"]
-                    )
+                    try:
+                        status, data = imap_client.get_headers(
+                            ids[slice(ids_from, ids_to)],
+                            fields=["Subject", "Date", "From"]
+                        )
+                    except imaplib.IMAP4.error:
+                        status = "ERROR"
+
                     if status != "OK":
                         msg = "Unable to get e-mails' headers."
             else:
@@ -126,6 +140,55 @@ def imap_get_headers():
     else:
         msg = "Not authorized access."
 
+    response = {
+        "status": "ERROR",
+        "data": msg
+    }
+    return jsonify(response)
+
+
+@mail.route("/get_emails", methods=["GET", "POST"])
+def imap_get_emails():
+    imap_client = imap_clients.get(current_user.id, None)
+
+    if imap_client:
+
+        try:
+            status_select, _ = imap_client.select(
+                request.args.get("mailbox", "INBOX")
+            )
+        except imaplib.IMAP4.error:
+            status_select = "ERROR"
+
+        if status_select == "OK":
+            ids = request.args.get("ids", None)
+            if ids:
+                try:
+                    status, data = imap_client.get_emails(ids)
+                except imaplib.IMAP4.error:
+                    status = "ERROR"
+
+                if status == "OK":
+                    # Process & decode emails
+                    emails = list()
+
+                    for email in data:
+                        emails.append(email.as_string())
+
+                    response = {
+                        "status": "OK",
+                        "data": emails
+                    }
+                    return jsonify(response)
+                else:
+                    msg = "Unable to read emails."
+            else:
+                msg = "Unspecified e-mails ids."
+        else:
+            msg = "Unable to select mailbox."
+    else:
+        msg = "Not authorized access."
+         
     response = {
         "status": "ERROR",
         "data": msg
