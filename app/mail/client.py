@@ -5,6 +5,7 @@ import re
 import email
 from email.header import decode_header
 from email.parser import HeaderParser
+from functools import partial
 
 
 class ImapClient:
@@ -134,57 +135,50 @@ class ImapClient:
             return (fetch_status, data)
 
 
-def email_to_dict(msg):
-    '''Convert email.message.Message instance to dictionary representation.'''
-    output = dict()
-
-    if msg.is_multipart():
-        for part in msg.walk():
-            pass
-
-    return output
-
-
-def get_email_header(header_text, default="ascii"):
+def decode_header_field(msg, name, default="ascii"):
     """
     Decode header_text.
     source: http://blog.magiksys.net/parsing-email-using-python-header
     """
     try:
-        headers = decode_header(header_text)
-    except email.Errors.HeaderParseError:
-        # This already append in email.base64mime.decode()
-        # instead return a sanitized ascii string 
-        return header_text.encode('ascii', 'replace').decode('ascii')
+        headers = decode_header(msg[name])
+    except email.errors.HeaderParseError:
+        return msg[name].encode('ascii', 'replace').decode('ascii')
+    except KeyError:
+        return None
     else:
         for i, (text, charset) in enumerate(headers):
-            try:
-                headers[i] = str(text, charset or default, errors='replace')
-            except LookupError:
-                headers[i] = str(text, default, errors='replace')
+            if charset:
+                try:
+                    headers[i] = str(text, charset or default, errors='replace')
+                except LookupError:
+                    headers[i] = str(text, default, errors='replace')
+            else:
+                headers[i] = text
         return "".join(headers)
 
 
-def get_email_addresses(msg, name):
-    """
-    Retrieve email address from: From:, To: and Cc
-    source: http://blog.magiksys.net/parsing-email-using-python-header
-    """
-    addrs = email.utils.getaddresses(msg.get_all(name, []))
-    for i, (name, addr) in enumerate(addrs):
-        if not name and addr:
-            # only one string! Is it the address or is it the name ?
-            # use the same for both and see later
-            name = addr
-            
-        try:
-            # address must be ascii only
-            addr = addr.encode('ascii')
-        except UnicodeError:
-            addr = ''
-        else:
-            # address must match adress regex
-            if not email_address_re.match(addr):
-                addr = ''
-        addrs[i] = (get_email_header(name), addr)
-    return addrs
+default_decoders = dict(
+    SUBJECT = partial(decode_header_field, name="Subject"),
+    FROM    = partial(decode_header_field, name="From"),
+    TO      = partial(decode_header_field, name="To"),
+    CC      = partial(decode_header_field, name="CC")
+)
+
+
+def email_to_dict(msg, header_decoders = default_decoders):
+    '''Convert email.message.Message instance to dictionary representation.'''
+    output = dict(header={})
+
+    for key in msg.keys():
+        output["header"][key] = header_decoders.get(
+                                    key.upper(), lambda x: x[key])(msg)
+                                    
+    if msg.is_multipart():
+        output["body"] = list()
+        for part in msg.get_payload():
+            output["body"].append(email_to_dict(part))
+    else:
+        output["body"] = str()
+
+    return output

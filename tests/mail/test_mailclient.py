@@ -3,8 +3,48 @@ from unittest.mock import patch, Mock, ANY
 import email
 
 from tests.base import FlaskTestCase
-from app.mail.client import ImapClient
+from app.mail.client import ImapClient, email_to_dict
 from tests.mail import imap_responses
+
+
+class EmailToDictTest(unittest.TestCase):
+
+    def setUp(self):
+        self.email_multipart_1 = email.message_from_string('MIME-Version: 1.0\nReceived: by 10.31.193.72 with HTTP; Thu, 24 Nov 2016 12:40:14 -0800 (PST)\nDate: Thu, 24 Nov 2016 21:40:14 +0100\nDelivered-To: jago.eboard@gmail.com\nMessage-ID: <CAB9kREyhEQbZr+KucZwPebH7H9Jpmy8x250XExgRu6s9dwmnnw@mail.gmail.com>\nSubject: Test\nFrom: Jago Eboard <jago.eboard@gmail.com>\nTo: jago.eboard@gmail.com\nContent-Type: multipart/alternative; boundary=001a114e019a3537940542120390\n\n--001a114e019a3537940542120390\nContent-Type: text/plain; charset=UTF-8\n\nE-Mail Testowy\n\n--001a114e019a3537940542120390\nContent-Type: text/html; charset=UTF-8\n\n<div dir="ltr">E-Mail Testowy<br></div>\n\n--001a114e019a3537940542120390--\n')
+
+        self.email_text_1 = email.message_from_string('MIME-Version: 1.0\nReceived: by 10.31.193.72 with HTTP; Thu, 24 Nov 2016 12:40:14 -0800 (PST)\nDate: Thu, 24 Nov 2016 21:40:14 +0100\nDelivered-To: jago.eboard@gmail.com\nMessage-ID: <CAB9kREyhEQbZr+KucZwPebH7H9Jpmy8x250XExgRu6s9dwmnnw@mail.gmail.com>\nSubject: Test\nFrom: Jago Eboard <jago.eboard@gmail.com>\nTo: jago.eboard@gmail.com\nContent-Type: text/plain; charset=UTF-8\n\nE-Mail Testowy\n')
+
+    def test_returns_dictionary(self):
+        result = email_to_dict(self.email_multipart_1)
+        self.assertIsInstance(result, dict)
+
+    def test_returns_dict_with_header_and_body_keys(self):
+        result = email_to_dict(self.email_multipart_1)
+        self.assertIn("header", result)
+        self.assertIn("body", result)
+
+    def test_header_contains_fields_from_email(self):
+        result = email_to_dict(self.email_multipart_1)
+        self.assertIn("MIME-Version", result["header"])
+        self.assertIn("Date", result["header"])
+        self.assertIn("Subject", result["header"])
+
+    def test_returns_body_as_list_when_multipart(self):
+        result = email_to_dict(self.email_multipart_1)
+        self.assertIsInstance(result["body"], list)
+
+    def test_returns_body_as_str_when_not_multipart(self):
+        result = email_to_dict(self.email_text_1)
+        self.assertIsInstance(result["body"], str)
+
+    def test_returns_list_with_proper_number_of_items(self):
+        result = email_to_dict(self.email_multipart_1)
+        self.assertEqual(len(result["body"]), 2)
+
+    def test_items_in_list_contains_body_and_header_fields(self):
+        result = email_to_dict(self.email_multipart_1)
+        self.assertIn("header", result["body"][0])
+        self.assertIn("body", result["body"][0])
 
 
 @patch("app.mail.client.imaplib")
