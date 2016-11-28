@@ -49,18 +49,19 @@
             <div class="form-group required">
                 {{ form.imap.label() }}
                 {{ form.imap(class="form-control", 
-                    id="imap", required="",
+                    id="imap", required="", value="imap.gmail.com",
                     autocomplete="off") }}
             </div>
             <div class="form-group required">
                 {{ form.username.label() }}
                 {{ form.username(class="form-control", 
-                    id="username", required="",
+                    id="username", required="", value="jago.eboard@gmail.com",
                     autocomplete="off") }}
             </div>
             <div class="form-group required">
                 {{ form.password.label()  }}
-                {{ form.password(class="form-control", id="passwowrd", required="") }}
+                {{ form.password(class="form-control", id="passwowrd", 
+                    required="") }}
             </div>
             <div class="form-group">
                 {{ form.submit(class="btn btn-default") }}

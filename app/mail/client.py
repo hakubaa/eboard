@@ -173,12 +173,24 @@ def email_to_dict(msg, header_decoders = default_decoders):
     for key in msg.keys():
         output["header"][key] = header_decoders.get(
                                     key.upper(), lambda x: x[key])(msg)
-                                    
+
     if msg.is_multipart():
         output["body"] = list()
         for part in msg.get_payload():
             output["body"].append(email_to_dict(part))
     else:
-        output["body"] = str()
+        content = msg.get_payload(decode=True)
+        charset = msg.get_charset()
+        if charset:
+            content = content.decode(charset)
+        else:
+            # Try one of the default charset
+            for chset in ['ascii', 'utf-8', 'utf-16', 'windows-1252', 'cp850']:
+                try: 
+                    content = content.decode(chset)
+                    break
+                except UnicodeError:
+                    pass
+        output["body"] = content
 
     return output

@@ -10,7 +10,7 @@ from flask_login import current_user, login_required
 
 from . import mail
 from .forms import LoginForm
-from .client import ImapClient
+from .client import ImapClient, email_to_dict
 
 
 DEFAULT_IDS_FROM = 0
@@ -173,7 +173,7 @@ def imap_get_emails():
                     emails = list()
 
                     for email in data:
-                        emails.append(email.as_string())
+                        emails.append(email_to_dict(email))
 
                     response = {
                         "status": "OK",
