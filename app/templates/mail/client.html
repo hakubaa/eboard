@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}JAGO - e-Board - E-Mail Client{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<style>
+    body {
+        background-color: #333;
+        color: white;
+    }
+    #mailbox-container {
+        float: left;
+        background-repeat: no-repeat;
+        width: 240px;
+        height: 100px;
+    }
+    #mailbox-list {
+        list-style-type: none;
+        margin: 0;
+        padding: 0;
+        width: 200px;
+        background-color: #5cb85c;
+        color: black;
+        border: 1px solid black;
+    }
+    #mailbox-list li {
+        border: 1px solid black;
+        padding: 10px;
+    }
+    #mailbox-list li:hover {
+        background-color: #f0ad4e;
+        cursor: pointer;
+    }
+    #emails-container {
+        overflow:hidden; 
+        background-color:#000;
+    }
+</style>
+{% endblock %}
+
+{% block page_content %}
+<div class="container">
+    <div id="mailbox-container">
+        <ul id="mailbox-list"></ul>
+    </div>
+    <div id="emails-container">
+        <ul id="emails-list"></ul>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="{{url_for('static', filename='scripts/mail.client.js')}}"></script>
+<script>
+
+    getMailboxes({callback: updateMailboxesList});
+    getEMailsHeaders({callback: updateEMailsList});
+
+</script>
+{% endblock %}

@@ -1,0 +1,267 @@
+<!doctype html>
+<html>
+    <head>
+        <title>Mocha Tests</title>
+        <link rel="stylesheet" href="mocha.css">
+    </head>
+
+    <body>
+
+        <div id="fixtures"></div>
+        <div id="mocha"></div>
+
+        <script src="jquery-1.7.1.min.js"></script>
+        <script src="mocha.js"></script>
+        <script src="chai.js"></script>
+        <script src="sinon-1.17.6.js"></script>
+        <script>mocha.setup("bdd");</script>
+
+        <!-- load code you want to test heere -->
+        <script src="../../app/static/scripts/mail.client.js"></script>
+
+        <!-- load your test files here -->
+        <script>
+
+        var assert = chai.assert;
+
+        function jsonOk (body) {
+            return [
+                200, {
+                'Content-type': 'application/json'
+                }, JSON.stringify(body)
+            ];
+        }
+
+        function getJsonFromUrl(query) {
+            var result = {};
+            if (query !== null && query !== undefined) {
+                query.split("&").forEach(function(part) {
+                    var item = part.split("=");
+                    result[item[0]] = decodeURIComponent(item[1]);
+                });
+            }
+            return result;
+        }
+
+        describe("E-Mail Client Test", function() {
+
+            describe("List of E-Mails (Headers)", function() {
+
+                describe("Sending Request", function() {
+
+                    var xhr = null;
+                    var requests = null;
+
+                    beforeEach(function () {
+                        xhr = sinon.useFakeXMLHttpRequest();
+                        requests = [];
+                        xhr.onCreate = function (xhr) {
+                            requests.push(xhr);
+                        };
+                    });
+
+                    afterEach(function () {
+                        xhr.restore();
+                    });
+
+                    it("test for sending post request", function() {
+                        getEMailsHeaders();
+                        assert.equal(requests.length, 1);
+                    });
+            
+                    it("test for using proper url", function() {
+                        getEMailsHeaders();
+                        assert.equal(requests[0].url, "/mail/get_headers");
+                    });
+
+                    it("test for passing arguments to request", function() {
+                        getEMailsHeaders({mailbox:"TEST", from:15, to:50});
+                        var params = getJsonFromUrl(requests[0].requestBody);
+                        assert.equal(params.mailbox, "TEST");
+                        assert.equal(params.from, 15);
+                        assert.equal(params.to, 50);                        
+                    });
+
+                    it("test for passing default arguments", function() {
+                        getEMailsHeaders();
+                        var params = getJsonFromUrl(requests[0].requestBody);
+                        assert.equal(params.mailbox, "INBOX");
+                        assert.equal(params.from, 0);
+                        assert.equal(params.to, 50); 
+                    });
+
+                });
+
+                describe("Handling Response", function() {
+                    var server = null;
+
+                    beforeEach(function () {
+                        server = sinon.fakeServer.create();
+                    });
+
+                    afterEach(function () {
+                        server.restore();
+                    });
+
+                    it("test for calling callback", function() {
+                        server.respondWith("POST", "/mail/get_headers", 
+                            jsonOk({
+                                status: "OK"
+                            })
+                        );
+                        var spy = sinon.spy();
+                        getEMailsHeaders({callback: spy});
+                        server.respond();
+                        assert.isTrue(spy.called);
+                    });
+
+                    it("test for passing response to callback", function() {
+                        server.respondWith("POST", "/mail/get_headers", 
+                            jsonOk({
+                                status: "OK",
+                                data: [
+                                    {
+                                      "Date": "Thu, 24 Nov 2016 12:34:22 -0800", 
+                                      "From": "Gmail Team <mail-noreply@google.com>", 
+                                      "Subject": "The best of Gmail, wherever you are", 
+                                      "id": 2
+                                    }, 
+                                    {
+                                      "Date": "Thu, 24 Nov 2016 12:34:22 -0800", 
+                                      "From": "Gmail Team <mail-noreply@google.com>", 
+                                      "Subject": "Three tips to get the most out of Gmail", 
+                                      "id": 1
+                                    }
+                                ]
+                            })
+                        );
+                        var spy = sinon.spy();
+                        getEMailsHeaders({callback: spy});
+                        server.respond();
+                        var response = spy.args[0][0];
+                        assert.equal(response.status, "OK");
+                        assert.equal(response.data.length, 2);
+                    });
+
+                    it("test for returning status when ajax error", function() {
+                        server.respondWith("POST", "/mail/get_headers", 
+                            [
+                                404, {
+                                'Content-type': 'text/plan'
+                                }, "KURWA MAC"
+                            ]
+                        );
+                        var callback = sinon.spy();
+                        getEMailsHeaders({callback: callback});
+                        server.respond();
+                        var response = callback.args[0][0];
+                        assert.equal(response.status, "ERROR");
+                    });
+                });
+
+            });
+
+            describe("Mailboxes", function() {
+
+                describe("Sending Request", function() {
+
+                    var xhr = null;
+                    var requests = null;
+
+                    beforeEach(function () {
+                        xhr = sinon.useFakeXMLHttpRequest();
+                        requests = [];
+                        xhr.onCreate = function (xhr) {
+                            requests.push(xhr);
+                        };
+                    });
+
+                    afterEach(function () {
+                        xhr.restore();
+                    });
+
+                    it("test for sending post request", function() {
+                        getMailboxes();
+                        assert.equal(requests.length, 1);
+                    });
+
+                    it("test for using proper url", function() {
+                        getMailboxes();
+                        assert.equal(requests[0].url, "/mail/list");
+                    });
+                    
+                });
+
+                describe("Handling Response", function() {
+
+                    var server = null;
+
+                    beforeEach(function () {
+                        server = sinon.fakeServer.create();
+                    });
+
+                    afterEach(function () {
+                        server.restore();
+                    });
+
+                    it("test for calling callback", function() {
+                        server.respondWith("POST", "/mail/list", 
+                            jsonOk({status: "OK"})
+                        );
+                        var callback = sinon.spy();
+                        getMailboxes({callback: callback});
+                        server.respond();
+                        assert.isTrue(callback.called);
+                    });
+
+                    it("test for passing response to callback", function() {
+                        server.respondWith("POST", "/mail/list", 
+                            jsonOk({
+                                data: [
+                                    "INBOX", 
+                                    "[Gmail]", 
+                                    "[Gmail]/Drafts", 
+                                    "[Gmail]/Important", 
+                                    "[Gmail]/Spam", 
+                                    "[Gmail]/Starred", 
+                                    "[Gmail]/Trash"
+                                ], 
+                                status: "OK"
+                            })
+                        );
+                        var callback = sinon.spy();
+                        getMailboxes({callback: callback});
+                        server.respond();
+                        var response = callback.args[0][0];
+                        assert.equal(response.status, "OK");
+                        assert.equal(response.data.length, 7);
+                    });
+
+                    it("test for returning status when ajax error", function() {
+                        server.respondWith("POST", "/mail/list", 
+                            [
+                                404, {
+                                'Content-type': 'text/plan'
+                                }, "KURWA MAC"
+                            ]
+                        );
+                        var callback = sinon.spy();
+                        getMailboxes({callback: callback});
+                        server.respond();
+                        var response = callback.args[0][0];
+                        assert.equal(response.status, "ERROR");
+                    });
+
+                });
+
+            });
+
+        });
+        </script>
+
+        <script>
+            mocha.run();
+        </script>
+    </body>
+
+</html>

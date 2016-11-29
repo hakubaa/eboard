@@ -50,13 +50,26 @@ def login():
 
     return render_template("mail/login.html", form=form)
 
+@mail.route("/logout", methods=["GET", "POST"])
+@login_required
+def logout():
+    imap_client = imap_clients.get(current_user.id, None)
+    if imap_client:
+        try:
+            imap_client.logout()
+        except:
+            pass
+        finally:
+            del imap_clients[current_user.id]
+    return redirect(url_for("mail.login"))   
 
 @mail.route("/client", methods=["GET"])
 @login_required
 def client():
     imap_client = imap_clients.get(current_user.id, None)
     if imap_client:
-        return render_template("mail/client.html")
+        if imap_client.state in ("AUTH", "SELECTED"):
+            return render_template("mail/client.html")
     return redirect(url_for("mail.login"))
 
 
@@ -119,7 +132,8 @@ def imap_get_headers():
                     try:
                         status, data = imap_client.get_headers(
                             ids[slice(ids_from, ids_to)],
-                            fields=["Subject", "Date", "From"]
+                            fields=["Subject", "Date", "From", "Content-Type", 
+                                    "Content-Type-Encoding"]
                         )
                     except imaplib.IMAP4.error:
                         status = "ERROR"

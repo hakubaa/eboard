@@ -8,6 +8,38 @@ from email.parser import HeaderParser
 from functools import partial
 
 
+def decode_header_field(msg, name, default="ascii"):
+    """
+    Decode header_text.
+    source: http://blog.magiksys.net/parsing-email-using-python-header
+    """
+    try:
+        headers = decode_header(msg[name])
+        headers = list(map(lambda x: x if isinstance(x, tuple) else (x, None), headers))
+    except email.errors.HeaderParseError:
+        return msg[name].encode('ascii', 'replace').decode('ascii')
+    except KeyError:
+        return None
+    else:
+        for i, (text, charset) in enumerate(headers):
+            if not isinstance(text, str):
+                try:
+                    headers[i] = str(text, charset or default, errors='replace')
+                except LookupError:
+                    headers[i] = str(text, default, errors='replace')
+            else:
+                headers[i] = text
+
+        return "".join(headers)
+
+default_decoders = dict(
+    SUBJECT = partial(decode_header_field, name="Subject"),
+    FROM    = partial(decode_header_field, name="From"),
+    TO      = partial(decode_header_field, name="To"),
+    CC      = partial(decode_header_field, name="CC")
+)
+
+
 class ImapClient:
     '''
     Wraps imaplib.IMAP4_SSL and provides additional high-level methods for
@@ -69,7 +101,8 @@ class ImapClient:
         return ids_bytes
 
     def get_headers(
-        self, ids, *, fields=None, uid=False
+        self, ids, *, fields=None, uid=False, 
+        header_decoders = default_decoders
     ): 
         '''
         Returns the list with headers for given e-mails id-s/uid-s. Accepts
@@ -99,10 +132,14 @@ class ImapClient:
                         pattern = re.compile(".*UID (?P<id>\d+)")
                     else:
                         pattern = re.compile("(?P<id>\d+)")
-                    match = pattern.search(item[0].decode("utf-8"))
+                    match = pattern.search(item[0].decode(encoding="ascii"))
 
-                    header = dict(parser.parsestr(item[1].decode("utf-8"), 
-                                                  headersonly=True))
+                    header = dict(parser.parsestr(
+                        item[1].decode(encoding="ascii"), headersonly=True)
+                    )
+                    for key in header.keys():
+                        header[key] = header_decoders.get(
+                                    key.upper(), lambda x: x[key])(header)
                     header["id"] = int(match.group("id")) if match else None
                     headers.append(header)
 
@@ -133,37 +170,6 @@ class ImapClient:
             return ("OK", emails)
         else:
             return (fetch_status, data)
-
-
-def decode_header_field(msg, name, default="ascii"):
-    """
-    Decode header_text.
-    source: http://blog.magiksys.net/parsing-email-using-python-header
-    """
-    try:
-        headers = decode_header(msg[name])
-    except email.errors.HeaderParseError:
-        return msg[name].encode('ascii', 'replace').decode('ascii')
-    except KeyError:
-        return None
-    else:
-        for i, (text, charset) in enumerate(headers):
-            if charset:
-                try:
-                    headers[i] = str(text, charset or default, errors='replace')
-                except LookupError:
-                    headers[i] = str(text, default, errors='replace')
-            else:
-                headers[i] = text
-        return "".join(headers)
-
-
-default_decoders = dict(
-    SUBJECT = partial(decode_header_field, name="Subject"),
-    FROM    = partial(decode_header_field, name="From"),
-    TO      = partial(decode_header_field, name="To"),
-    CC      = partial(decode_header_field, name="CC")
-)
 
 
 def email_to_dict(msg, header_decoders = default_decoders):
