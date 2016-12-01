@@ -34,18 +34,53 @@
     }
     #emails-container {
         overflow:hidden; 
-        background-color:#000;
+        background-color: grey;
+        color: black;
+    }
+    #emails-list {
+        width: 100%;
+    }
+    #emails-list tr {
+        border: 1px solid black;
+        padding: 2px;
+    }
+    #emails-list tr:not(:first-child):hover {
+        background-color: black;
+        color: white;
+        cursor: pointer;
+    }
+
+    .alert-username {
+        background-color: grey;
+        color: black;
+        border: 1px solid black;
+        padding: 5px;
+    }
+
+    #email-modal {
+        color: black;
     }
 </style>
 {% endblock %}
 
 {% block page_content %}
+{% include 'mail/email.html' %}
 <div class="container">
+    <div class="alert alert-username" role="alert">
+        You're logged as <strong>{{username}}</strong> 
+        (<a href="{{ url_for('mail.logout') }}">Log out</a>).
+    </div>
     <div id="mailbox-container">
         <ul id="mailbox-list"></ul>
     </div>
     <div id="emails-container">
-        <ul id="emails-list"></ul>
+        <table id="emails-list">
+            <tr>
+                <th>From</th>
+                <th>Subject</th>
+                <th>Date</th>
+            </tr>
+        </table> 
     </div>
 </div>
 {% endblock %}
@@ -53,10 +88,15 @@
 {% block scripts %}
 {{ super() }}
 <script src="{{url_for('static', filename='scripts/mail.client.js')}}"></script>
+<script src="{{url_for('static', filename='scripts/mail.email.js')}}"></script>
 <script>
 
     getMailboxes({callback: updateMailboxesList});
     getEMailsHeaders({callback: updateEMailsList});
 
+    $(document).on("click", ".email-header", function() {
+        $("#email-modal").data("email-id", $(this).data("email-id"));
+        $("#email-modal").modal("show");
+    });
 </script>
 {% endblock %}

@@ -48,6 +48,7 @@ class ImapClient:
     def __init__(self, addr, timeout=None):
         socket.setdefaulttimeout(timeout)
         self.mail = imaplib.IMAP4_SSL(addr)
+        self.username = None
 
     def __getattr__(self, attr):
         '''
@@ -58,6 +59,10 @@ class ImapClient:
             return getattr(self.mail, attr)
         raise AttributeError("'%s' object has not attribute '%s'" % 
                              (self.__class__.__name__, attr))
+
+    def login(self, username, password):
+        self.username = username
+        return self.mail.login(username, password)
 
     def list_mailbox(self, mailbox="INBOX", *criteria, uid=False):
         '''

@@ -6,7 +6,8 @@ var settings = {
     default_mailbox: "INBOX",
     emails_per_page: 50,
     ajax_list: "/mail/list",
-    ajax_get_headers: "/mail/get_headers"
+    ajax_get_headers: "/mail/get_headers",
+    ajax_get_emails: "/mail/get_emails"
 };
 
 /*******************************************************************************
@@ -33,8 +34,13 @@ function updateEMailsList(response) {
 
         var $list = $("#emails-list");
         for (var i = 0; i < emails.length; i++) {
-            console.log(emails[i].Subject);
-            var $email = $("<li>" + emails[i].Subject + "</li>");
+            var $email = $("<tr data-email-id='" + emails[i].id + "' " +
+                           "class='email-header'></tr>");
+            $email.append("<td>" + emails[i].From + "</td>");
+            $email.append("<td>" + emails[i].Subject.substr(0, 100) + 
+                          (emails[i].Subject.length > 100 ? " (...)" : "") +
+                          "</td>");
+            $email.append("<td>" + emails[i].Date + "</td>");
             $list.append($email);
         }
     } else {    
@@ -90,3 +96,25 @@ function getEMailsHeaders(options) {
         });
 }
 
+function getEMails(options) {
+    if (options === undefined) options = {};
+    if (options.ids !== undefined) {
+        $.post(settings.ajax_get_emails, {
+            test: "Kuba",
+            ids: options.ids
+        })
+            .done(function(response) {
+                if (options.callback !== undefined) {
+                    options.callback(response);
+                }
+            })
+            .fail(function(response) {
+                 options.callback({
+                        status: "ERROR",
+                        data: response
+                    });
+            });
+    } else {
+        throw "Undefined emails' ids.";
+    }
+}

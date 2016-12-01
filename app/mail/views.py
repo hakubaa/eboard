@@ -19,6 +19,15 @@ DEFAULT_IDS_TO = 50
 
 # check timestamps (compare client creation with current time)
 imap_clients = dict()
+def logout_from_imap(user_id):
+    imap_client = imap_clients.get(user_id, None)
+    if imap_client:
+        try:
+            imap_client.logout()
+        except:
+            pass
+        finally:
+            del imap_clients[user_id]
 
 
 @mail.route("/login", methods=["GET", "POST"])
@@ -43,8 +52,7 @@ def login():
             except imaplib.IMAP4.error:
                flash("Invalid username or password.")
                    
-            if imap_client.state == "AUTH":      
-                g.imap_client = imap_client    
+            if imap_client.state == "AUTH":        
                 imap_clients[current_user.id] = imap_client
                 return redirect(request.args.get("next") or url_for("mail.client"))
 
@@ -53,14 +61,7 @@ def login():
 @mail.route("/logout", methods=["GET", "POST"])
 @login_required
 def logout():
-    imap_client = imap_clients.get(current_user.id, None)
-    if imap_client:
-        try:
-            imap_client.logout()
-        except:
-            pass
-        finally:
-            del imap_clients[current_user.id]
+    logout_from_imap(current_user.id)
     return redirect(url_for("mail.login"))   
 
 @mail.route("/client", methods=["GET"])
@@ -69,7 +70,8 @@ def client():
     imap_client = imap_clients.get(current_user.id, None)
     if imap_client:
         if imap_client.state in ("AUTH", "SELECTED"):
-            return render_template("mail/client.html")
+            return render_template("mail/client.html", 
+                                   username=imap_client.username)
     return redirect(url_for("mail.login"))
 
 
@@ -132,8 +134,7 @@ def imap_get_headers():
                     try:
                         status, data = imap_client.get_headers(
                             ids[slice(ids_from, ids_to)],
-                            fields=["Subject", "Date", "From", "Content-Type", 
-                                    "Content-Type-Encoding"]
+                            fields=["Subject", "Date", "From"]
                         )
                     except imaplib.IMAP4.error:
                         status = "ERROR"
@@ -164,9 +165,7 @@ def imap_get_headers():
 @mail.route("/get_emails", methods=["GET", "POST"])
 def imap_get_emails():
     imap_client = imap_clients.get(current_user.id, None)
-
     if imap_client:
-
         try:
             status_select, _ = imap_client.select(
                 request.args.get("mailbox", "INBOX")
@@ -175,6 +174,8 @@ def imap_get_emails():
             status_select = "ERROR"
 
         if status_select == "OK":
+            print("===========================================================")
+            print(request.args)
             ids = request.args.get("ids", None)
             if ids:
                 try:

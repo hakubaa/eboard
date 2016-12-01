@@ -1,9 +1,13 @@
 from flask import (render_template, redirect, url_for, flash, 
     request, send_from_directory, current_app)
-from flask_login import login_user, logout_user, login_required
+from flask_login import login_user, logout_user, login_required, current_user
+
 from .forms import SignInForm
 from ..models import User
 from . import auth
+
+import app.mail.views as mail
+
 
 @auth.route("/login", methods=["GET", "POST"])
 @auth.route("/", methods=["GET", "POST"])
@@ -20,6 +24,7 @@ def login():
 @auth.route("/logout")
 @login_required
 def logout():
+    mail.logout_from_imap(current_user.id)
     logout_user()
     flash("You have been logged out.")
     return redirect(url_for("auth.login"))

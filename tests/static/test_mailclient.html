@@ -45,6 +45,124 @@
 
         describe("E-Mail Client Test", function() {
 
+            describe("Getting E-Mails", function() {
+
+                describe("Sending Request", function() {
+
+                    var xhr = null;
+                    var requests = null;
+
+                    beforeEach(function () {
+                        xhr = sinon.useFakeXMLHttpRequest();
+                        requests = [];
+                        xhr.onCreate = function (xhr) {
+                            requests.push(xhr);
+                        };
+                    });
+
+                    afterEach(function () {
+                        xhr.restore();
+                    });
+
+                    it("test for sending post request", function() {
+                        getEMails({ids:"1"});
+                        assert.equal(requests.length, 1);
+                    });
+            
+                    it("test for using proper url", function() {
+                        getEMails({ids:"1"});
+                        assert.equal(requests[0].url, "/mail/get_emails");
+                    });
+
+                    it("test for raising exception when no ids", function() {
+                        chai.expect(function(){
+                            getEMails();
+                        }).to.throw("Undefined emails' ids.");
+                    });
+
+                    it("test for passing arguments to request", function() {
+                        getEMails({ids:"1"});
+                        var params = getJsonFromUrl(requests[0].requestBody);
+                        assert.equal(params.ids, "1");
+                    });
+
+                });
+
+                describe("Handling Response", function() {
+                    var server = null;
+
+                    beforeEach(function () {
+                        server = sinon.fakeServer.create();
+                    });
+
+                    afterEach(function () {
+                        server.restore();
+                    });
+
+                    it("test for calling callback", function() {
+                        server.respondWith("POST", "/mail/get_emails", 
+                            jsonOk({
+                                status: "OK"
+                            })
+                        );
+                        var spy = sinon.spy();
+                        getEMails({ids: "1, 2", callback: spy});
+                        server.respond();
+                        assert.isTrue(spy.called);
+                    });
+
+                    it("test for passing response to callback", function() {
+                        server.respondWith("POST", "/mail/get_emails", 
+                            jsonOk({
+                              data: [
+                                {
+                                  body: [
+                                    {
+                                      body: " Three tips to get the most out of Gmail\r\n", 
+                                      header: {}
+                                    }, 
+                                    {
+                                      body: "<!DOCTYPE html>\r\n<html></html>\r\n", 
+                                      header: {}
+                                    }
+                                  ], 
+                                  header: {
+                                    Date: "Thu, 24 Nov 2016 12:34:22 -0800", 
+                                    From: "Gmail Team <mail-noreply@google.com>", 
+                                    Subject: "Three tips to get the most out of Gmail", 
+                                    To: "Jago Eboard <jago.eboard@gmail.com>", 
+                                  }
+                                }
+                              ], 
+                              status: "OK"
+                            })
+                        );
+                        var spy = sinon.spy();
+                        getEMails({ids: "1", callback: spy});
+                        server.respond();
+                        var response = spy.args[0][0];
+                        assert.equal(response.status, "OK");
+                        assert.equal(response.data.length, 1);
+                    });
+
+                    it("test for returning status when ajax error", function() {
+                        server.respondWith("POST", "/mail/get_headers", 
+                            [
+                                404, {
+                                'Content-type': 'text/plan'
+                                }, "KURWA MAC"
+                            ]
+                        );
+                        var callback = sinon.spy();
+                        getEMails({ids: "1", callback: callback});
+                        server.respond();
+                        var response = callback.args[0][0];
+                        assert.equal(response.status, "ERROR");
+                    });
+                });                
+
+            });
+
             describe("List of E-Mails (Headers)", function() {
 
                 describe("Sending Request", function() {

@@ -274,6 +274,24 @@ class MailViewsTest(TestCase):
         )
         self.assert_template_used("mail/client.html")
 
+
+    @patch("app.mail.views.ImapClient")
+    @patch("app.mail.views.current_user")
+    def test_for_passing_username_to_template(
+        self, user_mock, imap_mock
+    ):
+        user_mock.id = 1
+        imap_mock.return_value.state = "AUTH"
+        imap_mock.return_value.username = "test@gmail.com"
+        response = self.client.post(
+            url_for("mail.login"), 
+            data=dict(username="test@gmail.com", password="testowe", 
+                      imap="imap.gmail.com"),
+            follow_redirects = True
+        )
+        self.assert_context("username", "test@gmail.com")
+
+
     @patch("app.mail.views.ImapClient")
     @patch("app.mail.views.current_user")
     def test_for_redirectiong_for_unlogged_users(
