@@ -6,6 +6,7 @@ Flask-Migrate==1.8.0
 Flask-Moment==0.5.1
 Flask-SQLAlchemy==2.1
 Flask-Script==2.0.5
+Flask-Testing==0.6.1
 Flask-WTF==0.12
 ForgeryPy==0.1
 Jinja2==2.8
@@ -15,6 +16,7 @@ SQLAlchemy==1.0.13
 WTForms==2.1
 Werkzeug==0.11.10
 alembic==0.8.6
+blinker==1.4
 click==6.6
 dominate==2.2.0
 itsdangerous==0.24
