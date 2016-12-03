@@ -14,13 +14,16 @@
         background-repeat: no-repeat;
         width: 240px;
         height: 100px;
+        text-align: center;
     }
     #mailbox-list {
+        margin: 0  auto;
+        display: inline-block;
         list-style-type: none;
         margin: 0;
         padding: 0;
         width: 200px;
-        background-color: #5cb85c;
+        background-color: grey; /*#5cb85c;*/
         color: black;
         border: 1px solid black;
     }
@@ -44,21 +47,47 @@
         border: 1px solid black;
         padding: 2px;
     }
-    #emails-list tr:not(:first-child):hover {
-        background-color: black;
-        color: white;
+    #emails-list thead {
+        background-color: #f0ad4e;
+        color: black;
+    }
+    #emails-list tbody tr:hover {
+        background-color: #f0ad4e;
+        color: black;
         cursor: pointer;
     }
-
+    th.header-from {
+      width: 15%
+    }
+    th.header-date {
+        width: 10%;
+    }
+    th.header-subject {
+      width: 75%; 
+    }
     .alert-username {
-        background-color: grey;
+        background-color: #f0ad4e;
         color: black;
         border: 1px solid black;
         padding: 5px;
     }
-
     #email-modal {
         color: black;
+    }
+    #new-msg {
+        margin-bottom: 5px;
+        width: 70%;
+        color: black !important;
+    }
+    #emails-ui {
+        background-color: #333;
+        padding-bottom: 5px;
+    }
+    #emails-ui button {
+        color: black !important;
+    }
+    #page-emails {
+        color: white;
     }
 </style>
 {% endblock %}
@@ -71,15 +100,30 @@
         (<a href="{{ url_for('mail.logout') }}">Log out</a>).
     </div>
     <div id="mailbox-container">
+        <button id="new-msg" type="button" class="btn btn-warning">New Message</button>
         <ul id="mailbox-list"></ul>
     </div>
     <div id="emails-container">
+        <div id="emails-ui">
+            <span id="page-emails"></span>
+            <button id="prev-emails-btn" type="button" class="btn btn-warning">
+                &#8882
+            </button>
+            <button id="next-emails-btn" type="button" class="btn btn-warning">
+                &#8883
+            </button> 
+        </div>
         <table id="emails-list">
-            <tr>
-                <th>From</th>
-                <th>Subject</th>
-                <th>Date</th>
-            </tr>
+            <thead>
+                <tr>
+                    <th class="header-from">From</th>
+                    <th class="header-subject">Subject</th>
+                    <th class="header-date">Date</th>
+                </tr>
+            </thead>
+            <tbody>
+
+            </tbody>
         </table> 
     </div>
 </div>
@@ -87,16 +131,22 @@
 
 {% block scripts %}
 {{ super() }}
+<script src="{{url_for('static', filename='scripts/moment.js')}}"></script>
 <script src="{{url_for('static', filename='scripts/mail.client.js')}}"></script>
 <script src="{{url_for('static', filename='scripts/mail.email.js')}}"></script>
 <script>
-
     getMailboxes({callback: updateMailboxesList});
-    getEMailsHeaders({callback: updateEMailsList});
+    EMailsListController.init({mailbox: "INBOX"});
 
     $(document).on("click", ".email-header", function() {
         $("#email-modal").data("email-id", $(this).data("email-id"));
         $("#email-modal").modal("show");
     });
+    $("#prev-emails-btn").click(function() {
+        EMailsListController.getPrevEMails();
+    });
+    $("#next-emails-btn").click(function() {
+        EMailsListController.getNextEMails();
+    });    
 </script>
 {% endblock %}

@@ -17,7 +17,7 @@ DEFAULT_IDS_FROM = 0
 DEFAULT_IDS_TO = 50
 
 
-# check timestamps (compare client creation with current time)
+# check timestamps (compare client origin time with current time)
 imap_clients = dict()
 def logout_from_imap(user_id):
     imap_client = imap_clients.get(user_id, None)
@@ -79,6 +79,11 @@ def client():
 def imap_list():
     imap_client = imap_clients.get(current_user.id, None)
     if imap_client:
+        if request.method == "POST":
+            args = request.form
+        elif request.method == "GET":
+            args = request.args
+
         try:
             status, data = imap_client.list()
         except imaplib.IMAP4.error:
@@ -112,9 +117,17 @@ def imap_list():
 def imap_get_headers():
     imap_client = imap_clients.get(current_user.id, None)
     if imap_client:
+        if request.method == "POST":
+            args = request.form
+        elif request.method == "GET":
+            args = request.args
+
+        print("===========================================================")
+        print(args)
+
         try:
             status, count = imap_client.len_mailbox(
-                request.args.get("mailbox", "INBOX")
+                args.get("mailbox", "INBOX")
             )
         except imaplib.IMAP4.error:
             status = "ERROR"
@@ -122,15 +135,18 @@ def imap_get_headers():
         if status == "OK":
             if count > 0:
                 ids = range(count, 0, -1) # Create ids of mails
-                ids_from = max(int(request.args.get(
+                ids_from = max(int(args.get(
                                "ids_from", DEFAULT_IDS_FROM)), 0)
-                ids_to = min(int(request.args.get(
+                ids_to = min(int(args.get(
                              "ids_to", DEFAULT_IDS_TO)), len(ids))
 
                 if ids_from >= ids_to:
                     status = "ERROR"
                     msg = "Invalid e-mails' ranges (ids_from <= ids_to)."
                 else:
+                    print("KURWA MAC")
+                    print("From: ", ids_from)
+                    print("To: ", ids_to)
                     try:
                         status, data = imap_client.get_headers(
                             ids[slice(ids_from, ids_to)],
@@ -147,7 +163,8 @@ def imap_get_headers():
             if status == "OK":
                 response = {
                     "status": status,
-                    "data": list(reversed(data))
+                    "data": list(reversed(data)),
+                    "total_emails": count
                 }
                 return jsonify(response)
         else:
@@ -166,17 +183,21 @@ def imap_get_headers():
 def imap_get_emails():
     imap_client = imap_clients.get(current_user.id, None)
     if imap_client:
+        if request.method == "POST":
+            args = request.form
+        elif request.method == "GET":
+            args = request.args
+
         try:
             status_select, _ = imap_client.select(
-                request.args.get("mailbox", "INBOX")
+                args.get("mailbox", "INBOX")
             )
         except imaplib.IMAP4.error:
             status_select = "ERROR"
 
         if status_select == "OK":
-            print("===========================================================")
-            print(request.args)
-            ids = request.args.get("ids", None)
+
+            ids = args.get("ids", None)
             if ids:
                 try:
                     status, data = imap_client.get_emails(ids)

@@ -45,6 +45,82 @@
 
         describe("E-Mail Client Test", function() {
 
+            describe("EMailsListController Test", function() {
+
+                var stub_getEMailsHeaders = null;
+
+                beforeEach(function() {
+                    stub_getEMailsHeaders = sinon.stub(
+                        window, "getEMailsHeaders");
+                    EMailsListController.page = 1;
+                });
+
+                afterEach(function() {
+                    stub_getEMailsHeaders.restore();
+                });
+
+                it("init sets proper pages range", function() {
+                    EMailsListController.init();
+                    assert.equal(EMailsListController.page, 1);
+                    assert.equal(EMailsListController.emailsPerPage, 
+                                 settings.emails_per_page);
+
+                });
+
+                it("init calls indirectly getEMailsHeaders", function() {
+                    EMailsListController.init();
+                    assert.isTrue(stub_getEMailsHeaders.calledOnce);
+                });
+
+                it("init sets proper callback for getEMailsHeaders", function() {
+                    EMailsListController.init();
+                    assert.equal(
+                        stub_getEMailsHeaders.args[0][0].callback,
+                        EMailsListController.headersCallback
+                    );
+                });
+
+                it("getNextEMails calls indirectly getEMailsHeaders", function() {
+                    EMailsListController.init();
+                    EMailsListController.total_emails = 60;
+                    EMailsListController.getNextEMails();
+                    assert.equal(stub_getEMailsHeaders.callCount, 2);
+                });
+
+                it("getNextEMails increases page number", function() {
+                    EMailsListController.init();
+                    EMailsListController.getNextEMails();
+                    assert.equal(EMailsListController.page, 2);
+                });
+
+                it("getNextEMails does not increase page when " +
+                        "current page is the last", function() {
+                    EMailsListController.init();
+                    EMailsListController.total_emails = 60;
+                    EMailsListController.getNextEMails();
+                    EMailsListController.getNextEMails();
+                    assert.equal(EMailsListController.page,2);
+                });
+
+                it("getPrevEMails does not increase page when " +
+                        "current page is the first", function() {
+                    EMailsListController.init();
+                    EMailsListController.total_emails = 60;
+                    assert.equal(EMailsListController.page, 1);
+                    EMailsListController.getPrevEMails();
+                    assert.equal(EMailsListController.page, 1);
+                });
+
+                it("getPrevEMails calls indirectly getEMailsHeaders", function() {
+                    EMailsListController.init();
+                    EMailsListController.total_emails = 60;
+                    EMailsListController.page = 2;
+                    EMailsListController.getPrevEMails();
+                    assert.equal(stub_getEMailsHeaders.callCount, 2);
+                });
+
+            });
+
             describe("Getting E-Mails", function() {
 
                 describe("Sending Request", function() {

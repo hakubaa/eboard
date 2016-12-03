@@ -49,6 +49,7 @@ class ImapClient:
         socket.setdefaulttimeout(timeout)
         self.mail = imaplib.IMAP4_SSL(addr)
         self.username = None
+        self.mailbox = None
 
     def __getattr__(self, attr):
         '''
@@ -61,8 +62,14 @@ class ImapClient:
                              (self.__class__.__name__, attr))
 
     def login(self, username, password):
+        '''Identify client using plaintext password.'''
         self.username = username
         return self.mail.login(username, password)
+
+    def select(self, mailbox="INBOX", readonly=False):
+        '''Select mailbox.'''
+        self.mailbox = mailbox
+        return self.mail.select(mailbox, readonly)
 
     def list_mailbox(self, mailbox="INBOX", *criteria, uid=False):
         '''
