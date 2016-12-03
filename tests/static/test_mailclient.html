@@ -72,14 +72,6 @@
                     assert.isTrue(stub_getEMailsHeaders.calledOnce);
                 });
 
-                it("init sets proper callback for getEMailsHeaders", function() {
-                    EMailsListController.init();
-                    assert.equal(
-                        stub_getEMailsHeaders.args[0][0].callback,
-                        EMailsListController.headersCallback
-                    );
-                });
-
                 it("getNextEMails calls indirectly getEMailsHeaders", function() {
                     EMailsListController.init();
                     EMailsListController.total_emails = 60;
@@ -96,7 +88,7 @@
                 it("getNextEMails does not increase page when " +
                         "current page is the last", function() {
                     EMailsListController.init();
-                    EMailsListController.total_emails = 60;
+                    EMailsListController.total_emails = 50;
                     EMailsListController.getNextEMails();
                     EMailsListController.getNextEMails();
                     assert.equal(EMailsListController.page,2);
@@ -117,6 +109,25 @@
                     EMailsListController.page = 2;
                     EMailsListController.getPrevEMails();
                     assert.equal(stub_getEMailsHeaders.callCount, 2);
+                });
+
+                it("select mailbox calls indirectly getEMailsHeaders", function() {
+                    EMailsListController.init();
+                    EMailsListController.selectMailbox("INBOX");
+                    assert.equal(stub_getEMailsHeaders.callCount, 2);
+                });
+
+                it("select mailbox sets page to 1", function() {
+                    EMailsListController.init();
+                    EMailsListController.page = 10;
+                    EMailsListController.selectMailbox("INBOX");
+                    assert.equal(EMailsListController.page, 1);                  
+                });
+
+                it("select maiblox saves mailbox's name", function() {
+                    EMailsListController.init();
+                    EMailsListController.selectMailbox("TESTOWY");
+                    assert.equal(EMailsListController.mailbox, "TESTOWY");  
                 });
 
             });
@@ -272,16 +283,16 @@
                         getEMailsHeaders({mailbox:"TEST", from:15, to:50});
                         var params = getJsonFromUrl(requests[0].requestBody);
                         assert.equal(params.mailbox, "TEST");
-                        assert.equal(params.from, 15);
-                        assert.equal(params.to, 50);                        
+                        assert.equal(params.ids_from, 15);
+                        assert.equal(params.ids_to, 50);                        
                     });
 
                     it("test for passing default arguments", function() {
                         getEMailsHeaders();
                         var params = getJsonFromUrl(requests[0].requestBody);
                         assert.equal(params.mailbox, "INBOX");
-                        assert.equal(params.from, 0);
-                        assert.equal(params.to, 50); 
+                        assert.equal(params.ids_from, 0);
+                        assert.equal(params.ids_to, settings.emails_per_page); 
                     });
 
                 });

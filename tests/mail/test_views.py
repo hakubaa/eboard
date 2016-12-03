@@ -187,13 +187,13 @@ class ListViewTest(TestCase):
         response = self.client.get(url_for("mail.imap_list"))
         self.assertTrue(client_mock.list.called)
 
-    def test_returns_json_list_with_mailboxes(self, user_mock, iclients_mock):
+    def test_returns_json_list_with_dics(self, user_mock, iclients_mock):
         client_mock = self.mock_imap_client(iclients_mock)
         response = self.client.get(url_for("mail.imap_list"))
         data = json.loads(response.data.decode("utf-8"))
         self.assertEqual(data["status"], "OK")
-        self.assertIn("INBOX", data["data"])
-        self.assertIn("Praca", data["data"])
+        self.assertIn({"utf7": "INBOX", "utf16": "INBOX"}, data["data"])
+        self.assertIn({"utf7": "Praca", "utf16": "Praca"}, data["data"])
 
     def test_for_not_calling_list_method_when_noauth_user(
         self, user_mock, iclients_mock

@@ -91,11 +91,18 @@ def imap_list():
 
         if status == "OK":
             mailboxes = list()
-            p = re.compile('"(?P<name>[^" ]*)"$')
+            p = re.compile(r'"(?P<name>[^"]*)"$')
+            noselect = re.compile(r'\\noselect', re.IGNORECASE)
             for mailbox in data:
-                m = p.search(utf7_decode(str(mailbox, encoding="ascii")))
+                mailbox = mailbox.decode("ascii")
+                if noselect.search(mailbox) is not None:
+                    continue
+                m = p.search(mailbox)
                 if m:
-                    mailboxes.append(m.group("name"))
+                    mailboxes.append({
+                        "utf7": m.group("name"),
+                        "utf16": utf7_decode(m.group("name"))
+                    })
             response = {
                 "status": "OK",
                 "data": mailboxes
@@ -124,7 +131,7 @@ def imap_get_headers():
 
         try:
             status, count = imap_client.len_mailbox(
-                args.get("mailbox", "INBOX")
+                '"' + args.get("mailbox", "INBOX") + '"'
             )
         except imaplib.IMAP4.error:
             status = "ERROR"
@@ -133,11 +140,11 @@ def imap_get_headers():
             if count > 0:
                 ids = range(count, 0, -1) # Create ids of mails
                 ids_from = max(int(args.get(
-                               "ids_from", DEFAULT_IDS_FROM)), 0)
+                               "ids_from", DEFAULT_IDS_FROM)), 1) - 1
                 ids_to = min(int(args.get(
                              "ids_to", DEFAULT_IDS_TO)), len(ids))
 
-                if ids_from >= ids_to:
+                if ids_from > ids_to:
                     status = "ERROR"
                     msg = "Invalid e-mails' ranges (ids_from <= ids_to)."
                 else:
@@ -150,7 +157,7 @@ def imap_get_headers():
                         status = "ERROR"
 
                     if status != "OK":
-                        msg = "Unable to get e-mails' headers."
+                        msg = "Unable to get e-mails' headers. %s %s" % (ids_from, ids_to)
             else:
                 status, data = "OK", [] # Empty mailbox
 

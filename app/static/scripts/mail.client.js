@@ -4,7 +4,7 @@
 
 var settings = {
     default_mailbox: "INBOX",
-    emails_per_page: 25,
+    emails_per_page: 50,
     ajax_list: "/mail/list",
     ajax_get_headers: "/mail/get_headers",
     ajax_get_emails: "/mail/get_emails"
@@ -23,12 +23,19 @@ var EMailsListController = {
         if (options.mailbox === undefined) {
             options.mailbox = settings.default_mailbox;
         }
-        this.mailbox = options.mailbox;
-        this.page = 1;
+        // this.mailbox = options.mailbox;
+        // this.page = 1;
         this.emailsPerPage = options.emailsPerPage;
-        this.total_emails = undefined;
         this.requestInProgress = false;
+        this.selectMailbox(options.mailbox);
+    },
+    selectMailbox: function(mailbox) {
+        if (mailbox === undefined) mailbox = settings.default_mailbox;
+        this.mailbox = mailbox;
+        this.page = 1;
+        this.total_emails = undefined;
         this.sendEMailsHeadersRequest();
+        toggleActiveMailbox(mailbox);
     },
     getNextEMails: function() {
         var nextFrom = this.calcFrom(this.page + 1);
@@ -51,16 +58,20 @@ var EMailsListController = {
         }
     },
     sendEMailsHeadersRequest: function() {
-        var self = this;
-        this.requestInProgress = true;
-        getEMailsHeaders({
-            from: this.calcFrom(this.page),
-            to: this.calcTo(this.page),
-            mailbox: this.mailbox,
-            callback: function(response) {
-                self.headersCallback(response, self);
-            }
-        });        
+        if (!this.requestInProgress) { // only one request at once
+            var self = this; // required for callback
+            this.requestInProgress = true;
+            setInfo("Loading e-mails ...");
+            getEMailsHeaders({
+                from: this.calcFrom(this.page),
+                to: this.calcTo(this.page),
+                mailbox: this.mailbox,
+                callback: function(response) {
+                    setInfo("");
+                    self.headersCallback(response, self);
+                }
+            });      
+        }  
     },
     calcFrom: function(page) {
         if (page === undefined || page === null || page == 0) {
@@ -93,10 +104,14 @@ var EMailsListController = {
                 total_emails: self.total_emails
             });
         } else {
-            alert("ERROR: " + JSON.parse(response.data));
+            alert("ERROR: " + JSON.stringify(response.data));
         }
     }
 };
+
+function setInfo(text) {
+    $("#client-info").html(text);
+}
 
 function updatePageInfo(options) {
     var $page = $("#page-emails");
@@ -110,11 +125,22 @@ function updateMailboxesList(response) {
         
         var $list = $("#mailbox-list");
         for(var i = 0; i < mailboxes.length; i++) {
-            var $mailbox = $("<li>" + mailboxes[i] + "</li>");
+            var $mailbox = $("<li data-name='" + 
+                             mailboxes[i].utf7 + "'>" + 
+                             mailboxes[i].utf16 + "</li>");
             $list.append($mailbox);
         }
     } else {
-        alert("ERROR: " + JSON.parse(response.data));
+        alert("ERROR: " + JSON.stringify(response.data));
+    }
+}
+
+function toggleActiveMailbox(mailbox) {
+    if (mailbox === undefined) mailbox = EMailsListController.mailbox;
+    if (mailbox) {
+        var $list = $("#mailbox-list");
+        $list.children(".active").removeClass("active");
+        $list.children("[data-name='" + mailbox + "']").addClass("active");
     }
 }
 
@@ -135,8 +161,21 @@ function updateEMailsList(response) {
                           moment(emails[i].Date).format("YYYY-MM-DD") + "</td>");
             $list.append($email);
         }
+        toggleActiveMailbox();
+
+
+        //http://stackoverflow.com/questions/3591264/can-table-rows-be-made-draggable
+        $("#emails-list tr").draggable({
+            helper: "clone",
+            start: function(event, ui) {
+                // c.tr = this;
+                // c.helper = ui.helper;
+            }
+        });
+
+
     } else {    
-        alert("ERROR: " + JSON.parse(response.data));
+        alert("ERROR: " + JSON.stringify(response.data));
     }
 }
 

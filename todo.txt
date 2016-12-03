@@ -1,11 +1,14 @@
 E-Mail Client:
-- change mailbox
-- mark current mailbox
 - read e-mails
 - add button to create new message
 - add loger to ImapClient (save in database method calls and returned statuses)
-
+- dragable emails (between mailboxes)
+- add checkbox to select emails and remove them (just like in gmail)
+- mark not read message with different color 
+    - add FLAGS: FLAGS BODY.PEEK[HEADER.FIELDS (DATE FROM)]
 
 DONE:
 - add pages
 - decode mailboxes labels (utf-7)
+- change mailbox
+- mark current mailbox

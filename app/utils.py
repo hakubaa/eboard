@@ -43,7 +43,7 @@ def base64_to_utf16be(s):
 
 
 def utf7_decode(s):
-    '''Decode text encoded with utf-7'''
+    '''Decode text encoded with utf-7. https://tools.ietf.org/pdf/rfc2152.pdf'''
     r = list()
     decode_chars = list()
 
