@@ -93,14 +93,15 @@ var EMailsListController = {
                 total_emails: self.total_emails
             });
         } else {
-            alert("ERROR: " + response.data);
+            alert("ERROR: " + JSON.parse(response.data));
         }
     }
 };
 
 function updatePageInfo(options) {
     var $page = $("#page-emails");
-    $page.html(options.from + " - " + options.to + " of " + options.total_emails);
+    $page.html(options.from + " - " + options.to + " of " + 
+               options.total_emails);
 }
 
 function updateMailboxesList(response) {
@@ -113,7 +114,7 @@ function updateMailboxesList(response) {
             $list.append($mailbox);
         }
     } else {
-        alert("ERROR");
+        alert("ERROR: " + JSON.parse(response.data));
     }
 }
 
@@ -135,7 +136,7 @@ function updateEMailsList(response) {
             $list.append($email);
         }
     } else {    
-        alert("ERROR");
+        alert("ERROR: " + JSON.parse(response.data));
     }
 }
 
@@ -212,3 +213,5 @@ function getEMails(options) {
         throw "Undefined emails' ids.";
     }
 }
+
+/******************************************************************************/

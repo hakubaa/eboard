@@ -11,7 +11,7 @@ from flask_login import current_user, login_required
 from . import mail
 from .forms import LoginForm
 from .client import ImapClient, email_to_dict
-
+from app.utils import utf7_decode
 
 DEFAULT_IDS_FROM = 0
 DEFAULT_IDS_TO = 50
@@ -93,7 +93,7 @@ def imap_list():
             mailboxes = list()
             p = re.compile('"(?P<name>[^" ]*)"$')
             for mailbox in data:
-                m = p.search(mailbox.decode())
+                m = p.search(utf7_decode(str(mailbox, encoding="ascii")))
                 if m:
                     mailboxes.append(m.group("name"))
             response = {
@@ -122,9 +122,6 @@ def imap_get_headers():
         elif request.method == "GET":
             args = request.args
 
-        print("===========================================================")
-        print(args)
-
         try:
             status, count = imap_client.len_mailbox(
                 args.get("mailbox", "INBOX")
@@ -144,9 +141,6 @@ def imap_get_headers():
                     status = "ERROR"
                     msg = "Invalid e-mails' ranges (ids_from <= ids_to)."
                 else:
-                    print("KURWA MAC")
-                    print("From: ", ids_from)
-                    print("To: ", ids_to)
                     try:
                         status, data = imap_client.get_headers(
                             ids[slice(ids_from, ids_to)],

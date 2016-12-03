@@ -15,7 +15,7 @@ from app.eboard.forms import UploadBookForm, NoteForm, TaskForm,\
 from app.models import Book, Task, Tag, Status, Note, Project,\
     Milestone, Event
 from app import db
-from app.util import merge_dicts
+from app.utils import merge_dicts
 
 @eboard.route("/")
 @login_required

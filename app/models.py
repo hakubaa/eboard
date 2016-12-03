@@ -3,7 +3,7 @@ from flask_login import UserMixin
 from flask import redirect, url_for
 from . import db
 from . import login_manager
-from app.util import merge_dicts
+from app.utils import merge_dicts
 import datetime
 
 # Association table for notes & tags
