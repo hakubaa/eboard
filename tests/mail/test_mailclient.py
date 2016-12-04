@@ -194,7 +194,25 @@ class GetHeadersTest(FlaskTestCase):
         self.assertFalse(fetch_mock.called)     
         self.assertTrue(uid_mock.called)
 
+    def test_returns_list_with_flags_for_each_email(self, imap_mock):
+        fetch_mock = self.mock_fetch(imap_mock, imap_responses.fetch3)
+        iclient = ImapClient("imap.gmail.com")
+        header, header = iclient.get_headers(b'9', flags=True)
+        self.assertIn("Flags", header[0])
+        self.assertTrue(isinstance(header[0]["Flags"], list))
 
+    def test_accepts_flags_argument(self, imap_mock):
+        fetch_mock = self.mock_fetch(imap_mock, imap_responses.fetch3)
+        iclient = ImapClient("imap.gmail.com")
+        iclient.get_headers(b'2043', flags=True)
+
+    def test_calls_fetch_with_FLAGS_part(self, imap_mock):
+        fetch_mock = self.mock_fetch(imap_mock, imap_responses.fetch3)
+        iclient = ImapClient("imap.gmail.com")
+        iclient.get_headers(b'9', flags=True)
+        self.assertIn("FLAGS", fetch_mock.call_args[0][1])
+
+        
 @patch("app.mail.client.imaplib")
 class ListMailboxTest(FlaskTestCase):
 

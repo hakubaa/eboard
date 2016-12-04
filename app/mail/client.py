@@ -7,6 +7,10 @@ from email.header import decode_header
 from email.parser import HeaderParser
 from functools import partial
 
+# Set proper limit in order to avoid error: 
+# 'imaplib.error: command: SELECT => got more than 100000 bytes'
+imaplib._MAXLINE = 1000000
+
 
 def decode_header_field(msg, name, default="ascii"):
     """
@@ -114,7 +118,8 @@ class ImapClient:
 
     def get_headers(
         self, ids, *, fields=None, uid=False, 
-        header_decoders = default_decoders
+        header_decoders=default_decoders,
+        flags=True
     ): 
         '''
         Returns the list with headers for given e-mails id-s/uid-s. Accepts
@@ -125,10 +130,15 @@ class ImapClient:
         ids_bytes = self._ids_to_bytes(ids)
         parser = HeaderParser()
 
+        msg_parts = list()
+        if flags:
+            msg_parts.append("FLAGS")
+
         if fields:
-            msg_parts = "BODY.PEEK[HEADER.FIELDS (%s)]" % " ".join(fields)
+            msg_parts.append("BODY.PEEK[HEADER.FIELDS (%s)]" % " ".join(fields))
         else:
-            msg_parts = "BODY.PEEK[HEADER]"
+            msg_parts.append("BODY.PEEK[HEADER]")
+        msg_parts = "(" + " ".join(msg_parts) + ")"
 
         if uid:
             fetch_status, data = self.mail.uid("fetch", ids_bytes, msg_parts)
@@ -139,20 +149,32 @@ class ImapClient:
             for item in data:
                 if item == b')': continue   
                 if isinstance(item, tuple): 
+                    header = dict(parser.parsestr(
+                        item[1].decode("ascii"), headersonly=True)
+                    )
+
                     # Find message'id
                     if uid:
                         pattern = re.compile(".*UID (?P<id>\d+)")
                     else:
                         pattern = re.compile("(?P<id>\d+)")
-                    match = pattern.search(item[0].decode(encoding="ascii"))
+                    match_id = pattern.search(item[0].decode("ascii"))
+                    header["id"] = int(match_id.group("id")) if match_id else None
 
-                    header = dict(parser.parsestr(
-                        item[1].decode(encoding="ascii"), headersonly=True)
-                    )
+                    # Find Flags
+                    if flags:
+                        pattern = re.compile("FLAGS \((?P<flags>.*)\) ")
+                        match_flags = pattern.search(item[0].decode("ascii"))
+                        if match_flags:
+                            msg_flags = match_flags.group("flags").split(" ")
+                            header["Flags"] = [flag for flag in msg_flags
+                                               if flag != "" and flag != " "]
+
+                    # Decode select fileds with given decoders
                     for key in header.keys():
                         header[key] = header_decoders.get(
                                     key.upper(), lambda x: x[key])(header)
-                    header["id"] = int(match.group("id")) if match else None
+                    
                     headers.append(header)
 
             return ("OK", headers)

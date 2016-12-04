@@ -152,12 +152,24 @@ function updateEMailsList(response) {
         for (var i = 0; i < emails.length; i++) {
             var $email = $("<tr data-email-id='" + emails[i].id + "' " +
                            "class='email-header'></tr>");
-            $email.append("<td class='email-from'>" + emails[i].From + "</td>");
-            $email.append("<td class='email-subject'>" + 
+            if (emails[i].Flags !== undefined) {
+                var flags = emails[i].Flags.map(function(x) { return x.toUpperCase()});
+                if (flags.indexOf("\\SEEN") < 0) {
+                    $email.addClass("unseen");
+                }
+            }
+            $email.append("<td class='email-controls'></td>");
+            var $controls = $email.find(".email-controls");
+            $controls.append("<span class='email-drag'>&#10697;</span>");
+            $controls.append("<input class='email-check' type='checkbox'/>");
+            $controls.append("<span class='email-star'>&#9733;</span>");
+
+            $email.append("<td class='email-from email-open'>" + emails[i].From + "</td>");
+            $email.append("<td class='email-subject email-open'>" + 
                           emails[i].Subject.substr(0, 100) + 
                           (emails[i].Subject.length > 100 ? " (...)" : "") +
                           "</td>");
-            $email.append("<td class='email-date'>" + 
+            $email.append("<td class='email-date email-open'>" + 
                           moment(emails[i].Date).format("YYYY-MM-DD") + "</td>");
             $list.append($email);
         }
@@ -165,8 +177,11 @@ function updateEMailsList(response) {
 
 
         //http://stackoverflow.com/questions/3591264/can-table-rows-be-made-draggable
-        $("#emails-list tr").draggable({
-            helper: "clone",
+        $("#emails-list span.email-drag").draggable({
+            helper: function() {
+                // return $(this).parent().parent();
+                return $("<div class='email-dragged'>E-Mail<div>");
+            },
             start: function(event, ui) {
                 // c.tr = this;
                 // c.helper = ui.helper;

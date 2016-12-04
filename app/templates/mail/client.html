@@ -93,6 +93,9 @@
         cursor: pointer;
     }
 
+    th.header-controls {
+        width: 9%;
+    }
     th.header-from {
         width: 15%
     }
@@ -100,7 +103,7 @@
         width: 10%;
     }
     th.header-subject {
-      width: 75%; 
+      width: 65%; 
     }
     .alert-client {
         background-color: #f0ad4e;
@@ -131,6 +134,24 @@
         color: #f0ad4e;
         font-weight: bold;
     }
+    .email-header.unseen {
+        background-color: #4e91f0;
+        color: black;
+    }
+    .email-star {
+        font-size: 2em;
+    }
+    .email-drag {
+        font-size: 2em;
+    }
+    .email-drag:hover {
+        cursor: move;
+    }
+    .email-dragged {
+        border: 1px solid black;
+        background-color: #f0ad4e;
+        padding: 10px 20px;
+    }
 
 </style>
 {% endblock %}
@@ -160,6 +181,7 @@
         <table id="emails-list">
             <thead>
                 <tr>
+                    <th class="header-controls"></th>
                     <th class="header-from">From</th>
                     <th class="header-subject">Subject</th>
                     <th class="header-date">Date</th>
@@ -183,8 +205,8 @@
     getMailboxes({callback: updateMailboxesList});
     EMailsListController.init({mailbox: "INBOX"});
 
-    $(document).on("click", ".email-header", function() {
-        $("#email-modal").data("email-id", $(this).data("email-id"));
+    $(document).on("click", ".email-open", function() {
+        $("#email-modal").data("email-id", $(this).parent().data("email-id"));
         $("#email-modal").modal("show");
     });
     $(document).on("click", "#mailbox-list li", function() {
