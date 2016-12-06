@@ -1,6 +1,7 @@
 import json
 import re
 import imaplib
+import functools
 
 from flask import (
     render_template, redirect, url_for, request, flash, g,
@@ -75,103 +76,112 @@ def client():
     return redirect(url_for("mail.login"))
 
 
-@mail.route("/list", methods=["GET", "POST"])
-def imap_list():
-    imap_client = imap_clients.get(current_user.id, None)
-    if imap_client:
-        if request.method == "POST":
-            args = request.form
-        elif request.method == "GET":
-            args = request.args
+################################################################################
+# IMAP INTERFACE
+################################################################################
 
-        try:
-            status, data = imap_client.list()
-        except imaplib.IMAP4.error:
-            status = "ERROR"
-
-        if status == "OK":
-            mailboxes = list()
-            p = re.compile(r'"(?P<name>[^"]*)"$')
-            noselect = re.compile(r'\\noselect', re.IGNORECASE)
-            for mailbox in data:
-                mailbox = mailbox.decode("ascii")
-                if noselect.search(mailbox) is not None:
-                    continue
-                m = p.search(mailbox)
-                if m:
-                    mailboxes.append({
-                        "utf7": m.group("name"),
-                        "utf16": utf7_decode(m.group("name"))
-                    })
-            response = {
-                "status": "OK",
-                "data": mailboxes
-            }
+def imap_authentication(func):
+    @functools.wraps(func)
+    def authenticate(*args, **kwargs):
+        imap_client = imap_clients.get(current_user.id, None)
+        if imap_client:
+            return func(imap_client)
         else:
             response = {
                 "status": "ERROR",
-                "data": {"msg": "Unable to get list of mailboxes."}
+                "data": "Not authorized access."
             }
-    else:
-        response = { 
-            "status": "ERROR", 
-            "data": {"msg": "Not authorized access."} 
-        }
-    return jsonify(response)
+            return jsonify(response)    
+    return authenticate
+
+
+@mail.route("/list", methods=["GET", "POST"])
+@imap_authentication
+def imap_list(imap_client):
+    if request.method == "POST":
+        args = request.form
+    elif request.method == "GET":
+        args = request.args
+
+    try:
+        status, data = imap_client.list()
+    except imaplib.IMAP4.error:
+        status = "ERROR"
+
+    if status == "OK":
+        mailboxes = list()
+        p = re.compile(r'"(?P<name>[^"]*)"$')
+        noselect = re.compile(r'\\noselect', re.IGNORECASE)
+        for mailbox in data:
+            mailbox = mailbox.decode("ascii")
+            if noselect.search(mailbox) is not None:
+                continue
+            m = p.search(mailbox)
+            if m:
+                mailboxes.append({
+                    "utf7": m.group("name"),
+                    "utf16": utf7_decode(m.group("name"))
+                })
+        return jsonify({
+            "status": "OK",
+            "data": mailboxes
+        })
+
+    return jsonify({
+        "status": "ERROR",
+        "data": {"msg": "Unable to get list of mailboxes."}
+    })
 
 
 @mail.route("/get_headers", methods=["GET", "POST"])
-def imap_get_headers():
-    imap_client = imap_clients.get(current_user.id, None)
-    if imap_client:
-        if request.method == "POST":
-            args = request.form
-        elif request.method == "GET":
-            args = request.args
+@imap_authentication
+def imap_get_headers(imap_client):
+    if request.method == "POST":
+        args = request.form
+    elif request.method == "GET":
+        args = request.args
 
-        try:
-            status, count = imap_client.len_mailbox(
-                '"' + args.get("mailbox", "INBOX") + '"'
-            )
-        except imaplib.IMAP4.error:
-            status = "ERROR"
+    try:
+        status, count = imap_client.len_mailbox(
+            '"' + args.get("mailbox", "INBOX") + '"'
+        )
+    except imaplib.IMAP4.error:
+        status = "ERROR"
+
+    if status == "OK":
+        if count > 0:
+            ids = range(count, 0, -1) # Create ids of mails
+            ids_from = max(int(args.get(
+                           "ids_from", DEFAULT_IDS_FROM)), 1) - 1
+            ids_to = min(int(args.get(
+                         "ids_to", DEFAULT_IDS_TO)), len(ids))
+
+            if ids_from > ids_to:
+                status = "ERROR"
+                msg = "Invalid e-mails' ranges (ids_from <= ids_to)."
+            else:
+                try:
+                    status, data = imap_client.get_headers(
+                        ids[slice(ids_from, ids_to)],
+                        fields=["Subject", "Date", "From"]
+                    )
+                except imaplib.IMAP4.error:
+                    status = "ERROR"
+
+                if status != "OK":
+                    msg = "Unable to get e-mails' headers. %s %s" % (ids_from, ids_to)
+        else:
+            status, data = "OK", [] # Empty mailbox
 
         if status == "OK":
-            if count > 0:
-                ids = range(count, 0, -1) # Create ids of mails
-                ids_from = max(int(args.get(
-                               "ids_from", DEFAULT_IDS_FROM)), 1) - 1
-                ids_to = min(int(args.get(
-                             "ids_to", DEFAULT_IDS_TO)), len(ids))
-
-                if ids_from > ids_to:
-                    status = "ERROR"
-                    msg = "Invalid e-mails' ranges (ids_from <= ids_to)."
-                else:
-                    try:
-                        status, data = imap_client.get_headers(
-                            ids[slice(ids_from, ids_to)],
-                            fields=["Subject", "Date", "From"]
-                        )
-                    except imaplib.IMAP4.error:
-                        status = "ERROR"
-
-                    if status != "OK":
-                        msg = "Unable to get e-mails' headers. %s %s" % (ids_from, ids_to)
-            else:
-                status, data = "OK", [] # Empty mailbox
-
-            if status == "OK":
-                response = {
-                    "status": status,
-                    "data": list(reversed(data)),
-                    "total_emails": count
-                }
-                return jsonify(response)
-        else:
-            msg = "Unable to get list of e-mails."
+            response = {
+                "status": status,
+                "data": list(reversed(data)),
+                "total_emails": count
+            }
+            return jsonify(response)
     else:
-        msg = "Not authorized access."
+        msg = "Unable to get list of e-mails."
 
     response = {
         "status": "ERROR",
@@ -181,51 +191,48 @@ def imap_get_headers():
 
 
 @mail.route("/get_emails", methods=["GET", "POST"])
-def imap_get_emails():
-    imap_client = imap_clients.get(current_user.id, None)
-    if imap_client:
-        if request.method == "POST":
-            args = request.form
-        elif request.method == "GET":
-            args = request.args
+@imap_authentication
+def imap_get_emails(imap_client):
+    if request.method == "POST":
+        args = request.form
+    elif request.method == "GET":
+        args = request.args
 
-        try:
-            status_select, _ = imap_client.select(
-                args.get("mailbox", "INBOX")
-            )
-        except imaplib.IMAP4.error:
-            status_select = "ERROR"
+    try:
+        status_select, _ = imap_client.select(
+            args.get("mailbox", "INBOX")
+        )
+    except imaplib.IMAP4.error:
+        status_select = "ERROR"
 
-        if status_select == "OK":
+    if status_select == "OK":
 
-            ids = args.get("ids", None)
-            if ids:
-                try:
-                    status, data = imap_client.get_emails(ids)
-                except imaplib.IMAP4.error:
-                    status = "ERROR"
+        ids = args.get("ids", None)
+        if ids:
+            try:
+                status, data = imap_client.get_emails(ids)
+            except imaplib.IMAP4.error:
+                status = "ERROR"
 
-                if status == "OK":
-                    # Process & decode emails
-                    emails = list()
+            if status == "OK":
+                # Process & decode emails
+                emails = list()
 
-                    for email in data:
-                        emails.append(email_to_dict(email))
+                for email in data:
+                    emails.append(email_to_dict(email))
 
-                    response = {
-                        "status": "OK",
-                        "data": emails
-                    }
-                    return jsonify(response)
-                else:
-                    msg = "Unable to read emails."
+                response = {
+                    "status": "OK",
+                    "data": emails
+                }
+                return jsonify(response)
             else:
-                msg = "Unspecified e-mails ids."
+                msg = "Unable to read emails."
         else:
-            msg = "Unable to select mailbox."
+            msg = "Unspecified e-mails ids."
     else:
-        msg = "Not authorized access."
-         
+        msg = "Unable to select mailbox."
+     
     response = {
         "status": "ERROR",
         "data": msg

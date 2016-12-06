@@ -131,7 +131,7 @@
     }
     #client-info {
         float: right;
-        color: #f0ad4e;
+        color: black;
         font-weight: bold;
     }
     .email-header.unseen {
@@ -152,6 +152,9 @@
         background-color: #f0ad4e;
         padding: 10px 20px;
     }
+    #page-ui {
+        float: right;
+    }
 
 </style>
 {% endblock %}
@@ -162,6 +165,7 @@
     <div class="alert alert-client" role="alert">
         You're logged as <strong>{{username}}</strong> 
         (<a href="{{ url_for('mail.logout') }}">Log out</a>).
+        <span id="client-info"></span>
     </div>
     <div id="mailbox-container">
         <button id="new-msg" type="button" class="btn btn-warning">New Message</button>
@@ -169,14 +173,26 @@
     </div>
     <div id="emails-container">
         <div id="emails-ui">
-            <span id="page-emails"></span>
-            <button id="prev-emails-btn" type="button" class="btn btn-warning">
-                &#8882
-            </button>
-            <button id="next-emails-btn" type="button" class="btn btn-warning">
-                &#8883
-            </button> 
-            <span id="client-info"></span>
+            <select id="select-read">
+                <option>ALL</option>
+                <option>NONE</option>
+                <option>READ</option>
+                <option>UNREAD</option>
+                <option>STARRED</option>
+                <option>UNSTARRED</option>
+            </select>
+            <div id="">
+
+            </div>
+            <div id="page-ui">
+                <span id="page-emails"></span>
+                <button id="prev-emails-btn" type="button" class="btn btn-warning">
+                    &#8882
+                </button>
+                <button id="next-emails-btn" type="button" class="btn btn-warning">
+                    &#8883
+                </button> 
+            </div>
         </div>
         <table id="emails-list">
             <thead>

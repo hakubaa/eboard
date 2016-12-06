@@ -128,7 +128,7 @@ class GetHeadersViewTest(TestCase):
         client_mock = self.mock_imap_client(iclients_mock)  
         response = self.client.get(url_for("mail.imap_get_headers"),
                                    query_string = dict(mailbox="Praca"))
-        client_mock.len_mailbox.assert_called_once_with("Praca")
+        client_mock.len_mailbox.assert_called_once_with('"Praca"')
 
     def test_calls_get_headers_with_the_proper_range(
         self, user_mock, iclients_mock

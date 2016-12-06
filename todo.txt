@@ -6,6 +6,10 @@ E-Mail Client:
 - add checkbox to select emails and remove them (just like in gmail)
 - add checklist with ["ALL", "READ", "UNREAD"]
 
+NEXT TO DO:
+
+
+
 DONE:
 - add pages
 - decode mailboxes labels (utf-7)
