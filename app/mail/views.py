@@ -196,7 +196,7 @@ def imap_get_emails(imap_client):
     if request.method == "POST":
         args = request.form
     elif request.method == "GET":
-        args = request.args
+        args = request.argsq
 
     try:
         status_select, _ = imap_client.select(
@@ -238,3 +238,14 @@ def imap_get_emails(imap_client):
         "data": msg
     }
     return jsonify(response)
+
+
+@mail.route("/get_email", methods=["GET", "POST"])
+@imap_authentication
+def imap_get_email(imap_client):
+    if request.method == "POST":
+        args = request.form
+    elif request.method == "GET":
+        args = request.args
+
+    return None
