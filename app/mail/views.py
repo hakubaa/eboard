@@ -53,7 +53,8 @@ def login():
             except imaplib.IMAP4.error:
                flash("Invalid username or password.")
                    
-            if imap_client.state == "AUTH":        
+            if imap_client.state == "AUTH":      
+                logout_from_imap(current_user.id)  
                 imap_clients[current_user.id] = imap_client
                 return redirect(request.args.get("next") or url_for("mail.client"))
 
@@ -206,3 +207,10 @@ def imap_get_email(imap_client):
         args = request.args
 
     return None
+
+
+@mail.route("/clear_imap_clients", methods=["GET", "POST"])
+def imap_clear_imap_clients():
+    global imap_clients
+    imap_clients = dict()
+    return jsonify({"status": "OK"})
