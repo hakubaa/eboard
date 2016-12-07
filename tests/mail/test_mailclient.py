@@ -1,10 +1,119 @@
 import unittest
 from unittest.mock import patch, Mock, ANY
 import email
+import imaplib
 
 from tests.base import FlaskTestCase
-from app.mail.client import ImapClient, email_to_dict
+from app.mail.client import (
+    ImapClient, email_to_dict, ImapClientError, DEFAULT_MAILBOX
+)
+
 from tests.mail import imap_responses
+
+
+@patch("app.mail.client.imaplib")
+class LoginTest(unittest.TestCase):
+
+    def mock_login(self, imap_mock, response = ("OK", [b'msg'])):
+        mock = Mock()
+        mock.return_value = response
+        imap_mock.IMAP4_SSL.return_value.login = mock
+        imap_mock.IMAP4.error = imaplib.IMAP4.error
+        return mock
+
+    def test_saves_useranme(self, imap_mock):
+        self.mock_login(imap_mock)
+        iclient = ImapClient("imap.gmail.com")
+        iclient.login("Kuba", "Kuba")
+        self.assertEqual(iclient.username, "Kuba")
+
+    def test_raises_imapclienterror_when_impalib_error(self, imap_mock):
+        login_mock = self.mock_login(imap_mock)
+        login_mock.side_effect = imaplib.IMAP4.error
+        iclient = ImapClient("imap.gmail.com")
+        with self.assertRaises(ImapClientError):
+            iclient.login("Kuba", "Kuba")
+
+    def test_raises_imapclienterror_when_status_error(self, imap_mock):
+        self.mock_login(imap_mock, response=("ERROR", [b'NO LOGIN']))
+        iclient = ImapClient("imap.gmail.com")
+        with self.assertRaises(ImapClientError):
+            iclient.login("Kuba", "Kuba")   
+
+@patch("app.mail.client.imaplib")
+class SelectTest(unittest.TestCase):
+
+    def mock_select(self, imap_mock, response = ("OK", [b'msg'])):
+        mock = Mock()
+        mock.return_value = response
+        imap_mock.IMAP4_SSL.return_value.select = mock
+        imap_mock.IMAP4.error = imaplib.IMAP4.error
+        return mock
+
+    def test_calls_imaplib_login_method(self, imap_mock):
+        select_mock = self.mock_select(imap_mock)
+        iclient = ImapClient("imap.gmail.com")
+        iclient.select()
+        self.assertTrue(select_mock.called)       
+
+    def test_saves_mailbox(self, imap_mock):
+        self.mock_select(imap_mock)
+        iclient = ImapClient("imap.gmail.com")
+        iclient.select("JEDEN")
+        self.assertEqual(iclient.mailbox, "JEDEN")
+
+    def test_accepts_default_mailbox(self, imap_mock):
+        self.mock_select(imap_mock)
+        iclient = ImapClient("imap.gmail.com")
+        iclient.select()
+        self.assertEqual(iclient.mailbox, DEFAULT_MAILBOX)       
+
+    def test_raises_imapclienterror_when_impalib_error(self, imap_mock):
+        select_mock = self.mock_select(imap_mock)
+        select_mock.side_effect = imaplib.IMAP4.error
+        iclient = ImapClient("imap.gmail.com")
+        with self.assertRaises(ImapClientError):
+            iclient.select()
+
+    def test_raises_imapclienterror_when_status_error(self, imap_mock):
+        select_mock = self.mock_select(imap_mock, 
+                                       response=("ERROR", [b'NO LOGIN']))
+        select_mock.side_effect = imaplib.IMAP4.error
+        iclient = ImapClient("imap.gmail.com")
+        with self.assertRaises(ImapClientError):
+            iclient.select()      
+
+
+@patch("app.mail.client.imaplib")
+class ListTest(unittest.TestCase):
+
+    def mock_list(self, imap_mock, response = ("OK", [b'msg'])):
+        mock = Mock()
+        mock.return_value = response
+        imap_mock.IMAP4_SSL.return_value.list = mock
+        imap_mock.IMAP4.error = imaplib.IMAP4.error
+        return mock
+
+    def test_calls_imaplib_list_method(self, imap_mock):
+        list_mock = self.mock_list(imap_mock)
+        iclient = ImapClient("imap.gmail.com")
+        iclient.list()
+        self.assertTrue(list_mock.called)       
+
+    def test_raises_imapclienterror_when_impalib_error(self, imap_mock):
+        list_mock = self.mock_list(imap_mock)
+        list_mock.side_effect = imaplib.IMAP4.error
+        iclient = ImapClient("imap.gmail.com")
+        with self.assertRaises(ImapClientError):
+            iclient.list()
+
+    def test_raises_imapclienterror_when_status_error(self, imap_mock):
+        list_mock = self.mock_list(imap_mock, 
+                                   response=("ERROR", [b'NO LOGIN']))
+        list_mock.side_effect = imaplib.IMAP4.error
+        iclient = ImapClient("imap.gmail.com")
+        with self.assertRaises(ImapClientError):
+            iclient.list()      
 
 
 class EmailToDictTest(unittest.TestCase):
@@ -45,7 +154,6 @@ class EmailToDictTest(unittest.TestCase):
         result = email_to_dict(self.email_multipart_1)
         self.assertIn("header", result["body"][0])
         self.assertIn("body", result["body"][0])
-
 
 @patch("app.mail.client.imaplib")
 class GetEmailsTest(FlaskTestCase):
@@ -102,7 +210,6 @@ class GetEmailsTest(FlaskTestCase):
         iclient.get_emails(b'2043', uid=True)
         self.assertFalse(fetch_mock.called)     
         self.assertTrue(uid_mock.called)
-
 
 @patch("app.mail.client.imaplib")
 class GetHeadersTest(FlaskTestCase):
@@ -212,7 +319,6 @@ class GetHeadersTest(FlaskTestCase):
         iclient.get_headers(b'9', flags=True)
         self.assertIn("FLAGS", fetch_mock.call_args[0][1])
 
-        
 @patch("app.mail.client.imaplib")
 class ListMailboxTest(FlaskTestCase):
 
@@ -245,7 +351,9 @@ class ListMailboxTest(FlaskTestCase):
 
     def test_login_passes_email_and_username_to_imap_login(self, imap_mock):
         mail_mock = Mock()
+        mail_mock.return_value = ("OK", [b'msg'])
         imap_mock.IMAP4_SSL.return_value.login = mail_mock
+        imap_mock.IMAP4.error = imaplib.IMAP4.error
         iclient = ImapClient("imap.gmail.com")
         iclient.login("test@gmail.com", "testowe")
         mail_mock.assert_called_with("test@gmail.com", "testowe")
@@ -300,15 +408,16 @@ class ListMailboxTest(FlaskTestCase):
         search_mock = self.mock_search(imap_mock)
         # imap_mock.IMAP4_SSL.return_value.search = search_mock        
         iclient = ImapClient("imap.gmail.com")
-        iclient.list_mailbox()       
-        self.assertFalse(search_mock.called)
+        with self.assertRaises(ImapClientError):
+            iclient.list_mailbox()       
 
     def test_list_mailbox_returns_select_error(self, imap_mock):
         self.mock_select(imap_mock, ("NO", b"Failure"))
         search_mock = self.mock_search(imap_mock)
         # imap_mock.IMAP4_SSL.return_value.search = search_mock        
         iclient = ImapClient("imap.gmail.com")
-        self.assertEqual(iclient.list_mailbox(), ("NO", b"Failure"))
+        with self.assertRaises(ImapClientError):
+            iclient.list_mailbox()
 
     def test_list_mailbox_returns_list_of_mails_ids(self, imap_mock):
         self.mock_select(imap_mock)

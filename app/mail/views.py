@@ -105,10 +105,7 @@ def imap_list(imap_client):
 
     try:
         status, data = imap_client.list()
-    except imaplib.IMAP4.error:
-        status = "ERROR"
 
-    if status == "OK":
         mailboxes = list()
         p = re.compile(r'"(?P<name>[^"]*)"$')
         noselect = re.compile(r'\\noselect', re.IGNORECASE)
@@ -122,15 +119,10 @@ def imap_list(imap_client):
                     "utf7": m.group("name"),
                     "utf16": utf7_decode(m.group("name"))
                 })
-        return jsonify({
-            "status": "OK",
-            "data": mailboxes
-        })
 
-    return jsonify({
-        "status": "ERROR",
-        "data": {"msg": "Unable to get list of mailboxes."}
-    })
+        return jsonify({"status": "OK", "data": mailboxes})
+    except Exception as e:
+        return jsonify({"status": "ERROR", "data": {"msg": str(e)}})
 
 
 @mail.route("/get_headers", methods=["GET", "POST"])
@@ -145,10 +137,7 @@ def imap_get_headers(imap_client):
         status, count = imap_client.len_mailbox(
             '"' + args.get("mailbox", "INBOX") + '"'
         )
-    except imaplib.IMAP4.error:
-        status = "ERROR"
 
-    if status == "OK":
         if count > 0:
             ids = range(count, 0, -1) # Create ids of mails
             ids_from = max(int(args.get(
@@ -158,86 +147,54 @@ def imap_get_headers(imap_client):
 
             if ids_from > ids_to:
                 status = "ERROR"
-                msg = "Invalid e-mails' ranges (ids_from <= ids_to)."
+                data = "Invalid e-mails' ranges (ids_from <= ids_to)."
             else:
-                try:
-                    status, data = imap_client.get_headers(
-                        ids[slice(ids_from, ids_to)],
-                        fields=["Subject", "Date", "From"]
-                    )
-                except imaplib.IMAP4.error:
-                    status = "ERROR"
-
-                if status != "OK":
-                    msg = "Unable to get e-mails' headers. %s %s" % (ids_from, ids_to)
+                status, data = imap_client.get_headers(
+                    ids[slice(ids_from, ids_to)],
+                    fields=["Subject", "Date", "From"]
+                )
+                data = list(reversed(data))
         else:
             status, data = "OK", [] # Empty mailbox
 
-        if status == "OK":
-            response = {
-                "status": status,
-                "data": list(reversed(data)),
-                "total_emails": count
-            }
-            return jsonify(response)
-    else:
-        msg = "Unable to get list of e-mails."
+        response = {"status": status, "data": data, "total_emails": count}
+        return jsonify(response)
 
-    response = {
-        "status": "ERROR",
-        "data": msg
-    }
-    return jsonify(response)
+    except Exception as e:
+        return jsonify({"status": "ERROR", "data": {"msg": str(e)}})
 
-
+  
 @mail.route("/get_emails", methods=["GET", "POST"])
 @imap_authentication
 def imap_get_emails(imap_client):
     if request.method == "POST":
         args = request.form
     elif request.method == "GET":
-        args = request.argsq
+        args = request.args
 
     try:
         status_select, _ = imap_client.select(
             args.get("mailbox", "INBOX")
         )
-    except imaplib.IMAP4.error:
-        status_select = "ERROR"
-
-    if status_select == "OK":
 
         ids = args.get("ids", None)
         if ids:
-            try:
-                status, data = imap_client.get_emails(ids)
-            except imaplib.IMAP4.error:
-                status = "ERROR"
+            status, data = imap_client.get_emails(ids)
 
-            if status == "OK":
-                # Process & decode emails
-                emails = list()
+            # Process & decode emails
+            emails = list()
+            for email in data:
+                emails.append(email_to_dict(email))
 
-                for email in data:
-                    emails.append(email_to_dict(email))
-
-                response = {
-                    "status": "OK",
-                    "data": emails
-                }
-                return jsonify(response)
-            else:
-                msg = "Unable to read emails."
+            response = {"status": "OK", "data": emails}
         else:
-            msg = "Unspecified e-mails ids."
-    else:
-        msg = "Unable to select mailbox."
-     
-    response = {
-        "status": "ERROR",
-        "data": msg
-    }
-    return jsonify(response)
+            response = {"status": "ERROR", 
+                       "data": {"msg": "Unspecified e-mails ids."}}
+
+        return jsonify(response)
+    except Exception as e:
+        return jsonify({"status": "ERROR", "data": {"msg": str(e)}})
+
 
 
 @mail.route("/get_email", methods=["GET", "POST"])
