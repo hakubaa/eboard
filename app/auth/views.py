@@ -24,7 +24,7 @@ def login():
 @auth.route("/logout")
 @login_required
 def logout():
-    mail.logout_from_imap(current_user.id)
+    mail.logout_from_imap()
     logout_user()
     flash("You have been logged out.")
     return redirect(url_for("auth.login"))

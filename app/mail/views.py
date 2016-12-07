@@ -4,31 +4,18 @@ import imaplib
 import functools
 
 from flask import (
-    render_template, redirect, url_for, request, flash, g,
-    jsonify
+    render_template, redirect, url_for, request, flash, 
+    jsonify, session
 )
 from flask_login import current_user, login_required
 
 from . import mail
 from .forms import LoginForm
-from .client import ImapClient, email_to_dict
+from .client import ImapClient, email_to_dict, ImapClientError
 from app.utils import utf7_decode
 
 DEFAULT_IDS_FROM = 0
 DEFAULT_IDS_TO = 50
-
-
-# check timestamps (compare client origin time with current time)
-imap_clients = dict()
-def logout_from_imap(user_id):
-    imap_client = imap_clients.get(user_id, None)
-    if imap_client:
-        try:
-            imap_client.logout()
-        except:
-            pass
-        finally:
-            del imap_clients[user_id]
 
 
 @mail.route("/login", methods=["GET", "POST"])
@@ -54,50 +41,58 @@ def login():
                flash("Invalid username or password.")
                    
             if imap_client.state == "AUTH":      
-                logout_from_imap(current_user.id)  
-                imap_clients[current_user.id] = imap_client
+                session["imap_username"] = username
+                session["imap_password"] = password
                 return redirect(request.args.get("next") or url_for("mail.client"))
 
     return render_template("mail/login.html", form=form)
 
+def logout_from_imap():
+    session.pop("imap_username", None)
+    session.pop("imap_password", None)
+
 @mail.route("/logout", methods=["GET", "POST"])
 @login_required
 def logout():
-    logout_from_imap(current_user.id)
+    logout_from_imap()
     return redirect(url_for("mail.login"))   
-
-@mail.route("/client", methods=["GET"])
-@login_required
-def client():
-    imap_client = imap_clients.get(current_user.id, None)
-    if imap_client:
-        if imap_client.state in ("AUTH", "SELECTED"):
-            return render_template("mail/client.html", 
-                                   username=imap_client.username)
-    return redirect(url_for("mail.login"))
-
 
 ################################################################################
 # IMAP INTERFACE
 ################################################################################
 
-def imap_authentication(func):
-    @functools.wraps(func)
-    def authenticate(*args, **kwargs):
-        imap_client = imap_clients.get(current_user.id, None)
-        if imap_client:
-            return func(imap_client)
-        else:
-            response = {
-                "status": "ERROR",
-                "data": "Not authorized access."
-            }
-            return jsonify(response)    
-    return authenticate
+def imap_authentication(redirect_to_login=False):
+    def decorator(func):
+        @functools.wraps(func)
+        def authenticate(*args, **kwargs):
+            username = session.get("imap_username", None)
+            password = session.get("imap_password", None)
+            if username and password:
+                try:
+                    imap_client = ImapClient("imap.gmail.com")
+                    imap_client.login(username, password)
+                    return func(imap_client)
+                except ImapClientError:
+                    pass
+
+            if redirect_to_login:
+                return redirect(url_for("mail.login"))
+            else:     
+                response = {"status": "ERROR", "data": "Not authorized access."}
+                return jsonify(response)    
+        return authenticate
+    return decorator
+
+
+@mail.route("/client", methods=["GET"])
+@imap_authentication(redirect_to_login=True)
+def client(imap_client):
+    return render_template("mail/client.html", 
+                           username=imap_client.username)
 
 
 @mail.route("/list", methods=["GET", "POST"])
-@imap_authentication
+@imap_authentication()
 def imap_list(imap_client):
     if request.method == "POST":
         args = request.form
@@ -127,7 +122,7 @@ def imap_list(imap_client):
 
 
 @mail.route("/get_headers", methods=["GET", "POST"])
-@imap_authentication
+@imap_authentication()
 def imap_get_headers(imap_client):
     if request.method == "POST":
         args = request.form
@@ -166,7 +161,7 @@ def imap_get_headers(imap_client):
 
   
 @mail.route("/get_emails", methods=["GET", "POST"])
-@imap_authentication
+@imap_authentication()
 def imap_get_emails(imap_client):
     if request.method == "POST":
         args = request.form
@@ -199,7 +194,7 @@ def imap_get_emails(imap_client):
 
 
 @mail.route("/get_email", methods=["GET", "POST"])
-@imap_authentication
+@imap_authentication()
 def imap_get_email(imap_client):
     if request.method == "POST":
         args = request.form
@@ -207,10 +202,3 @@ def imap_get_email(imap_client):
         args = request.args
 
     return None
-
-
-@mail.route("/clear_imap_clients", methods=["GET", "POST"])
-def imap_clear_imap_clients():
-    global imap_clients
-    imap_clients = dict()
-    return jsonify({"status": "OK"})
