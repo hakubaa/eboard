@@ -307,17 +307,39 @@ def email_to_dict(msg, header_decoders = default_decoders):
             output["body"].append(email_to_dict(part))
     else:
         content = msg.get_payload(decode=True)
-        charset = msg.get_charset()
-        if charset:
-            content = content.decode(charset)
-        else:
-            # Try one of the default charset
-            for chset in ['ascii', 'utf-8', 'utf-16', 'windows-1252', 'cp850']:
-                try: 
-                    content = content.decode(chset)
-                    break
-                except UnicodeError:
-                    pass
-        output["body"] = content
+        output["body"] = decode_content(content, msg.get_charset())
+
+    return output
+
+
+def decode_content(content, charset=None):
+    if charset:
+        content = content.decode(charset)
+    else:
+        # Try one of the default charset
+        for chset in ['ascii', 'utf-8', 'utf-16', 'windows-1252', 'cp850']:
+            try: 
+                content = content.decode(chset)
+                break
+            except UnicodeError:
+                pass
+    return content
+
+
+def process_email_for_display(msg, header_decoders = default_decoders):
+    '''Convert email.message.Message instance to dictionary representation.'''
+    output = dict(header={})
+
+    for key in msg.keys():
+        output["header"][key] = header_decoders.get(
+                                    key.upper(), lambda x: x[key])(msg)
+
+    if msg.is_multipart():
+        output["body"] = None
+    else:
+        content = msg.get_payload(decode=True)
+        body = decode_content(content, msg.get_charset())
+        if msg.get_content_maintype() == "text":
+            output["body"] = body
 
     return output

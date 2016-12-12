@@ -5,7 +5,8 @@ import imaplib
 
 from tests.base import FlaskTestCase
 from app.mail.client import (
-    ImapClient, email_to_dict, ImapClientError, DEFAULT_MAILBOX
+    ImapClient, email_to_dict, ImapClientError, DEFAULT_MAILBOX,
+    process_email_for_display
 )
 
 from tests.mail import imap_responses
@@ -429,29 +430,17 @@ class ListMailboxTest(FlaskTestCase):
         
 
 
-# import unittest
-# from unittest.mock import patch, Mock
-# import imaplib
+class ProcessEmailForDisplayTest(unittest.TestCase):
 
-# from tests.base import FlaskTestCase
-# from app.mail.client import ImapClient
+    def setUp(self):
+        self.email_multipart_1 = email.message_from_string('MIME-Version: 1.0\nReceived: by 10.31.193.72 with HTTP; Thu, 24 Nov 2016 12:40:14 -0800 (PST)\nDate: Thu, 24 Nov 2016 21:40:14 +0100\nDelivered-To: jago.eboard@gmail.com\nMessage-ID: <CAB9kREyhEQbZr+KucZwPebH7H9Jpmy8x250XExgRu6s9dwmnnw@mail.gmail.com>\nSubject: Test\nFrom: Jago Eboard <jago.eboard@gmail.com>\nTo: jago.eboard@gmail.com\nContent-Type: multipart/alternative; boundary=001a114e019a3537940542120390\n\n--001a114e019a3537940542120390\nContent-Type: text/plain; charset=UTF-8\n\nE-Mail Testowy\n\n--001a114e019a3537940542120390\nContent-Type: text/html; charset=UTF-8\n\n<div dir="ltr">E-Mail Testowy<br></div>\n\n--001a114e019a3537940542120390--\n')
 
+        self.email_text_1 = email.message_from_string('MIME-Version: 1.0\nReceived: by 10.31.193.72 with HTTP; Thu, 24 Nov 2016 12:40:14 -0800 (PST)\nDate: Thu, 24 Nov 2016 21:40:14 +0100\nDelivered-To: jago.eboard@gmail.com\nMessage-ID: <CAB9kREyhEQbZr+KucZwPebH7H9Jpmy8x250XExgRu6s9dwmnnw@mail.gmail.com>\nSubject: Test\nFrom: Jago Eboard <jago.eboard@gmail.com>\nTo: jago.eboard@gmail.com\nContent-Type: text/plain; charset=UTF-8\n\nE-Mail Testowy\n')
 
-# @patch("app.mail.client.imaplib")
-# class MailClientTest(FlaskTestCase):
+    def test_returns_dictionary(self):
+        result = process_email_for_display(self.email_multipart_1)
+        self.assertIsInstance(result, dict)
 
-#     def test_init_accepts_addr(self, imap_mock):
-#         iclient = ImapClient("imap.gmail.com")
-    
-#     def test_client_inhertis_from_imap(self, imap_mock):
-#         self.assertIn(imaplib.IMAP4_SSL, ImapClient.__bases__)
-
-#     def test_list_mailbox_selects_the_proper_mailbox(self, imap_mock):
-#         select_mock = Mock()
-#         imap_mock.IMAP4_SSL.return_value.select = select_mock
-#         iclient = ImapClient("imap.gmail.com")
-#         iclient.list_mailbox("IMPORTANT")
-#         select_mock.assert_called_with("IMPORTANT")
-
-#     def test_list_mailbox_returns_list_of_mail(self, imap_mock):
-#         pass
+    def test_returns_str_in_body_when_plan_text(self):
+        result = process_email_for_display(self.email_text_1)
+        self.assertIsInstance(result["body"], str)        

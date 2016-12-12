@@ -7,7 +7,8 @@ var settings = {
     emails_per_page: 50,
     ajax_list: "/mail/list",
     ajax_get_headers: "/mail/get_headers",
-    ajax_get_emails: "/mail/get_emails"
+    ajax_get_raw_emails: "/mail/get_raw_emails",
+    ajax_get_email: "/mail/get_email"
 };
 
 /*******************************************************************************
@@ -164,10 +165,12 @@ function updateEMailsList(response) {
             $controls.append("<input class='email-check' type='checkbox'/>");
             $controls.append("<span class='email-star'>&#9733;</span>");
 
+            var ctype = emails[i]["Content-Type"].split(";")[0];
             $email.append("<td class='email-from email-open'>" + emails[i].From + "</td>");
             $email.append("<td class='email-subject email-open'>" + 
                           emails[i].Subject.substr(0, 100) + 
                           (emails[i].Subject.length > 100 ? " (...)" : "") +
+                          " #" + ctype + "" +
                           "</td>");
             $email.append("<td class='email-date email-open'>" + 
                           moment(emails[i].Date).format("YYYY-MM-DD") + "</td>");
@@ -244,10 +247,10 @@ function getEMailsHeaders(options) {
         });
 }
 
-function getEMails(options) {
+function getRawEMails(options) {
     if (options === undefined) options = {};
     if (options.ids !== undefined) {
-        $.post(settings.ajax_get_emails, {
+        $.post(settings.ajax_get_raw_emails, {
             ids: options.ids
         })
             .done(function(response) {
@@ -265,6 +268,31 @@ function getEMails(options) {
             });
     } else {
         throw "Undefined emails' ids.";
+    }
+}
+
+
+function getEMail(options) {
+    if (options === undefined) options = {};
+    if (options.id !== undefined) {
+        $.post(settings.ajax_get_email, {
+            ids: options.ids
+        })
+            .done(function(response) {
+                if (options.callback !== undefined) {
+                    options.callback(response);
+                }
+            })
+            .fail(function(response) {
+                if (options.callback !== undefined) {
+                    options.callback({
+                        status: "ERROR",
+                        data: response
+                    });
+                }
+            });
+    } else {
+        throw "Undefined email's id.";
     }
 }
 

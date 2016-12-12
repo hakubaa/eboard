@@ -11,7 +11,9 @@ from flask_login import current_user, login_required
 
 from . import mail
 from .forms import LoginForm
-from .client import ImapClient, email_to_dict, ImapClientError
+from .client import (
+    ImapClient, email_to_dict, ImapClientError, process_email_for_display
+)
 from app.utils import utf7_decode
 
 DEFAULT_IDS_FROM = 0
@@ -117,7 +119,7 @@ def imap_list(imap_client):
                 })
 
         return jsonify({"status": "OK", "data": mailboxes})
-    except Exception as e:
+    except ImapClientError as e:
         return jsonify({"status": "ERROR", "data": {"msg": str(e)}})
 
 
@@ -147,7 +149,7 @@ def imap_get_headers(imap_client):
             else:
                 status, data = imap_client.get_headers(
                     ids[slice(ids_from, ids_to)],
-                    fields=["Subject", "Date", "From"]
+                    fields=["Subject", "Date", "From", "Content-Type"]
                 )
                 data = list(reversed(data))
         else:
@@ -156,25 +158,22 @@ def imap_get_headers(imap_client):
         response = {"status": status, "data": data, "total_emails": count}
         return jsonify(response)
 
-    except Exception as e:
+    except ImapClientError as e:
         return jsonify({"status": "ERROR", "data": {"msg": str(e)}})
 
   
-@mail.route("/get_emails", methods=["GET", "POST"])
+@mail.route("/get_raw_emails", methods=["GET", "POST"])
 @imap_authentication()
-def imap_get_emails(imap_client):
+def imap_get_raw_emails(imap_client):
     if request.method == "POST":
         args = request.form
     elif request.method == "GET":
         args = request.args
 
     try:
-        status_select, _ = imap_client.select(
-            args.get("mailbox", "INBOX")
-        )
-
         ids = args.get("ids", None)
         if ids:
+            status_select, _ = imap_client.select(args.get("mailbox", "INBOX"))
             status, data = imap_client.get_emails(ids)
 
             # Process & decode emails
@@ -188,9 +187,8 @@ def imap_get_emails(imap_client):
                        "data": {"msg": "Unspecified e-mails ids."}}
 
         return jsonify(response)
-    except Exception as e:
+    except ImapClientError as e:
         return jsonify({"status": "ERROR", "data": {"msg": str(e)}})
-
 
 
 @mail.route("/get_email", methods=["GET", "POST"])
@@ -201,4 +199,21 @@ def imap_get_email(imap_client):
     elif request.method == "GET":
         args = request.args
 
-    return None
+    try:
+        email_id = args.get("id", None)
+        if email_id:
+            imap_client.select(args.get("mailbox", "INBOX"))
+            stuats, data = imap_client.get_emails(email_id)
+
+            output = None
+            if (len(data) > 0):
+                output = process_email_for_display(data[0])
+
+            response = {"status": "OK", "data": output}
+        else:
+            response = {"status": "ERROR", 
+                       "data": {"msg": "Unspecified e-mail's id."}}
+
+        return jsonify(response)
+    except ImapClientError as e:
+        return jsonify({"status": "ERROR", "data": {"msg": str(e)}})
