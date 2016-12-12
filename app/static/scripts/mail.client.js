@@ -276,7 +276,7 @@ function getEMail(options) {
     if (options === undefined) options = {};
     if (options.id !== undefined) {
         $.post(settings.ajax_get_email, {
-            ids: options.ids
+            id: options.id
         })
             .done(function(response) {
                 if (options.callback !== undefined) {

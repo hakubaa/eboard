@@ -326,20 +326,72 @@ def decode_content(content, charset=None):
     return content
 
 
+content_prefs = dict(
+    text=dict(
+        plain=0,
+        html=1
+    )
+)
+
+def get_msg_pref(msg):
+    content_type = content_prefs.get(msg.get_content_maintype(), None)
+    if content_type:
+        content_subtype = content_type.get(msg.get_content_subtype(), -1)
+        return content_subtype
+    else:
+        return -1
+
 def process_email_for_display(msg, header_decoders = default_decoders):
-    '''Convert email.message.Message instance to dictionary representation.'''
-    output = dict(header={})
+    '''
+    Convert email.message.Message instance to dictionary representation.
+    email: {
+        header: [],
+        type: "node",
+        content: [
+            { header: [], type: "content": content: "bla bla" },
+            ...
+        ]
+    }
+
+    '''
+    output = dict(header=dict())
 
     for key in msg.keys():
         output["header"][key] = header_decoders.get(
                                     key.upper(), lambda x: x[key])(msg)
 
     if msg.is_multipart():
-        output["body"] = None
+        output["type"] = "node"
+
+        msg_subtype = msg.get_content_subtype()
+        if msg_subtype == "alternative":
+            msg_parts = msg.get_payload()
+            pref_part = msg_parts[0]
+            for part in msg_parts[1:]:
+                if get_msg_pref(part) > get_msg_pref(pref_part):
+                    pref_part = part
+            output["content"] = [process_email_for_display(pref_part, 
+                                                           header_decoders)]
+        elif msg_subtype == "mixed":
+            output["content"] = [
+                process_email_for_display(part, header_decoders) 
+                    for part in msg.get_payload() 
+            ]
+        else:
+            output["content"] = None
     else:
-        content = msg.get_payload(decode=True)
-        body = decode_content(content, msg.get_charset())
-        if msg.get_content_maintype() == "text":
-            output["body"] = body
+        output["type"] = "content"
+
+        msg_maintype = msg.get_content_maintype()
+        if msg_maintype == "text":
+            if "attachment" in msg.get("Content-Disposition", ""):
+                output["type"] = "attachment" # override content type
+                output["content"] = None
+            else:
+                content = msg.get_payload(decode=True)
+                body = decode_content(content, msg.get_charset())
+                output["content"] = body
+        else:
+            output["content"] = None
 
     return output
