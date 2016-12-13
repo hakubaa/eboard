@@ -441,6 +441,18 @@ class ProcessEmailForDisplayTest(unittest.TestCase):
         result = process_email_for_display(self.email_multipart_1)
         self.assertIsInstance(result, dict)
 
-    def test_returns_str_in_body_when_plan_text(self):
+    def test_returns_type_node_when_multipart(self):
+        result = process_email_for_display(self.email_multipart_1)
+        self.assertEqual(result["type"], "node")
+
+    def test_returns_list_as_content_when_multipart(self):
+        result = process_email_for_display(self.email_multipart_1)
+        self.assertIsInstance(result["content"], list)
+
+    def test_returns_type_content_when_text(self):
         result = process_email_for_display(self.email_text_1)
-        self.assertIsInstance(result["body"], str)        
+        self.assertEqual(result["type"], "content")
+
+    # def test_returns_str_in_body_when_plan_text(self):
+    #     result = process_email_for_display(self.email_text_1)
+    #     self.assertIsInstance(result["body"], str)        

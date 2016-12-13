@@ -156,6 +156,14 @@
         float: right;
     }
 
+    /* email modal */
+    .email-node {
+        list-style: none;
+        padding-left: 0px;
+    }
+    #email-base {
+        padding-left: 0px;
+    }
 </style>
 {% endblock %}
 
@@ -223,6 +231,7 @@
 
     $(document).on("click", ".email-open", function() {
         $("#email-modal").data("email-id", $(this).parent().data("email-id"));
+        $("#email-modal").data("mailbox", EMailsListController.mailbox);
         $("#email-modal").modal("show");
     });
     $(document).on("click", "#mailbox-list li", function() {

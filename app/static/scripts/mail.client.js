@@ -271,12 +271,13 @@ function getRawEMails(options) {
     }
 }
 
-
 function getEMail(options) {
     if (options === undefined) options = {};
+    if (options.mailbox === undefined) options.mailbox = settings.default_mailbox;
     if (options.id !== undefined) {
         $.post(settings.ajax_get_email, {
-            id: options.id
+            id: options.id,
+            mailbox: options.mailbox
         })
             .done(function(response) {
                 if (options.callback !== undefined) {

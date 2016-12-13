@@ -330,6 +330,10 @@ content_prefs = dict(
     text=dict(
         plain=0,
         html=1
+    ),
+    multipart=dict(
+        alternative=2,
+        mixed=3
     )
 )
 
@@ -346,13 +350,12 @@ def process_email_for_display(msg, header_decoders = default_decoders):
     Convert email.message.Message instance to dictionary representation.
     email: {
         header: [],
-        type: "node",
+        type: node/plan/attachment/unsupported
         content: [
             { header: [], type: "content": content: "bla bla" },
             ...
         ]
     }
-
     '''
     output = dict(header=dict())
 
@@ -378,9 +381,10 @@ def process_email_for_display(msg, header_decoders = default_decoders):
                     for part in msg.get_payload() 
             ]
         else:
+            output["type"] = "unsupported"
             output["content"] = None
     else:
-        output["type"] = "content"
+        output["type"] = "plain"
 
         msg_maintype = msg.get_content_maintype()
         if msg_maintype == "text":
@@ -392,6 +396,7 @@ def process_email_for_display(msg, header_decoders = default_decoders):
                 body = decode_content(content, msg.get_charset())
                 output["content"] = body
         else:
+            output["type"] = "unsupported"
             output["content"] = None
 
     return output
