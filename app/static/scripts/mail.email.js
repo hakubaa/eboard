@@ -20,8 +20,11 @@ function updateEmailModal(response) {
     if (response.status == "OK") {
         var email = response.data;
         var $modal = $("#email-modal");
-        $modal.find("#email-subject").html(email.header["Subject"]);
-
+        if (email.header["Subject"] != "") {
+            $modal.find("#email-subject").html(email.header["Subject"]);
+        } else {
+            $modal.find("#email-subject").html("&lt;No SUBJECT&gt;");
+        }
         var $emailBase = $modal.find("#email-base");
         createEmailTree(email, $emailBase);
     } else {
@@ -39,8 +42,9 @@ function createEmailTree(email, $base) {
         }
         $emailPart.append($emailNode);
     } else if (email.type == "plain") {
-        $emailPart = $("<li class='email-part email-plain'></li>");
-        $emailPart.html(email.content);
+        $emailPart = $("<li class='email-part email-plain'><iframe srcdoc='" +
+            email.content.replace(/"/g, "&quot;").replace(/'/g, "&#039;") + 
+            "'></iframe></li>");
     }
     if ($emailPart !== undefined) {
         $base.append($emailPart);
