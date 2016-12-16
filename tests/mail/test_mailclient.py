@@ -11,6 +11,75 @@ from app.mail.client import (
 
 from tests.mail import imap_responses
 
+@patch("app.mail.client.imaplib")
+class MoveTest(unittest.TestCase):
+
+    def mock_move(self, imap_mock, response):
+        mock_ = Mock()
+        mock_.return_value = response
+        imap_mock.IMAP4_SSL.return_value.copy = mock_
+        imap_mock.IMAP4.error = imaplib.IMAP4.error
+        return mock_
+
+    def test_calls_move_method(self, imap_mock):
+        move_mock = self.mock_move(imap_mock, imap_responses.copy)
+        iclient = ImapClient("imap.gmail.com")
+        iclient.move_emails(b'1', "INBOX")
+        self.assertTrue(move_mock.called)
+
+    def test_for_passing_args_to_move_method(self, imap_mock):
+        move_mock = self.mock_move(imap_mock, imap_responses.copy)
+        iclient = ImapClient("imap.gmail.com")
+        iclient.move_emails(b'1', "INBOX")
+        move_mock.assert_called_with(b'1', "INBOX")
+
+    def test_returns_ok_status_when_success(self, imap_mock):
+        move_mock = self.mock_move(imap_mock, imap_responses.copy)
+        iclient = ImapClient("imap.gmail.com")
+        status, data = iclient.move_emails(b'1', "INBOX")
+        self.assertEqual(status, "OK")
+
+    def test_raises_error_when_failure(self, imap_mock):
+        move_mock = self.mock_move(imap_mock, imap_responses.copy2)
+        iclient = ImapClient("imap.gmail.com")
+        with self.assertRaises(ImapClientError):
+            iclient.move_emails(b'1', "INBOX")    
+
+    def test_raises_error_when_imaplib_exception(self, imap_mock):
+        move_mock = self.mock_move(imap_mock, imap_responses.copy2)
+        iclient = ImapClient("imap.gmail.com")
+        move_mock.side_effect = imaplib.IMAP4.error
+        with self.assertRaises(ImapClientError):
+            iclient.move_emails(b'1', "INBOX")  
+
+    def test_accepts_list_of_ids(self, imap_mock):
+        move_mock = self.mock_move(imap_mock, imap_responses.copy)
+        iclient = ImapClient("imap.gmail.com")
+        iclient.move_emails([1, 2, 3], "INBOX")  
+        move_mock.assert_called_with(b'1,2,3', "INBOX")
+
+    def test_accepts_string_of_ids(self, imap_mock):
+        move_mock = self.mock_move(imap_mock, imap_responses.copy)
+        iclient = ImapClient("imap.gmail.com")
+        iclient.move_emails("1, 2, 3", "INBOX")  
+        move_mock.assert_called_with(b'1,2,3', "INBOX")
+
+    def test_accepts_single_id(self, imap_mock):
+        move_mock = self.mock_move(imap_mock, imap_responses.copy)
+        iclient = ImapClient("imap.gmail.com")
+        iclient.move_emails(3, "INBOX")  
+        move_mock.assert_called_with(b'3', "INBOX")
+
+    def test_calls_uid_method_when_uid_set(self, imap_mock):
+        move_mock = self.mock_move(imap_mock, imap_responses.copy)
+        uid_mock = Mock()
+        uid_mock.return_value = imap_responses.copy
+        imap_mock.IMAP4_SSL.return_value.uid = uid_mock
+        iclient = ImapClient("imap.gmail.com")
+        iclient.move_emails(b'1', "INBOX", uid=True)
+        self.assertFalse(move_mock.called)     
+        self.assertTrue(uid_mock.called)
+
 
 @patch("app.mail.client.imaplib")
 class LoginTest(unittest.TestCase):
@@ -451,7 +520,7 @@ class ProcessEmailForDisplayTest(unittest.TestCase):
 
     def test_returns_type_content_when_text(self):
         result = process_email_for_display(self.email_text_1)
-        self.assertEqual(result["type"], "content")
+        self.assertEqual(result["type"], "plain")
 
     # def test_returns_str_in_body_when_plan_text(self):
     #     result = process_email_for_display(self.email_text_1)

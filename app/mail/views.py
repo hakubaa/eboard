@@ -39,12 +39,13 @@ def login():
         if imap_client:
             try:
                 imap_client.login(username, password)
-            except imaplib.IMAP4.error:
+            except ImapClientError:
                flash("Invalid username or password.")
                    
             if imap_client.state == "AUTH":      
                 session["imap_username"] = username
                 session["imap_password"] = password
+                session["imap_addr"] = imap_addr
                 return redirect(request.args.get("next") or url_for("mail.client"))
 
     return render_template("mail/login.html", form=form)
@@ -52,6 +53,7 @@ def login():
 def logout_from_imap():
     session.pop("imap_username", None)
     session.pop("imap_password", None)
+    session.pop("imap_addr", None)
 
 @mail.route("/logout", methods=["GET", "POST"])
 @login_required
@@ -69,9 +71,10 @@ def imap_authentication(redirect_to_login=False):
         def authenticate(*args, **kwargs):
             username = session.get("imap_username", None)
             password = session.get("imap_password", None)
+            imap_addr = session.get("imap_addr", None)
             if username and password:
                 try:
-                    imap_client = ImapClient("imap.gmail.com")
+                    imap_client = ImapClient(imap_addr)
                     imap_client.login(username, password)
                     return func(imap_client)
                 except ImapClientError:
@@ -105,18 +108,18 @@ def imap_list(imap_client):
         status, data = imap_client.list()
 
         mailboxes = list()
-        p = re.compile(r'"(?P<name>[^"]*)"$')
+        p = re.compile(r'"(?P<name>[^"]*)$')
         noselect = re.compile(r'\\noselect', re.IGNORECASE)
         for mailbox in data:
             mailbox = mailbox.decode("ascii")
             if noselect.search(mailbox) is not None:
                 continue
-            m = p.search(mailbox)
-            if m:
-                mailboxes.append({
-                    "utf7": m.group("name"),
-                    "utf16": utf7_decode(m.group("name"))
-                })
+            name = re.compile(r'"."').split(mailbox)[-1]
+            name = name.replace("\"", "").replace("'", "").rstrip().lstrip()
+            mailboxes.append({
+                "utf7": name,
+                "utf16": utf7_decode(name)
+            })
 
         return jsonify({"status": "OK", "data": mailboxes})
     except ImapClientError as e:

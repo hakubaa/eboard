@@ -292,6 +292,25 @@ class ImapClient:
         else:
             raise ImapClientError(data)
 
+    def move_emails(self, ids, mailbox, *, uid = False):
+        '''Move 'message_set' messages onto end of 'new_mailbox'.'''
+        ids_bytes = self._ids_to_bytes(ids)
+
+        try:
+            if uid:
+                copy_status, data = self.mail.uid("copy", ids_bytes)
+            else:
+                copy_status, data = self.mail.copy(ids_bytes, mailbox)
+        except imaplib.IMAP4.error as e:
+            raise ImapClientError(str(e)) from None
+        except:
+            raise e
+
+        if copy_status != "OK":
+            raise ImapClientError(data)
+
+        return copy_status, data
+
 
 def email_to_dict(msg, header_decoders = default_decoders):
     '''Convert email.message.Message instance to dictionary representation.'''

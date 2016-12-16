@@ -129,6 +129,16 @@ function updateMailboxesList(response) {
             var $mailbox = $("<li data-name='" + 
                              mailboxes[i].utf7 + "'>" + 
                              mailboxes[i].utf16 + "</li>");
+            $mailbox.droppable({
+                classes: {
+                    "ui-droppable-hover": "droppable-hover" 
+                },
+                drop: function(event, ui) {
+                    var email = ui.draggable;
+                    var mailbox = $(this).data("name");
+                    alert("Something dropped on " + mailbox + ": " + email.data("email-id"));
+                }
+            });
             $list.append($mailbox);
         }
     } else {
@@ -161,7 +171,6 @@ function updateEMailsList(response) {
             }
             $email.append("<td class='email-controls'></td>");
             var $controls = $email.find(".email-controls");
-            $controls.append("<span class='email-drag'>&#10697;</span>");
             $controls.append("<input class='email-check' type='checkbox'/>");
             $controls.append("<span class='email-star'>&#9733;</span>");
 
@@ -178,9 +187,8 @@ function updateEMailsList(response) {
         }
         toggleActiveMailbox();
 
-
         //http://stackoverflow.com/questions/3591264/can-table-rows-be-made-draggable
-        $("#emails-list span.email-drag").draggable({
+        $("#emails-list .email-header").draggable({
             helper: function() {
                 // return $(this).parent().parent();
                 return $("<div class='email-dragged'>E-Mail<div>");
@@ -188,7 +196,8 @@ function updateEMailsList(response) {
             start: function(event, ui) {
                 // c.tr = this;
                 // c.helper = ui.helper;
-            }
+            },
+            cursorAt: { left: 10, top: 10 }
         });
 
 
