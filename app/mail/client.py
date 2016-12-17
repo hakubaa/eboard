@@ -5,7 +5,7 @@ import re
 import email
 from email.header import decode_header
 from email.parser import HeaderParser
-from functools import partial
+from functools import partial, partialmethod
 
 # Set proper limit in order to avoid error: 
 # 'imaplib.error: command: SELECT => got more than 100000 bytes'
@@ -137,11 +137,16 @@ class ImapClient:
             raise ImapClientError(msg)
         return status, msg
 
-    def list_mailbox(self, mailbox="INBOX", *criteria, uid=False):
+    def list_mailbox(self, mailbox=None, *criteria, uid=False):
         '''
         Returns the list of e-mails (ids or uids) from selected mailbox. 
         Accepts additional criteria which are passed to search method. 
         '''
+        if not mailbox:
+            mailbox = self.mailbox
+            if not mailbox:
+                mailbox = DEFAULT_MAILBOX
+
         try:
             select_status, msg = self.mail.select(mailbox)
         except imaplib.IMAP4.error as e:
@@ -165,8 +170,13 @@ class ImapClient:
         else:
             raise ImapClientError(msg)
 
-    def len_mailbox(self, mailbox="INBOX"):
+    def len_mailbox(self, mailbox=None):
         '''Returns number of messages in a mailbox'''
+        if not mailbox:
+            mailbox = self.mailbox
+            if not mailbox:
+                mailbox = DEFAULT_MAILBOX
+
         try:
             select_status, data = self.mail.select(mailbox)
         except imaplib.IMAP4.error as e:
@@ -312,6 +322,41 @@ class ImapClient:
             raise ImapClientError(data)
 
         return copy_status, data
+
+    def store(self, ids, flags, *, command, uid=False):
+        '''Alters flag dispositions for messages in mailbox.'''
+        ids_bytes = self._ids_to_bytes(ids)
+
+        if isinstance(flags, str):
+            flags_str = flags
+        elif isinstance(flags, collections.Iterable):
+            flags_str = " ".join(flags)
+        else:
+            flags_str = flags
+
+        try: 
+            if uid:
+                store_status, data = self.mail.uid("store", ids_bytes, command, 
+                                                   flags_str)
+            else:   
+                store_status, data = self.mail.store(ids_bytes, command, 
+                                                     flags_str)
+        except imaplib.IMAP4.error as e:
+            raise ImapClientError(str(e)) from None
+        except:
+            raise e
+
+        data = data[0].decode()
+
+        if store_status != "OK":
+            raise ImapClientError(data)
+
+        return store_status, data
+
+    add_flags = partialmethod(store, command="+FLAGS")
+    set_flags = partialmethod(store, command="FLAGS")
+    remove_flags = partialmethod(store, command="-FLAGS")
+
 
 
 def email_to_dict(msg, header_decoders = default_decoders):

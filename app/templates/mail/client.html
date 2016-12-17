@@ -126,9 +126,9 @@
         background-color: #333;
         padding-bottom: 5px;
     }
-    #emails-ui button {
+/*    #emails-ui button {
         color: black !important;
-    }
+    }*/
     #page-emails {
         color: white;
     }
@@ -143,6 +143,9 @@
     }
     .email-star {
         font-size: 2em;
+    }
+    .email-star.flagged {
+        color: #FFBB00;
     }
     .email-dragged {
         background-color: #4e91f0;
@@ -187,16 +190,22 @@
     </div>
     <div id="emails-container">
         <div id="emails-ui">
-            <select id="select-read">
-                <option>ALL</option>
-                <option>NONE</option>
-                <option>READ</option>
-                <option>UNREAD</option>
-                <option>STARRED</option>
-                <option>UNSTARRED</option>
-            </select>
-            <div id="">
-
+            <div class="btn-group">
+                <button type="button" class="btn btn-warning select-emails" 
+                        data-select-type="ALL" id="select-emails-btn">ALL</button>
+                <button type="button" class="btn btn-warning dropdown-toggle" 
+                        data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    <span class="caret"></span>
+                    <span class="sr-only">Toggle Dropdown</span>
+                </button>
+                <ul class="dropdown-menu">
+                    <li><a class="select-emails" data-select-type="ALL" href="#">ALL</a></li>
+                    <li><a class="select-emails" data-select-type="NONE" href="#">NONE</a></li>
+                    <li><a class="select-emails" data-select-type="READ" href="#">READ</a></li>
+                    <li><a class="select-emails" data-select-type="UNREAD" href="#">UNREAD</a></li>
+                    <li><a class="select-emails" data-select-type="STARRED" href="#">STARRED</a></li>
+                    <li><a class="select-emails" data-select-type="UNSTARRED" href="#">UNSTARRED</a></li>
+                </ul>
             </div>
             <div id="page-ui">
                 <span id="page-emails"></span>
@@ -229,26 +238,9 @@
 {{ super() }}
 <script src="{{url_for('static', filename='scripts/jquery-ui.min.js')}}"></script>
 <script src="{{url_for('static', filename='scripts/moment.js')}}"></script>
-<script src="{{url_for('static', filename='scripts/mail.client.js')}}"></script>
 <script src="{{url_for('static', filename='scripts/mail.email.js')}}"></script>
+<script src="{{url_for('static', filename='scripts/mail.client.js')}}"></script>
 <script>
-    getMailboxes({callback: updateMailboxesList});
-    EMailsListController.init({mailbox: "INBOX"});
-
-    $(document).on("click", ".email-open", function() {
-        $(this).parent().removeClass("unseen");
-        $("#email-modal").data("email-id", $(this).parent().data("email-id"));
-        $("#email-modal").data("mailbox", EMailsListController.mailbox);
-        $("#email-modal").modal("show");
-    });
-    $(document).on("click", "#mailbox-list li", function() {
-        EMailsListController.selectMailbox($(this).data("name"));
-    });
-    $("#prev-emails-btn").click(function() {
-        EMailsListController.getPrevEMails();
-    });
-    $("#next-emails-btn").click(function() {
-        EMailsListController.getNextEMails();
-    });    
+    initClient();
 </script>
 {% endblock %}

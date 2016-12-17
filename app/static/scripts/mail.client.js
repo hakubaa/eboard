@@ -13,6 +13,40 @@ var settings = {
 };
 
 /*******************************************************************************
+    Init 
+*******************************************************************************/
+
+function initClient() {
+    getMailboxes({callback: updateMailboxesList});
+    EMailsListController.init({mailbox: "INBOX"});
+
+    $(document).on("click", ".email-open", function() {
+        $(this).parent().removeClass("unseen");
+        $("#email-modal").data("email-id", $(this).parent().data("email-id"));
+        $("#email-modal").data("mailbox", EMailsListController.mailbox);
+        $("#email-modal").modal("show");
+    });
+    $(document).on("click", "#mailbox-list li", function() {
+        EMailsListController.selectMailbox($(this).data("name"));
+    });
+    $("#prev-emails-btn").click(function() {
+        EMailsListController.getPrevEMails();
+    });
+    $("#next-emails-btn").click(function() {
+        EMailsListController.getNextEMails();
+    });    
+    $(".select-emails").click(function() {
+        var mode = $(this).data("select-type");
+        selectEMails(mode);
+    });   
+
+    // Determine whether to swtich ALL/NONE when checkboxes change. 
+    $(document).on("click", ".email-check", function() {
+        updateSelectBtn();
+    });
+}
+
+/*******************************************************************************
     UI controllers
 *******************************************************************************/
 
@@ -195,11 +229,18 @@ function updateEMailsList(response) {
                 if (flags.indexOf("\\SEEN") < 0) {
                     $email.addClass("unseen");
                 }
+
             }
             $email.append("<td class='email-controls'></td>");
             var $controls = $email.find(".email-controls");
             $controls.append("<input class='email-check' type='checkbox'/>");
-            $controls.append("<span class='email-star'>&#9733;</span>");
+
+            var $star = $("<span class='email-star'>&#9733;</span>");
+            if (flags.indexOf("\\FLAGGED") >= 0) {
+                $star.addClass("flagged");
+                $email.addClass("flagged");
+            }
+            $controls.append($star);
 
             var ctype = emails[i]["Content-Type"].split(";")[0];
             $email.append("<td class='email-from email-open'>" + emails[i].From + "</td>");
@@ -240,9 +281,55 @@ function updateEMailsList(response) {
             cursorAt: { left: 10, top: 10 }
         });
 
-
+        // Reset select emails buttons
+        $("#select-emails-btn").html("ALL");
+        $("#select-emails-btn").data("select-type", "ALL"); 
     } else {    
         alert("ERROR: " + JSON.stringify(response.data));
+    }
+}
+
+function updateSelectBtn() {
+    var checks = $(".email-check").map(function() {
+        return ($(this).is(":checked"));
+    }).toArray();
+
+    if (checks.every(function(item) { return (item === true); })) {
+        $("#select-emails-btn").html("NONE");
+        $("#select-emails-btn").data("select-type", "NONE"); 
+    } else if (checks.every(function(item) { return (item === false); })) {
+        $("#select-emails-btn").html("ALL");
+        $("#select-emails-btn").data("select-type", "ALL");             
+    }
+}
+
+function selectEMails(mode) {
+    if (mode !== undefined) {
+        if (mode === "ALL") {
+            $(".email-header .email-check").prop("checked", true);
+            $("#select-emails-btn").html("NONE");
+            $("#select-emails-btn").data("select-type", "NONE");
+        } else if (mode === "NONE") {
+            $(".email-header .email-check").prop("checked", false);
+            $("#select-emails-btn").html("ALL");
+            $("#select-emails-btn").data("select-type", "ALL");            
+        } else if (mode === "READ") {
+            $(".email-header").not("unseen").find(".email-check").prop("checked", true);
+            $(".email-header.unseen").find(".email-check").prop("checked", false);
+            updateSelectBtn();
+        } else if (mode === "UNREAD") {
+            $(".email-header").not("unseen").find(".email-check").prop("checked", false);
+            $(".email-header.unseen").find(".email-check").prop("checked", true);   
+            updateSelectBtn();         
+        } else if (mode === "STARRED") {
+            $(".email-header").not("flagged").find(".email-check").prop("checked", false);
+            $(".email-header.flagged").find(".email-check").prop("checked", true);   
+            updateSelectBtn();               
+        } else if (mode === "UNSTARRED") {
+            $(".email-header").not("flagged").find(".email-check").prop("checked", true);
+            $(".email-header.flagged").find(".email-check").prop("checked", false);   
+            updateSelectBtn();              
+        }
     }
 }
 

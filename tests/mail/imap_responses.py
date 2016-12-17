@@ -1,3 +1,6 @@
+store = ('OK', [b'1 (FLAGS (\\Seen \\Flagged))'])
+store2 = ('NO', [b'FUCK'])
+
 copy = ('OK', [b'[COPYUID 3 1 1] (Success)'])
 copy2 = ('NO', [b'[TRYCREATE] No folder [Gmail]/Spa2m (Failure)'])
 
