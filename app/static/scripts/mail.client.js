@@ -135,17 +135,30 @@ function updateMailboxesList(response) {
                     "ui-droppable-hover": "droppable-hover" 
                 },
                 drop: function(event, ui) {
-                    var email = ui.draggable;
+                    // var email = ui.draggable;
                     var mailbox = $(this).data("name");
+
+                    var $emails = $(".email-header")
+                        .filter(function() {
+                            return ($(this).find(".email-check").is(":checked") 
+                                    || $(this).is(ui.draggable));
+                        });//.toArray();
+                    // if ($emails.index(ui.draggable) < 0) {
+                    // }
+
+                    var emailsIds = $emails.map(function() {
+                            return ($(this).data("email-id"));
+                        }).toArray();
+
                     setInfo("Moving e-mails ...");
                     moveEMails({
-                        ids: email.data("email-id"),
+                        ids: emailsIds.join(),
                         source_mailbox: EMailsListController.mailbox,
                         dest_mailbox: mailbox,
                         callback: function(response) {
                             setInfo("");
                             if (response.status == "OK") {
-                                email.remove();
+                                $emails.remove();
                             } else {
                                 alert(JSON.stringify(response.data));
                             }
@@ -204,12 +217,25 @@ function updateEMailsList(response) {
         //http://stackoverflow.com/questions/3591264/can-table-rows-be-made-draggable
         $("#emails-list .email-header").draggable({
             helper: function() {
-                // return $(this).parent().parent();
-                return $("<div class='email-dragged'>E-Mail<div>");
+                var $self = $(this)[0];
+                var numOfEmails = $(".email-header").filter(function() {
+                    return ($(this).find(".email-check").is(":checked") 
+                            && $(this)[0] != $self);
+                }).length + 1;
+                return $("<div class='email-dragged-helper'>Dragging " + 
+                    + numOfEmails + " emails.<div>");
             },
             start: function(event, ui) {
-                // c.tr = this;
-                // c.helper = ui.helper;
+                $(this).addClass("email-dragged");
+                $(".email-header").filter(function() {
+                    return ($(this).find(".email-check").is(":checked"));
+                }).addClass("email-dragged");
+            },
+            stop: function(event, ui) {
+                $(this).removeClass("email-dragged");
+                $(".email-header").filter(function() {
+                    return ($(this).find(".email-check").is(":checked"));
+                }).removeClass("email-dragged");
             },
             cursorAt: { left: 10, top: 10 }
         });
