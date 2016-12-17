@@ -88,7 +88,7 @@
                 it("getNextEMails does not increase page when " +
                         "current page is the last", function() {
                     EMailsListController.init();
-                    EMailsListController.total_emails = 50;
+                    EMailsListController.total_emails = 70;
                     EMailsListController.getNextEMails();
                     EMailsListController.getNextEMails();
                     assert.equal(EMailsListController.page,2);
@@ -132,6 +132,124 @@
 
             });
 
+            describe("Moving E-Mails", function() {
+
+                describe("Sending Request", function() {
+
+                    var xhr = null;
+                    var requests = null;
+
+                    beforeEach(function() {
+                        xhr = sinon.useFakeXMLHttpRequest();
+                        requests = [];
+                        xhr.onCreate = function(xhr) {
+                            requests.push(xhr);
+                        };
+                    });
+
+                    afterEach(function() {
+                        xhr.restore();
+                    });
+
+                    it("test for sending post request", function() {
+                        moveEMails({ids: "1", dest_mailbox: "INBOX",
+                                    source_mailbox: "INBOX2"});
+                        assert.equal(requests.length, 1);
+                    });
+
+                    it("test for using proper ulr", function() {
+                        moveEMails({ids: "1", dest_mailbox: "INBOX",
+                                    source_mailbox: "INBOX2"});
+                        assert.equal(requests[0].url, settings.ajax_move_emails);
+                    });
+
+                    it("test for raising exception when no ids", function() {
+                        chai.expect(function(){
+                            moveEMails();
+                        }).to.throw("Undefined emails' ids.");
+                    });
+
+                    it("test for raising exception when no dest mailbox", function() {
+                        chai.expect(function(){
+                            moveEMails({ids: "1", source_mailbox: "INBOX"});
+                        }).to.throw("Undefined destination mailbox.");
+                    });
+
+                    it("test for raising exception when no source mailbox", function() {
+                        chai.expect(function(){
+                            moveEMails({ids: "1", dest_mailbox: "INBOX"});
+                        }).to.throw("Undefined source mailbox.");
+                    });
+
+                    it("test for passing arguments to request", function() {
+                        moveEMails({ids:"1", dest_mailbox: "INBOX",
+                                    source_mailbox: "INBOX2"});
+                        var params = getJsonFromUrl(requests[0].requestBody);
+                        assert.equal(params.ids, "1");
+                        assert.equal(params.dest_mailbox, "INBOX");
+                    });
+
+                });
+
+                describe("Handling Response", function() {
+                    var server = null;
+
+                    beforeEach(function () {
+                        server = sinon.fakeServer.create();
+                    });
+
+                    afterEach(function () {
+                        server.restore();
+                    });
+
+                    it("test for calling callback", function() {
+                        server.respondWith("POST", settings.ajax_move_emails,
+                            jsonOk({
+                                status: "OK"
+                            })
+                        );
+                        var spy = sinon.spy();
+                        moveEMails({ids:"1", dest_mailbox: "INBOX", 
+                                    source_mailbox: "INBOX2", callback: spy});
+                        server.respond();
+                        assert.isTrue(spy.called);
+                    });
+
+                    it("test for passing response to callback", function() {
+                        server.respondWith("POST", settings.ajax_move_emails, 
+                            jsonOk({
+                              data: ["BLABLA"],
+                              status: "OK"
+                            })
+                        );
+                        var spy = sinon.spy();
+                        moveEMails({ids:"1", dest_mailbox: "INBOX", 
+                                    source_mailbox: "INBOX2", callback: spy});
+                        server.respond();
+                        var response = spy.args[0][0];
+                        assert.equal(response.status, "OK");
+                        assert.equal(response.data.length, 1);
+                    });
+
+                    it("test for returning status when ajax error", function() {
+                        server.respondWith("POST", settings.ajax_move_emails,
+                            [
+                                404, {
+                                'Content-type': 'text/plan'
+                                }, "KURWA MAC"
+                            ]
+                        );
+                        var callback = sinon.spy();
+                        moveEMails({ids:"1", dest_mailbox: "INBOX", 
+                                    source_mailbox: "INBOX2", callback: callback});
+                        server.respond();
+                        var response = callback.args[0][0];
+                        assert.equal(response.status, "ERROR");
+                    });
+                });   
+
+            });
+
             describe("Getting E-Mails", function() {
 
                 describe("Sending Request", function() {
@@ -152,23 +270,23 @@
                     });
 
                     it("test for sending post request", function() {
-                        getEMails({ids:"1"});
+                        getRawEMails({ids:"1"});
                         assert.equal(requests.length, 1);
                     });
             
                     it("test for using proper url", function() {
-                        getEMails({ids:"1"});
-                        assert.equal(requests[0].url, "/mail/get_emails");
+                        getRawEMails({ids:"1"});
+                        assert.equal(requests[0].url, "/mail/get_raw_emails");
                     });
 
                     it("test for raising exception when no ids", function() {
                         chai.expect(function(){
-                            getEMails();
+                            getRawEMails();
                         }).to.throw("Undefined emails' ids.");
                     });
 
                     it("test for passing arguments to request", function() {
-                        getEMails({ids:"1"});
+                        getRawEMails({ids:"1"});
                         var params = getJsonFromUrl(requests[0].requestBody);
                         assert.equal(params.ids, "1");
                     });
@@ -193,7 +311,7 @@
                             })
                         );
                         var spy = sinon.spy();
-                        getEMails({ids: "1, 2", callback: spy});
+                        getRawEMails({ids: "1, 2", callback: spy});
                         server.respond();
                         assert.isTrue(spy.called);
                     });
@@ -225,7 +343,7 @@
                             })
                         );
                         var spy = sinon.spy();
-                        getEMails({ids: "1", callback: spy});
+                        getRawEMails({ids: "1", callback: spy});
                         server.respond();
                         var response = spy.args[0][0];
                         assert.equal(response.status, "OK");
@@ -241,7 +359,7 @@
                             ]
                         );
                         var callback = sinon.spy();
-                        getEMails({ids: "1", callback: callback});
+                        getRawEMails({ids: "1", callback: callback});
                         server.respond();
                         var response = callback.args[0][0];
                         assert.equal(response.status, "ERROR");

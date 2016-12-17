@@ -10,12 +10,13 @@ from flask_login import login_user
 
 from app.mail.forms import LoginForm
 from app.models import User
+from app.mail.client import ImapClientError
 
 from tests.mail import imap_responses
 
 
 @patch("app.mail.views.ImapClient")
-class GetEmailTest(TestCase):
+class MoveEmailsTest(TestCase):
 
     def create_app(self):
         return create_app("testing")
@@ -23,43 +24,158 @@ class GetEmailTest(TestCase):
     def login_imap_client(self, username="Testowy", password="Testowe"):
          with self.client.session_transaction() as sess:
             sess["imap_username"] = username
-            sess["imap_password"] = password      
+            sess["imap_password"] = password 
+            sess["imap_addr"] = "testowy"  
 
-    def mock_imap_client(self, mock_client):
-        mock = Mock()
-        mock.get_emails.return_value = ("OK", ["EMAIL"])
-        mock.select.return_value = ("OK", b'1')
-        mock_client.return_value = mock    
-        return mock
-
+    def mock_imap_client(self, mock_client, response = ("OK", "INFO")):
+        move_mock = Mock()
+        move_mock.return_value = response
+        mock_client.return_value.move_emails = move_mock
+        return move_mock     
+            
     def test_returns_error_for_not_authenticated_users(self, mock_client):
-        response = self.client.get(url_for("mail.imap_get_email"))
+        self.mock_imap_client(mock_client)
+        response = self.client.get(url_for("mail.imap_move_emails"),
+                            query_string=dict(ids="1", dest_mailbox="INBOX",
+                                              source_mailbox="INBOX2"))
         data = json.loads(response.data.decode("utf-8"))
         self.assertEqual(data["status"], "ERROR")
 
     def test_returns_ok_for_authenticated_users(self, mock_client):
-        self.login_imap_client()
         self.mock_imap_client(mock_client)
-        response = self.client.get(url_for("mail.imap_get_email"),
-                                   query_string=dict(id='1'))
+        self.login_imap_client()
+        response = self.client.get(url_for("mail.imap_move_emails"),
+                            query_string=dict(ids="1", dest_mailbox="INBOX",
+                                              source_mailbox="INBOX2"))
         data = json.loads(response.data.decode("utf-8"))
-        self.assertEqual(data["status"], "OK")      
+        self.assertEqual(data["status"], "OK")    
 
-    def test_calls_get_emails_with_proper_id(self, mock_client):
+    def test_calls_move_emails_method(self, mock_client):
+        move_mock = self.mock_imap_client(mock_client)
         self.login_imap_client()
-        mock = self.mock_imap_client(mock_client)
-        response = self.client.get(url_for("mail.imap_get_email"),
-                                   query_string=dict(id='1'))
-        mock.get_emails.assert_called_with('1')
+        self.client.get(url_for("mail.imap_move_emails"),
+                        query_string=dict(ids="1", dest_mailbox="INBOX",
+                                          source_mailbox="INBOX2"))
+        self.assertTrue(move_mock.called)
 
-    @patch("app.mail.views.process_email_for_display")
-    def test_calls_process_email_for_display(self, mock_process, mock_client):
+    def test_passes_arguments_to_move_emails_method(self, mock_client):
+        move_mock = self.mock_imap_client(mock_client)
         self.login_imap_client()
-        self.mock_imap_client(mock_client)
-        mock_process.return_value = None
-        response = self.client.get(url_for("mail.imap_get_email"),
-                                   query_string=dict(id='1'))
-        mock_process.assert_called_with("EMAIL")
+        self.client.get(url_for("mail.imap_move_emails"),
+                        query_string=dict(ids="1", dest_mailbox="INBOX",
+                                          source_mailbox="INBOX2"))
+        move_mock.assert_called_with("1", "INBOX")
+
+    def test_returns_error_when_no_ids(self, mock_client):
+        move_mock = self.mock_imap_client(mock_client)
+        self.login_imap_client()
+        response = self.client.get(url_for("mail.imap_move_emails"),
+                            query_string=dict(dest_mailbox="INBOX", 
+                                              source_mailbox="INBOX2"))       
+        data = json.loads(response.data.decode("utf-8"))
+        self.assertEqual(data["status"], "ERROR")
+
+    def test_returns_error_when_no_dest_mailbox(self, mock_client):
+        move_mock = self.mock_imap_client(mock_client)
+        self.login_imap_client()
+        response = self.client.get(url_for("mail.imap_move_emails"),
+                            query_string=dict(ids="1", source_mailbox="INBOX2"))       
+        data = json.loads(response.data.decode("utf-8"))
+        self.assertEqual(data["status"], "ERROR")
+
+    def test_returns_error_when_no_imap_response(self, mock_client):
+        move_mock = self.mock_imap_client(mock_client, ("NO", "FUCK"))
+        self.login_imap_client()
+        response = self.client.get(url_for("mail.imap_move_emails"),
+                            query_string=dict(ids="1", dest_mailbox="INBOX",
+                                              source_mailobx="INBOX2"))       
+        data = json.loads(response.data.decode("utf-8"))
+        self.assertEqual(data["status"], "ERROR")       
+
+    def test_returns_status_and_data_when_success(self, mock_client):
+        move_mock = self.mock_imap_client(mock_client, ("OK", "YUPI"))
+        self.login_imap_client()
+        response = self.client.get(url_for("mail.imap_move_emails"),
+                            query_string=dict(ids="1", dest_mailbox="INBOX",
+                                              source_mailbox="INBOX2"))       
+        data = json.loads(response.data.decode("utf-8"))
+        self.assertEqual(data["status"], "OK")
+        self.assertEqual(data["data"], "YUPI")    
+
+    def test_for_calling_select_method(self, mock_client):
+        move_mock = self.mock_imap_client(mock_client, ("OK", "YUPI"))
+        select_mock = Mock()
+        select_mock.return_value = ("OK", "WORK")
+        mock_client.return_value.select = select_mock
+        self.login_imap_client()
+        response = self.client.get(url_for("mail.imap_move_emails"),
+                            query_string=dict(ids="1", dest_mailbox="INBOX",
+                                              source_mailbox="INBOX2"))       
+        select_mock.assert_called_with("INBOX2")
+
+    def test_for_returning_error_when_select_fails(self, mock_client):
+        move_mock = self.mock_imap_client(mock_client, ("OK", "YUPI"))
+        select_mock = Mock()
+        select_mock.return_value = ("NO", "FUCK")
+        select_mock.side_effect = ImapClientError
+        mock_client.return_value.select = select_mock
+        self.login_imap_client()
+        response = self.client.get(url_for("mail.imap_move_emails"),
+                            query_string=dict(ids="1", dest_mailbox="INBOX",
+                                              source_mailbox="INBOX2"))       
+        data = json.loads(response.data.decode("utf-8"))
+        self.assertEqual(data["status"], "ERROR")
+
+
+
+
+# @patch("app.mail.views.ImapClient")
+# class GetEmailTest(TestCase):
+
+#     def create_app(self):
+#         return create_app("testing")
+
+#     def login_imap_client(self, username="Testowy", password="Testowe"):
+#          with self.client.session_transaction() as sess:
+#             sess["imap_username"] = username
+#             sess["imap_password"] = password 
+#             sess["imap_addr"] = "testowy"     
+
+#     def mock_imap_client(self, mock_client):
+#         mock = Mock()
+#         mock.get_emails.return_value = ("OK", ["EMAIL"])
+#         mock.select.return_value = ("OK", b'1')
+#         mock_client.return_value = mock    
+#         return mock
+
+#     def test_returns_error_for_not_authenticated_users(self, mock_client):
+#         response = self.client.get(url_for("mail.imap_get_email"))
+#         data = json.loads(response.data.decode("utf-8"))
+#         self.assertEqual(data["status"], "ERROR")
+
+#     def test_returns_ok_for_authenticated_users(self, mock_client):
+#         self.login_imap_client()
+#         self.mock_imap_client(mock_client)
+#         response = self.client.get(url_for("mail.imap_get_email"),
+#                                    query_string=dict(id='1'))
+#         data = json.loads(response.data.decode("utf-8"))
+#         self.assertEqual(data["status"], "OK")      
+
+#     def test_calls_get_emails_with_proper_id(self, mock_client):
+#         self.login_imap_client()
+#         mock = self.mock_imap_client(mock_client)
+#         response = self.client.get(url_for("mail.imap_get_email"),
+#                                    query_string=dict(id='1'))
+#         mock.get_emails.assert_called_with('1')
+
+#     @patch("app.mail.views.process_email_for_display")
+#     def test_calls_process_email_for_display(self, mock_process, mock_client):
+#         self.login_imap_client()
+#         self.mock_imap_client(mock_client)
+#         mock_process.return_value = None
+#         response = self.client.get(url_for("mail.imap_get_email"),
+#                                    query_string=dict(id='1'))
+#         mock_process.assert_called_with("EMAIL")
 
 
 # @patch("app.mail.views.imap_clients")

@@ -220,3 +220,36 @@ def imap_get_email(imap_client):
         return jsonify(response)
     except ImapClientError as e:
         return jsonify({"status": "ERROR", "data": {"msg": str(e)}})
+
+
+@mail.route("/move_emails", methods=["GET", "POST"])
+@imap_authentication()
+def imap_move_emails(imap_client):
+    if request.method == "POST":
+        args = request.form
+    elif request.method == "GET":
+        args = request.args
+
+    if "ids" not in args:
+        return jsonify({"status": "ERROR", 
+                        "data": {"msg": "Undefined emails' ids."}})
+
+    source_mailbox = args.get("source_mailbox", imap_client.mailbox)
+    if not source_mailbox:
+        return jsonify({"status": "ERROR", 
+                        "data": {"msg": "Undefined source mailbox."}})
+
+    dest_mailbox = args.get("dest_mailbox", None)
+    if not dest_mailbox:
+        return jsonify({"status": "ERROR", 
+                        "data": {"msg": "Undefined destination mailbox."}})        
+
+    try:
+        imap_client.select(source_mailbox)
+        status, data = imap_client.move_emails(args["ids"], dest_mailbox)
+        if status == "OK":
+            return jsonify({"status": "OK", "data": data})
+        else:
+           return jsonify({"status": "ERROR", "data": {"msg": data}}) 
+    except ImapClientError as e:
+        return jsonify({"status": "ERROR", "data": {"msg": str(e)}})

@@ -107,7 +107,7 @@ class ImapClient:
         except:
             raise e
 
-        if status == "ERROR":
+        if status != "OK":
             raise ImapClientError(msg)
         return status, msg
 
@@ -121,7 +121,7 @@ class ImapClient:
         except:
             raise e
 
-        if status == "ERROR":
+        if status != "OK":
             raise ImapClientError(msg)
         return status, msg
 
@@ -133,7 +133,7 @@ class ImapClient:
         except:
             raise e
 
-        if status == "ERROR":
+        if status != "OK":
             raise ImapClientError(msg)
         return status, msg
 
@@ -292,19 +292,21 @@ class ImapClient:
         else:
             raise ImapClientError(data)
 
-    def move_emails(self, ids, mailbox, *, uid = False):
+    def move_emails(self, ids, mailbox, *, uid=False):
         '''Move 'message_set' messages onto end of 'new_mailbox'.'''
         ids_bytes = self._ids_to_bytes(ids)
 
         try:
             if uid:
-                copy_status, data = self.mail.uid("copy", ids_bytes)
+                copy_status, data = self.mail.uid("copy", ids_bytes, mailbox)
             else:
                 copy_status, data = self.mail.copy(ids_bytes, mailbox)
         except imaplib.IMAP4.error as e:
             raise ImapClientError(str(e)) from None
         except:
             raise e
+
+        data = data[0].decode("ascii")
 
         if copy_status != "OK":
             raise ImapClientError(data)

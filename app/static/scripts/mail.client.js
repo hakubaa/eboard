@@ -8,7 +8,8 @@ var settings = {
     ajax_list: "/mail/list",
     ajax_get_headers: "/mail/get_headers",
     ajax_get_raw_emails: "/mail/get_raw_emails",
-    ajax_get_email: "/mail/get_email"
+    ajax_get_email: "/mail/get_email",
+    ajax_move_emails: "/mail/move_emails"
 };
 
 /*******************************************************************************
@@ -136,7 +137,20 @@ function updateMailboxesList(response) {
                 drop: function(event, ui) {
                     var email = ui.draggable;
                     var mailbox = $(this).data("name");
-                    alert("Something dropped on " + mailbox + ": " + email.data("email-id"));
+                    setInfo("Moving e-mails ...");
+                    moveEMails({
+                        ids: email.data("email-id"),
+                        source_mailbox: EMailsListController.mailbox,
+                        dest_mailbox: mailbox,
+                        callback: function(response) {
+                            setInfo("");
+                            if (response.status == "OK") {
+                                email.remove();
+                            } else {
+                                alert(JSON.stringify(response.data));
+                            }
+                        }
+                    });
                 }
             });
             $list.append($mailbox);
@@ -209,6 +223,37 @@ function updateEMailsList(response) {
 /*******************************************************************************
     XMLHttpRequest handlers
 *******************************************************************************/
+
+function moveEMails(options) {
+    if (options === undefined) options = {};
+    if (options.ids === undefined) {
+        throw "Undefined emails' ids.";
+    }
+    if (options.dest_mailbox === undefined) {
+        throw "Undefined destination mailbox.";
+    }
+    if (options.source_mailbox === undefined) {
+        throw "Undefined source mailbox.";
+    }
+    $.post(settings.ajax_move_emails, {
+        ids: options.ids,
+        dest_mailbox: options.dest_mailbox,
+        source_mailbox: options.source_mailbox
+    })
+        .done(function(response) {
+            if (options.callback !== undefined) {
+                options.callback(response);
+            }
+        })
+        .fail(function(response) {
+            if (options.callback !== undefined) {
+                options.callback({
+                    status: "ERROR",
+                    data: response
+                });
+            }
+        });
+}
 
 function getMailboxes(options) {
     if (options === undefined) options = {};
