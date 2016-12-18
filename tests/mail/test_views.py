@@ -16,6 +16,132 @@ from tests.mail import imap_responses
 
 
 @patch("app.mail.views.ImapClient")
+class StoreTest(TestCase):
+
+    def create_app(self):
+        return create_app("testing")
+
+    def login_imap_client(self, username="Testowy", password="Testowe"):
+         with self.client.session_transaction() as sess:
+            sess["imap_username"] = username
+            sess["imap_password"] = password 
+            sess["imap_addr"] = "testowy"  
+
+    def mock_store(self, mock_client, response = ("OK", "INFO"), 
+                   command="store"):
+        flags_mock = Mock()
+        flags_mock.return_value = response
+        setattr(mock_client.return_value, command, flags_mock)
+        return flags_mock
+
+    def test_returns_error_for_not_authenticated_users(self, mock_client):
+        self.mock_store(mock_client, command="store")
+        response = self.client.get(url_for("mail.imap_store", command="add"),
+                        query_string=dict(ids="1", mailbox="INBOX",
+                                          flags="\\Flagged"))
+        data = json.loads(response.data.decode("utf-8"))
+        self.assertEqual(data["status"], "ERROR")
+
+    def test_calls_add_flags_method(self, mock_client):
+        add_flags_mock = self.mock_store(mock_client, command="add_flags")
+        self.login_imap_client()
+        self.client.get(url_for("mail.imap_store", command="add"),
+                        query_string=dict(ids="1", mailbox="INBOX",
+                                          flags="\\Flagged"))
+        add_flags_mock.assert_called_with("1", "\\Flagged")
+
+    def test_calls_remove_flags_method(self, mock_client):
+        flags_mock = self.mock_store(mock_client, command="remove_flags")
+        self.login_imap_client()
+        self.client.get(url_for("mail.imap_store", command="remove"),
+                        query_string=dict(ids="1", mailbox="INBOX",
+                                          flags="\\Flagged"))
+        flags_mock.assert_called_with("1", "\\Flagged")
+
+    def test_calls_set_flags_method(self, mock_client):
+        flags_mock = self.mock_store(mock_client, command="set_flags")
+        self.login_imap_client()
+        self.client.get(url_for("mail.imap_store", command="set"),
+                        query_string=dict(ids="1", mailbox="INBOX",
+                                          flags="\\Flagged"))
+        flags_mock.assert_called_with("1", "\\Flagged")       
+
+    def test_returns_error_when_improper_command(self, mock_client):
+        flags_mock = self.mock_store(mock_client, command="set_flags")
+        self.login_imap_client()
+        response = self.client.get(url_for("mail.imap_store", command="delete"),
+                                   query_string=dict(ids="1", mailbox="INBOX",
+                                                     flags="\\Flagged"))
+        data = json.loads(response.data.decode("utf-8"))
+        self.assertEqual(data["status"], "ERROR")
+
+    def test_returns_error_when_no_ids(self, mock_client):
+        flags_mock = self.mock_store(mock_client, command="set_flags")
+        self.login_imap_client()
+        response = self.client.get(url_for("mail.imap_store", command="set"),
+                                   query_string=dict(mailbox="INBOX",
+                                                     flags="\\Flagged"))
+        data = json.loads(response.data.decode("utf-8"))
+        self.assertEqual(data["status"], "ERROR")
+
+    def test_returns_error_when_no_flags(self, mock_client):
+        flags_mock = self.mock_store(mock_client, command="set_flags")
+        self.login_imap_client()
+        response = self.client.get(url_for("mail.imap_store", command="set"),
+                                   query_string=dict(ids="1", mailbox="INBOX"))
+        data = json.loads(response.data.decode("utf-8"))
+        self.assertEqual(data["status"], "ERROR")
+
+    def test_returns_error_when_no_mailbox(self, mock_client):
+        flags_mock = self.mock_store(mock_client, command="set_flags")
+        self.login_imap_client()
+        response = self.client.get(url_for("mail.imap_store", command="set"),
+                                   query_string=dict(ids="1", flags="INBOX"))
+        data = json.loads(response.data.decode("utf-8"))
+        self.assertEqual(data["status"], "ERROR")
+
+    def test_for_calling_select_method(self, mock_client):
+        flags_mock = self.mock_store(mock_client, response=("OK", "YUPI"),
+                                     command="add_flags")
+        select_mock = Mock()
+        select_mock.return_value = ("OK", "WORK")
+        mock_client.return_value.select = select_mock
+        self.login_imap_client()
+        self.client.get(url_for("mail.imap_store", command="add"),
+                        query_string=dict(ids="1", mailbox="INBOX2",
+                                          flags="\\Flagged"))  
+        select_mock.assert_called_with("INBOX2")
+
+
+    def test_for_returning_error_when_select_fails(self, mock_client):
+        flags_mock = self.mock_store(mock_client, response=("OK", "YUPI"),
+                                     command="add")
+
+        select_mock = Mock()
+        select_mock.return_value = ("NO", "FUCK")
+        select_mock.side_effect = ImapClientError
+        mock_client.return_value.select = select_mock
+
+        self.login_imap_client()
+        response = self.client.get(url_for("mail.imap_store", command="add"),
+                                   query_string=dict(ids="1", mailbox="INBOX",
+                                                     flags="\\Flagged"))    
+        data = json.loads(response.data.decode("utf-8"))
+        self.assertTrue(select_mock.called)
+        self.assertEqual(data["status"], "ERROR")
+
+    def test_returns_error_when_store_method_fails(self, mock_client):
+        flags_mock = self.mock_store(mock_client, response=("NO", ["FUCK"]),
+                                     command="add_flags")  
+        self.login_imap_client()
+        response = self.client.get(url_for("mail.imap_store", command="add"),
+                                   query_string=dict(ids="1", flags="\\FLagged",
+                                                     mailbox="INBOX"))
+        data = json.loads(response.data.decode("utf-8"))
+        self.assertEqual(data["status"], "ERROR")
+
+
+@patch("app.mail.views.ImapClient")
 class MoveEmailsTest(TestCase):
 
     def create_app(self):

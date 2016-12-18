@@ -8,7 +8,7 @@ E-Mail Client:
 - threads (imap extension)
 
 NEXT TO DO:
-
+- replace add_flags with store (in views), add parameter command (add, set, remoe)
 
 DONE:
 - add pages

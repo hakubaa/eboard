@@ -132,6 +132,133 @@
 
             });
 
+            describe("Updating Flags", function() {
+
+                describe("Sending Request", function() {
+
+                    var xhr = null;
+                    var requests = null;
+
+                    beforeEach(function() {
+                        xhr = sinon.useFakeXMLHttpRequest();
+                        requests = [];
+                        xhr.onCreate = function(xhr) {
+                            requests.push(xhr);
+                        };
+                    });
+
+                    afterEach(function() {
+                        xhr.restore();
+                    });
+
+                    it("test for sending post request", function() {
+                        updateFlags({ids: "1", mailbox: "INBOX",
+                                    flags: "\\Flagged", command: "add"});
+                        assert.equal(requests.length, 1);
+                    });                
+
+                    it("test for raising exception when no ids", function() {
+                        chai.expect(function(){
+                            updateFlags( {mailbox: "INBOX",
+                                        flags: "\\Flagged", command: "set"});
+                        }).to.throw("Undefined emails' ids.");
+                    });
+
+                    it("test for raising exception when no mailbox", function() {
+                        chai.expect(function(){
+                            updateFlags({ids: "1", flags: "\\Flagged", 
+                                         command: "set"});
+                        }).to.throw("Undefined mailbox.");
+                    });
+
+                    it("test for raising exception when no flags", function() {
+                        chai.expect(function(){
+                            updateFlags({ids: "1", mailbox: "INBOX",
+                                         command: "set"});
+                        }).to.throw("Undefined flags.");
+                    });
+
+                    it("test for raising exception when no command", function() {
+                        chai.expect(function(){
+                            updateFlags({ids: "1", mailbox: "INBOX",
+                                         flags: "\\Flagged"});
+                        }).to.throw("Undefined command.");
+                    });
+
+                    it("test for passing arguments to request", function() {
+                        updateFlags({ids: "1", mailbox: "INBOX",
+                                    flags: "\\Flagged", command: "add"});
+                        var params = getJsonFromUrl(requests[0].requestBody);
+                        assert.equal(params.ids, "1");
+                        assert.equal(params.flags, "\\Flagged");
+                        assert.equal(params.mailbox, "INBOX");
+                    });
+
+                });
+
+                describe("Handling Response", function() {
+                    var server = null;
+
+                    beforeEach(function () {
+                        server = sinon.fakeServer.create();
+                    });
+
+                    afterEach(function () {
+                        server.restore();
+                    });
+
+                    it("test for calling callback", function() {
+                        server.respondWith("POST", settings.ajax_store + "/add",
+                            jsonOk({
+                                status: "OK"
+                            })
+                        );
+                        var spy = sinon.spy();
+                        updateFlags({ids: "1", mailbox: "INBOX",
+                                    flags: "\\Flagged", command: "add",
+                                    callback: spy});
+                        server.respond();
+                        assert.isTrue(spy.called);
+                    });
+
+                    it("test for passing response to callback", function() {
+                        server.respondWith("POST", settings.ajax_store + "/add",
+                            jsonOk({
+                              data: ["BLABLA"],
+                              status: "OK"
+                            })
+                        );
+                        var spy = sinon.spy();
+                        updateFlags({ids: "1", mailbox: "INBOX",
+                                    flags: "\\Flagged", command: "add",
+                                    callback: spy});
+                        server.respond();
+                        var response = spy.args[0][0];
+                        assert.equal(response.status, "OK");
+                        assert.equal(response.data.length, 1);
+                    });
+
+                    it("test for returning status when ajax error", function() {
+                        server.respondWith("POST", settings.ajax_store + "/add",
+                            [
+                                404, {
+                                'Content-type': 'text/plan'
+                                }, "KURWA MAC"
+                            ]
+                        );
+                        var callback = sinon.spy();
+                        updateFlags({ids: "1", mailbox: "INBOX",
+                                    flags: "\\Flagged", command: "add",
+                                    callback: callback});
+                        server.respond();
+                        var response = callback.args[0][0];
+                        assert.equal(response.status, "ERROR");
+                    });
+
+                });
+            });
+
+
             describe("Moving E-Mails", function() {
 
                 describe("Sending Request", function() {

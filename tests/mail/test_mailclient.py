@@ -82,6 +82,7 @@ class StoreTest(unittest.TestCase):
                                      command="+FLAGS")
         store_mock.assert_called_with(b'1', "+FLAGS", "\\Flagged \\Seen") 
 
+
 @patch("app.mail.client.imaplib")
 class MoveTest(unittest.TestCase):
 

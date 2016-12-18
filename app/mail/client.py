@@ -428,7 +428,6 @@ def process_email_for_display(msg, header_decoders = default_decoders):
     for key in msg.keys():
         output["header"][key] = header_decoders.get(
                                     key.upper(), lambda x: x[key])(msg)
-
     if msg.is_multipart():
         output["type"] = "node"
 

@@ -76,7 +76,7 @@ def imap_authentication(redirect_to_login=False):
                 try:
                     imap_client = ImapClient(imap_addr)
                     imap_client.login(username, password)
-                    return func(imap_client)
+                    return func(imap_client, *args, **kwargs)
                 except ImapClientError:
                     pass
 
@@ -253,3 +253,43 @@ def imap_move_emails(imap_client):
            return jsonify({"status": "ERROR", "data": {"msg": data}}) 
     except ImapClientError as e:
         return jsonify({"status": "ERROR", "data": {"msg": str(e)}})
+
+
+# @mail.route("/remove_flags", defaults={"command": "remove"}, methods=["GET", "POST"])
+# @mail.route("/set_flags", defaults={"command": "set"}, methods=["GET", "POST"])
+# @mail.route("/add_flags", defaults={"command": "add"}, methods=["GET", "POST"])
+@mail.route("/store/<string:command>", methods=["GET", "POST"])
+@imap_authentication()
+def imap_store(imap_client, command):
+    if request.method == "POST":
+        args = request.form
+    elif request.method == "GET":
+        args = request.args
+
+    if "ids" not in args:
+        return jsonify({"status": "ERROR", 
+                        "data": {"msg": "Undefined emails' ids."}})
+    if "flags" not in args:
+        return jsonify({"status": "ERROR", 
+                        "data": {"msg": "Undefined flags."}})
+    if "mailbox" not in args:
+        return jsonify({"status": "ERROR", 
+                        "data": {"msg": "Undefined mailbox."}})
+
+    methods = dict(ADD=imap_client.add_flags,REMOVE=imap_client.remove_flags,
+                   SET=imap_client.set_flags)
+    flags_method = methods.get(command.upper(), None)
+
+    if not flags_method:
+        return jsonify({"status": "ERROR", 
+                        "data": {"msg": "Unsupported command."}})
+
+    try:
+        imap_client.select(args["mailbox"])
+        status, data = flags_method(args["ids"], args["flags"])
+        if status != "OK":
+            return jsonify({"status": "ERROR", "data": {"msg": data}}) 
+        else:
+            return jsonify({"status": "OK", "data": data})
+    except ImapClientError as e:
+        return jsonify({"status": "ERROR", "data": {"msg": str(e)}})      

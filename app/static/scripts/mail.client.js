@@ -9,7 +9,11 @@ var settings = {
     ajax_get_headers: "/mail/get_headers",
     ajax_get_raw_emails: "/mail/get_raw_emails",
     ajax_get_email: "/mail/get_email",
-    ajax_move_emails: "/mail/move_emails"
+    ajax_move_emails: "/mail/move_emails",
+    ajax_flags_add: "/mail/add_flags",
+    ajax_flags_remove: "/mail/remove_flags",
+    ajax_flags_set: "/mail/set_flags",
+    ajax_store: "/mail/store"
 };
 
 /*******************************************************************************
@@ -43,6 +47,31 @@ function initClient() {
     // Determine whether to swtich ALL/NONE when checkboxes change. 
     $(document).on("click", ".email-check", function() {
         updateSelectBtn();
+    });
+
+    $(document).on("click", ".email-star", function() {
+        var command = "add";
+        if ($(this).hasClass("flagged")) {
+            command = "remove";
+        }
+        var id = $(this).parent().parent().data("email-id");
+        var mailbox = EMailsListController.mailbox;
+
+        var $self = $(this);;
+        setInfo("Updating e-mail's flags ...");
+        updateFlags({
+            ids: id, mailbox: mailbox, command: command,
+            flags: "\\Flagged",
+            callback: function(response) {
+                if (response.status === "OK") {
+                    $self.toggleClass("flagged");
+                    $self.parent().parent().toggleClass("flagged");
+                } else {
+                    alert(JSON.stringify(response.data));
+                }
+                setInfo("");
+            }
+        });
     });
 }
 
@@ -336,6 +365,40 @@ function selectEMails(mode) {
 /*******************************************************************************
     XMLHttpRequest handlers
 *******************************************************************************/
+
+function updateFlags(options) {
+    if (options === undefined) options = {};
+    if (options.command === undefined) {
+        throw "Undefined command.";
+    }
+    if (options.flags === undefined) {
+        throw "Undefined flags.";
+    }
+    if (options.ids === undefined) {
+        throw "Undefined emails' ids.";
+    }
+    if (options.mailbox === undefined) {
+        throw "Undefined mailbox.";
+    }
+    $.post(settings.ajax_store + "/" + options.command, {
+        ids: options.ids,
+        flags: options.flags,
+        mailbox: options.mailbox
+    })
+        .done(function(response) {
+            if (options.callback !== undefined) {
+                options.callback(response);
+            }
+        })
+        .fail(function(response) {
+            if (options.callback !== undefined) {
+                options.callback({
+                    status: "ERROR",
+                    data: response
+                });
+            }
+        });
+}
 
 function moveEMails(options) {
     if (options === undefined) options = {};
