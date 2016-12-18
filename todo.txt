@@ -2,13 +2,12 @@ E-Mail Client:
 - read e-mails
 - add button to create new message
 - add loger to ImapClient (save in database method calls and returned statuses)
-- add checkbox to select emails and remove them (just like in gmail)
-- add checklist with ["ALL", "READ", "UNREAD"]
-- response client (mailbox list to select list above e-mails, hide date, hide checkbox, star)
+- add buttons to select emails and remove them (just like in gmail)
+- response client (mailbox list to select list above e-mails, hide date, 
+                   hide checkbox, star)
 - threads (imap extension)
-
-NEXT TO DO:
-- replace add_flags with store (in views), add parameter command (add, set, remoe)
+- sending e-mails
+- working version on ie (iframe issue)
 
 DONE:
 - add pages
@@ -18,3 +17,5 @@ DONE:
 - mark not read message with different color 
     - add FLAGS: FLAGS BODY.PEEK[HEADER.FIELDS (DATE FROM)]
 - dragable emails (between mailboxes)
+- replace add_flags with store (in views), add parameter command (add, set etc.)
+- add checklist with ["ALL", "READ", "UNREAD"]

@@ -2,9 +2,16 @@
 
 {% block title %}JAGO - e-Board - E-Mail Client{% endblock %}
 
+
 {% block styles %}
 {{ super() }}
 <style>
+/*
+Colors:
+333333
+4E91F0
+F0AD4E
+*/
     body {
         background-color: #333;
         color: white;
@@ -146,6 +153,7 @@
     }
     .email-star.flagged {
         color: #FFBB00;
+        text-shadow: 2px 2px #000000;
     }
     .email-dragged {
         background-color: #4e91f0;
