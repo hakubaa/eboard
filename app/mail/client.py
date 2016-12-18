@@ -5,7 +5,7 @@ import re
 import email
 from email.header import decode_header
 from email.parser import HeaderParser
-from functools import partial, partialmethod
+from functools import partial#, partialmethod
 
 # Set proper limit in order to avoid error: 
 # 'imaplib.error: command: SELECT => got more than 100000 bytes'
@@ -353,10 +353,14 @@ class ImapClient:
 
         return store_status, data
 
-    add_flags = partialmethod(store, command="+FLAGS")
-    set_flags = partialmethod(store, command="FLAGS")
-    remove_flags = partialmethod(store, command="-FLAGS")
+    def add_flags(self, ids, flags, *, uid=False): 
+        return self.store(ids, flags, command="+FLAGS", uid=uid)
 
+    def set_flags(self, ids, flags, *, uid=False): 
+        return self.store(ids, flags, command="FLAGS", uid=uid)
+
+    def remove_flags(self, ids, flags, *, uid=False): 
+        return self.store(ids, flags, command="-FLAGS", uid=uid)
 
 
 def email_to_dict(msg, header_decoders = default_decoders):
