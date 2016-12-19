@@ -73,6 +73,70 @@ function initClient() {
             }
         });
     });
+
+    $("#extended-search-btn").click(function() {
+        $("#extended-emails-search").toggle();
+    });
+
+    $("#archive-btn").click(function() {
+        var mailbox = $("#mailbox-list").children().filter(function() {
+            return ($(this).data("flags").indexOf("\\ALL") >= 0);
+        }).first();
+        if (mailbox.length > 0) {
+            var $emails = $(".email-header")
+                .filter(function() {
+                    return ($(this).find(".email-check").is(":checked"));
+                });
+            if ($emails.length > 0) {
+                moveSelectedEMails($(mailbox).data("name"), $emails);
+            } else {
+                alert("No emails selected.");
+            }
+        } else {
+            alert("Archive mailbox not recognized. Please make sure your " +
+                  "service provider implements special-use mailboxes.");
+        }
+    });
+
+    $("#spam-btn").click(function() {
+        var mailbox = $("#mailbox-list").children().filter(function() {
+            return ($(this).data("flags").indexOf("\\JUNK") >= 0);
+        }).first();
+        if (mailbox.length > 0) {
+            var $emails = $(".email-header")
+                .filter(function() {
+                    return ($(this).find(".email-check").is(":checked"));
+                });
+            if ($emails.length > 0) {
+                moveSelectedEMails($(mailbox).data("name"), $emails);
+            } else {
+                alert("No emails selected.");
+            }
+        } else {
+            alert("Spam mailbox not recognized. Please make sure your " +
+                  "service provider implements special-use mailboxes.");
+        }
+    });
+
+    $("#remove-btn").click(function() {
+        var mailbox = $("#mailbox-list").children().filter(function() {
+            return ($(this).data("flags").indexOf("\\TRASH") >= 0);
+        }).first();
+        if (mailbox.length > 0) {
+            var $emails = $(".email-header")
+                .filter(function() {
+                    return ($(this).find(".email-check").is(":checked"));
+                });
+            if ($emails.length > 0) {
+                moveSelectedEMails($(mailbox).data("name"), $emails);
+            } else {
+                alert("No emails selected.");
+            }
+        } else {
+            alert("Trash mailbox not recognized. Please make sure your " +
+                  "service provider implements special-use mailboxes.");
+        }
+    });
 }
 
 /*******************************************************************************
@@ -190,43 +254,25 @@ function updateMailboxesList(response) {
         
         var $list = $("#mailbox-list");
         for(var i = 0; i < mailboxes.length; i++) {
-            var $mailbox = $("<li data-name='" + 
-                             mailboxes[i].utf7 + "'>" + 
+            var flags = mailboxes[i].flags.join(" ").toUpperCase();
+            if (flags.indexOf("\\NOSELECT") >= 0) {
+                continue;
+            }
+            var $mailbox = $("<li data-name='" + mailboxes[i].utf7 + "' " +
+                             "data-flags='" + flags + "'>" + 
                              mailboxes[i].utf16 + "</li>");
             $mailbox.droppable({
                 classes: {
                     "ui-droppable-hover": "droppable-hover" 
                 },
                 drop: function(event, ui) {
-                    // var email = ui.draggable;
                     var mailbox = $(this).data("name");
-
                     var $emails = $(".email-header")
                         .filter(function() {
                             return ($(this).find(".email-check").is(":checked") 
                                     || $(this).is(ui.draggable));
-                        });//.toArray();
-                    // if ($emails.index(ui.draggable) < 0) {
-                    // }
-
-                    var emailsIds = $emails.map(function() {
-                            return ($(this).data("email-id"));
-                        }).toArray();
-
-                    setInfo("Moving e-mails ...");
-                    moveEMails({
-                        ids: emailsIds.join(),
-                        source_mailbox: EMailsListController.mailbox,
-                        dest_mailbox: mailbox,
-                        callback: function(response) {
-                            setInfo("");
-                            if (response.status == "OK") {
-                                $emails.remove();
-                            } else {
-                                alert(JSON.stringify(response.data));
-                            }
-                        }
-                    });
+                        });
+                    moveSelectedEMails(mailbox, $emails);
                 }
             });
             $list.append($mailbox);
@@ -234,6 +280,27 @@ function updateMailboxesList(response) {
     } else {
         alert("ERROR: " + JSON.stringify(response.data));
     }
+}
+
+function moveSelectedEMails(mailbox, $emails) {
+    var emailsIds = $emails.map(function() {
+            return ($(this).data("email-id"));
+        }).toArray();
+
+    setInfo("Moving e-mails ...");
+    moveEMails({
+        ids: emailsIds.join(),
+        source_mailbox: EMailsListController.mailbox,
+        dest_mailbox: mailbox,
+        callback: function(response) {
+            setInfo("");
+            if (response.status == "OK") {
+                $emails.remove();
+            } else {
+                alert(JSON.stringify(response.data));
+            }
+        }
+    });
 }
 
 function toggleActiveMailbox(mailbox) {
@@ -311,8 +378,7 @@ function updateEMailsList(response) {
         });
 
         // Reset select emails buttons
-        $("#select-emails-btn").html("ALL");
-        $("#select-emails-btn").data("select-type", "ALL"); 
+        updateSelectBtn();
     } else {    
         alert("ERROR: " + JSON.stringify(response.data));
     }
@@ -330,35 +396,42 @@ function updateSelectBtn() {
         $("#select-emails-btn").html("ALL");
         $("#select-emails-btn").data("select-type", "ALL");             
     }
+
+    if (checks.some(function(item) { return (item === true); })) {
+        $("#archive-btn").show();
+        $("#spam-btn").show();
+        $("#remove-btn").show();
+        $("#move-to-btn").show();
+        $("#more-btn").show();
+    } else {
+        $("#archive-btn").hide();
+        $("#spam-btn").hide();
+        $("#remove-btn").hide();
+        $("#move-to-btn").hide();
+        $("#more-btn").hide();
+    }
 }
 
 function selectEMails(mode) {
     if (mode !== undefined) {
         if (mode === "ALL") {
             $(".email-header .email-check").prop("checked", true);
-            $("#select-emails-btn").html("NONE");
-            $("#select-emails-btn").data("select-type", "NONE");
         } else if (mode === "NONE") {
             $(".email-header .email-check").prop("checked", false);
-            $("#select-emails-btn").html("ALL");
-            $("#select-emails-btn").data("select-type", "ALL");            
         } else if (mode === "READ") {
             $(".email-header").not("unseen").find(".email-check").prop("checked", true);
             $(".email-header.unseen").find(".email-check").prop("checked", false);
-            updateSelectBtn();
         } else if (mode === "UNREAD") {
             $(".email-header").not("unseen").find(".email-check").prop("checked", false);
             $(".email-header.unseen").find(".email-check").prop("checked", true);   
-            updateSelectBtn();         
         } else if (mode === "STARRED") {
             $(".email-header").not("flagged").find(".email-check").prop("checked", false);
             $(".email-header.flagged").find(".email-check").prop("checked", true);   
-            updateSelectBtn();               
         } else if (mode === "UNSTARRED") {
             $(".email-header").not("flagged").find(".email-check").prop("checked", true);
             $(".email-header.flagged").find(".email-check").prop("checked", false);   
-            updateSelectBtn();              
         }
+        updateSelectBtn();
     }
 }
 

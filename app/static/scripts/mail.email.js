@@ -42,16 +42,14 @@ function createEmailTree(email, $base) {
         }
         $emailPart.append($emailNode);
     } else if (email.type == "plain") {
+        
+        $emailPart = $("<li class='email-part email-plain'><iframe srcdoc='" +
+            email.content.replace(/"/g, "&quot;").replace(/'/g, "&#039;") + 
+            "'></iframe></li>");
 
-        if (navigator.userAgent.indexOf("MSIE") < 0) { // IE - IFRAME ERROR
-            $emailPart = $("<li class='email-part email-plain'><iframe srcdoc='" +
-                email.content.replace(/"/g, "&quot;").replace(/'/g, "&#039;") + 
-                "'></iframe></li>");
-        } else { // IE VERSION
-            $emailPart = $("<li class='email-part email-plain'>" +
-                email.content.replace(/"/g, "&quot;").replace(/'/g, "&#039;") + 
-                "</li>");
-        }
+        // $emailPart = $("<li class='email-part email-plain'></li>");
+        // $emailPart.html(email.content);
+
     }
     if ($emailPart !== undefined) {
         $base.append($emailPart);

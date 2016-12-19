@@ -108,17 +108,11 @@ def imap_list(imap_client):
         status, data = imap_client.list()
 
         mailboxes = list()
-        p = re.compile(r'"(?P<name>[^"]*)$')
-        noselect = re.compile(r'\\noselect', re.IGNORECASE)
-        for mailbox in data:
-            mailbox = mailbox.decode("ascii")
-            if noselect.search(mailbox) is not None:
-                continue
-            name = re.compile(r'"."').split(mailbox)[-1]
-            name = name.replace("\"", "").replace("'", "").rstrip().lstrip()
+        for name, flags in data:
             mailboxes.append({
                 "utf7": name,
-                "utf16": utf7_decode(name)
+                "utf16": utf7_decode(name),
+                "flags": flags
             })
 
         return jsonify({"status": "OK", "data": mailboxes})

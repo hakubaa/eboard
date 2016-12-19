@@ -10,7 +10,7 @@ from functools import partial#, partialmethod
 # Set proper limit in order to avoid error: 
 # 'imaplib.error: command: SELECT => got more than 100000 bytes'
 imaplib._MAXLINE = 1000000
-
+socket.setdefaulttimeout(5)
 
 DEFAULT_MAILBOX = "INBOX"
 
@@ -104,7 +104,7 @@ class ImapClient:
             status, msg = self.mail.login(username, password)
         except imaplib.IMAP4.error as e:
             raise ImapClientError(str(e))
-        except:
+        except Exception as e:
             raise e
 
         if status != "OK":
@@ -118,7 +118,7 @@ class ImapClient:
             status, msg = self.mail.select(mailbox, readonly)
         except imaplib.IMAP4.error as e:
             raise ImapClientError(str(e)) from None
-        except:
+        except Exception as e:
             raise e
 
         if status != "OK":
@@ -126,16 +126,28 @@ class ImapClient:
         return status, msg
 
     def list(self, *args, **kwargs):
+        '''
+        IMAP LIST: Special-Use Mailboxes: https://tools.ietf.org/html/rfc6154
+        Additional attributes: \All \Archive \Drafts \Flagged \Junk \Sent \Trash
+        '''
         try:
-            status, msg = self.mail.list(*args, **kwargs)
+            status, data = self.mail.list(*args, **kwargs)
         except imaplib.IMAP4.error as e:
             raise ImapClientError(str(e)) from None
-        except:
+        except Exception as e:
             raise e
 
         if status != "OK":
-            raise ImapClientError(msg)
-        return status, msg
+            raise ImapClientError(data)
+
+        mailboxes = list()
+        for mailbox in data:
+            metadata, name = re.split(r'"."', mailbox.decode("ascii"))
+            name = name.replace("\"", "").replace("'", "").rstrip().lstrip()
+            flags = list(map(lambda w: "\\" + w, re.findall("\w+", metadata)))
+            mailboxes.append((name, flags))
+
+        return status, mailboxes
 
     def list_mailbox(self, mailbox=None, *criteria, uid=False):
         '''
@@ -151,7 +163,7 @@ class ImapClient:
             select_status, msg = self.mail.select(mailbox)
         except imaplib.IMAP4.error as e:
             raise ImapClientError(str(e))
-        except: 
+        except Exception as e:
             raise e
 
         if select_status == "OK":
@@ -181,7 +193,7 @@ class ImapClient:
             select_status, data = self.mail.select(mailbox)
         except imaplib.IMAP4.error as e:
             raise ImapClientError(str(e)) from None
-        except:
+        except Exception as e:
             raise e
 
         if select_status != "OK":
@@ -232,7 +244,7 @@ class ImapClient:
                 fetch_status, data = self.mail.fetch(ids_bytes, msg_parts)
         except imaplib.IMAP4.error as e:
             raise ImapClientError(str(e)) from None
-        except:
+        except Exception as e: 
             raise e
 
         if fetch_status == "OK":
@@ -288,7 +300,7 @@ class ImapClient:
                 fetch_status, data = self.mail.fetch(ids_bytes, msg_parts)
         except imaplib.IMAP4.error as e:
             raise ImapClientError(str(e)) from None
-        except e:
+        except Exception as e:
             raise e
 
         if fetch_status == "OK":
@@ -313,7 +325,7 @@ class ImapClient:
                 copy_status, data = self.mail.copy(ids_bytes, mailbox)
         except imaplib.IMAP4.error as e:
             raise ImapClientError(str(e)) from None
-        except:
+        except Exception as e:
             raise e
 
         data = data[0].decode("ascii")
@@ -343,7 +355,7 @@ class ImapClient:
                                                      flags_str)
         except imaplib.IMAP4.error as e:
             raise ImapClientError(str(e)) from None
-        except:
+        except Exception as e:
             raise e
 
         data = data[0].decode()

@@ -237,7 +237,7 @@ class ListTest(unittest.TestCase):
         return mock
 
     def test_calls_imaplib_list_method(self, imap_mock):
-        list_mock = self.mock_list(imap_mock)
+        list_mock = self.mock_list(imap_mock, response=imap_responses.list2)
         iclient = ImapClient("imap.gmail.com")
         iclient.list()
         self.assertTrue(list_mock.called)       
@@ -255,7 +255,37 @@ class ListTest(unittest.TestCase):
         list_mock.side_effect = imaplib.IMAP4.error
         iclient = ImapClient("imap.gmail.com")
         with self.assertRaises(ImapClientError):
-            iclient.list()      
+            iclient.list()   
+
+    def test_returns_status_and_list_with_tuples(self, imap_mock):
+        list_mock = self.mock_list(imap_mock, response=imap_responses.list2)
+        iclient = ImapClient("imap.gmail.com")
+        status, data = iclient.list()  
+        self.assertEqual(status, "OK")
+        self.assertIsInstance(data, list)
+        self.assertEqual(len(data), 9)
+        self.assertIsInstance(data[0], tuple)
+
+    def test_returns_names_of_mailboxes(self, imap_mock):
+        list_mock = self.mock_list(imap_mock, response=imap_responses.list2)
+        iclient = ImapClient("imap.gmail.com")
+        status, data = iclient.list()      
+        names = [ name for name, *_ in data]   
+        self.assertIn("INBOX", names)
+        self.assertIn("[Gmail]/Sent Mail", names)
+
+    def test_returns_additional_attributes(self, imap_mock):
+        list_mock = self.mock_list(imap_mock, response=imap_responses.list2)
+        iclient = ImapClient("imap.gmail.com")
+        status, data = iclient.list()              
+        mailboxes = { name: attrs for name, attrs, *_ in data }
+        self.assertIn("\\Noselect", mailboxes["[Gmail]"])
+        self.assertIn("\\All", mailboxes["[Gmail]/All Mail"])
+        self.assertIn("\\Drafts", mailboxes["[Gmail]/Drafts"])
+        self.assertIn("\\Flagged", mailboxes["[Gmail]/Starred"])
+        self.assertIn("\\Junk", mailboxes["[Gmail]/Spam"])
+        self.assertIn("\\Sent", mailboxes["[Gmail]/Sent Mail"])
+        self.assertIn("\\Trash", mailboxes["[Gmail]/Trash"])
 
 
 class EmailToDictTest(unittest.TestCase):
