@@ -39,6 +39,13 @@ def decode_header_field(msg, name, default="ascii"):
 
         return "".join(headers)
 
+def decode_data(data):
+    try:
+        data = data.decode("ascii")
+    except:
+        pass
+    return data
+
 default_decoders = dict(
     SUBJECT = partial(decode_header_field, name="Subject"),
     FROM    = partial(decode_header_field, name="From"),
@@ -52,22 +59,26 @@ class ImapClientError(Exception):
     pass
 
 
-def imaplib_decorator(args2save = list()):
+def imaplib_decorator(args2save = list(), process_data = None):
     def decorator(func):
         def on_call(*args, **kwargs):
             self = args[0]
             for index in args2save:
                 self.__dict__[args2save[index]] = args[index]
             try:
-                status, msg = func(*args, **kwargs)
+                status, data = func(*args, **kwargs)
             except imaplib.IMAP4.error as e:
                 raise ImapClientError(str(e)) from None
             except Exception as e:
                 raise e
 
+            if process_data:
+                data = process_data(data)
+
             if status != "OK":
-                raise ImapClientError(msg) 
-            return status, msg   
+                raise ImapClientError(data) 
+
+            return status, data   
         on_call.func = func
         return on_call
     return decorator 
@@ -97,9 +108,22 @@ class ImapClient:
     # login = imaplib_decorator({1: "username"})(imaplib.IMAP4_SSL.login)
     # select = imaplib_decorator({1: "mailbox"})(imaplib.IMAP4_SSL.select)
 
-    create = imaplib_decorator()(imaplib.IMAP4_SSL.create)
-    delete = imaplib_decorator()(imaplib.IMAP4_SSL.delete)
-    rename = imaplib_decorator()(imaplib.IMAP4_SSL.rename)
+    def decode_data(data):
+        try:
+            data = data.decode("ascii")
+        except:
+            pass
+        return data
+
+    create = imaplib_decorator(
+                    process_data = decode_data
+             )(imaplib.IMAP4_SSL.create)
+    delete = imaplib_decorator(
+                    process_data = decode_data
+             )(imaplib.IMAP4_SSL.delete)
+    rename = imaplib_decorator(
+                    process_data = decode_data
+             )(imaplib.IMAP4_SSL.rename)
 
     def login(self, username, password):
         '''Identify client using plaintext password.'''

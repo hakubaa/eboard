@@ -26,7 +26,7 @@ F0AD4E
     #emails-container {
         overflow: hidden; 
         color: black;
-        min-height: 400px;
+        min-height: 1000px;
     }
     #mailbox-list {
         margin: 0  auto;
@@ -166,7 +166,7 @@ F0AD4E
     }
     .email-header.unseen {
         background-color: #4e91f0;
-        color: black;
+        color: white;
     }
     .email-star {
         font-size: 2em;
@@ -204,7 +204,7 @@ F0AD4E
 /*    #archive-btn,
     #spam-btn,
     #remove-btn,
-    #move-to-btn,
+    #move-to-list-btn,
     #more-btn {
         display: none;
     }*/
@@ -213,6 +213,7 @@ F0AD4E
 
 {% block page_content %}
 {% include 'mail/email.html' %}
+{% include 'mail/mailbox.html' %}
 <div class="container">
     <div class="alert alert-client" role="alert">
         You're logged as <strong>{{username}}</strong> 
@@ -228,7 +229,7 @@ F0AD4E
     <div id="emails-container">
         <div id="emails-ui">
             <div class="row">
-                <div class="col-lg-6" id="search-ui">
+                <div class="col-lg-8" id="search-ui">
                     <div class="input-group" id="search-emails"> 
                         <input class="form-control" aria-label="Text input with segmented button dropdown"> 
                         <div class="input-group-btn"> 
@@ -246,10 +247,10 @@ F0AD4E
             </div>
 
             <div class="btn-group">
-                <button type="button" class="btn btn-warning select-emails" 
+                <button type="button" class="btn btn-primary select-emails" 
                         data-select-type="ALL" id="select-emails-btn"
                         title="Select">ALL</button>
-                <button type="button" class="btn btn-warning dropdown-toggle" 
+                <button type="button" class="btn btn-primary dropdown-toggle" 
                         data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
                         title="Select">
                     <span class="caret"></span>
@@ -265,7 +266,7 @@ F0AD4E
                 </ul>
             </div>
 
-            <button type="button" class="btn btn-primary" id="refresh-btn" title="Refresh">
+            <button type="button" class="btn btn-success" id="refresh-btn" title="Refresh">
                 <span class="glyphicon glyphicon-refresh" aria-hidden="true"></span>
             </button>
 
@@ -281,7 +282,7 @@ F0AD4E
                 <span class="glyphicon glyphicon-trash" aria-hidden="true"></span>
             </button>
 
-            <div class="btn-group" id="move-to-btn">
+            <div class="btn-group" id="move-to-list-btn">
                 <button type="button" class="btn btn-warning dropdown-toggle" 
                         data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
                         title="Move to">
@@ -289,21 +290,21 @@ F0AD4E
                     <span class="caret"></span>
                 </button>
                 <ul class="dropdown-menu">
-                    <li role="separator" class="divider"></li>
-                    <li><a href="#">Create New</a></li>                  
+                    <li role="separator" class="divider const-item"></li>
+                    <li class="const-item"><a data-toggle="modal" href="#mailbox-modal">Create New</a></li>                  
                 </ul>
             </div>
             <div class="btn-group" id="more-btn">
-                <button type="button" class="btn btn-warning dropdown-toggle" 
+                <button type="button" class="btn btn-info dropdown-toggle" 
                         data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                     More <span class="caret"></span>
                 </button>
                 <ul class="dropdown-menu">
-                    <li><a href="#">Action</a></li>
-                    <li><a href="#">Another action</a></li>
-                    <li><a href="#">Something else here</a></li>
-                    <li role="separator" class="divider"></li>
-                    <li><a href="#">Separated link</a></li>
+                    <li><a href="#">Delete Mailbox</a></li>
+                    <li><a href="#">Rename Mailbox</a></li>
+                    <li role="separator" class="divider more-emails"></li>
+                    <li><a class="more-emails" href="#">Set as unread</a></li>
+                    <li><a class="more-emails" href="#">Set as important</a></li>
                 </ul>
             </div>
             <div id="page-ui">
@@ -337,6 +338,7 @@ F0AD4E
 <script src="{{url_for('static', filename='scripts/jquery-ui.min.js')}}"></script>
 <script src="{{url_for('static', filename='scripts/moment.js')}}"></script>
 <script src="{{url_for('static', filename='scripts/mail.email.js')}}"></script>
+<script src="{{url_for('static', filename='scripts/mail.mailbox.js')}}"></script>
 <script src="{{url_for('static', filename='scripts/mail.client.js')}}"></script>
 <script>
     initClient();

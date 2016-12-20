@@ -1,4 +1,4 @@
-/*******************************************************************************
+/******************************************************************************
     DEFAULTS
 *******************************************************************************/
 
@@ -13,7 +13,10 @@ var settings = {
     ajax_flags_add: "/mail/add_flags",
     ajax_flags_remove: "/mail/remove_flags",
     ajax_flags_set: "/mail/set_flags",
-    ajax_store: "/mail/store"
+    ajax_store: "/mail/store",
+    ajax_create_mailbox: "/mail/create",
+    ajax_rename_mailbox: "/mail/rename",
+    ajax_delete_mailbox: "/mail/delete"
 };
 
 /*******************************************************************************
@@ -137,6 +140,19 @@ function initClient() {
                   "service provider implements special-use mailboxes.");
         }
     });
+
+    $("#refresh-btn").click(function() {
+        EMailsListController.init({mailbox: EMailsListController.mailbox});
+    });
+
+    $(document).on("click", ".move-to-btn", function() {
+        var mailbox = $(this).parent().data("name");
+        var $emails = $(".email-header")
+            .filter(function() {
+                return ($(this).find(".email-check").is(":checked"));
+            });
+        moveSelectedEMails(mailbox, $emails);
+    });
 }
 
 /*******************************************************************************
@@ -253,7 +269,10 @@ function updateMailboxesList(response) {
         var mailboxes = response.data;
         
         var $list = $("#mailbox-list");
-        var $moveToList = $("#move-to-btn > ul");
+        $list.empty();
+
+        var $moveToList = $("#move-to-list-btn > ul");
+        $moveToList.children().not(".const-item").remove();
 
         for(var i = 0; i < mailboxes.length; i++) {
             var flags = mailboxes[i].flags.join(" ").toUpperCase();
@@ -280,7 +299,8 @@ function updateMailboxesList(response) {
             $list.append($mailbox);
 
             var $li = $("<li data-name='" + mailboxes[i].utf7 + "' " +
-                             "data-flags='" + flags + "'><a href='#'>" + 
+                             "data-flags='" + flags + "'>" +
+                             "<a class='move-to-btn' href='#'>" + 
                              mailboxes[i].utf16 + "</a></li>");
             $moveToList.prepend($li);
         }
@@ -346,7 +366,10 @@ function updateEMailsList(response) {
             }
             $controls.append($star);
 
-            var ctype = emails[i]["Content-Type"].split(";")[0];
+            var ctype = "undefined";
+            if (emails[i]["Content-Type"] !== undefined) {
+                ctype = emails[i]["Content-Type"].split(";")[0];
+            }
             $email.append("<td class='email-from email-open'>" + emails[i].From + "</td>");
             $email.append("<td class='email-subject email-open'>" + 
                           emails[i].Subject.substr(0, 100) + 
@@ -409,14 +432,14 @@ function updateSelectBtn() {
         $("#archive-btn").show();
         $("#spam-btn").show();
         $("#remove-btn").show();
-        $("#move-to-btn").show();
-        $("#more-btn").show();
+        $("#move-to-list-btn").show();
+        $(".more-emails").show();
     } else {
         $("#archive-btn").hide();
         $("#spam-btn").hide();
         $("#remove-btn").hide();
-        $("#move-to-btn").hide();
-        $("#more-btn").hide();
+        $("#move-to-list-btn").hide();
+        $(".more-emails").hide();
     }
 }
 
@@ -608,4 +631,84 @@ function getEMail(options) {
     }
 }
 
-/******************************************************************************/
+// NO TESTS
+function createMailbox(options) {
+    if (options === undefined) options = {};
+    if (options.mailbox !== undefined) {
+        $.post(settings.ajax_create_mailbox, {
+            mailbox: options.mailbox
+        })
+            .done(function(response) {
+                if (options.callback !== undefined) {
+                    options.callback(response);
+                }
+            })
+            .fail(function(response) {
+                if (options.callback !== undefined) {
+                    options.callback({
+                        status: "ERROR",
+                        data: response
+                    });
+                }
+            });
+    } else {
+        throw "Undefined mailbox name.";
+    }
+}
+
+// NO TESTS
+function deleteMailbox(options) {
+    if (options === undefined) options = {};
+    if (options.mailbox !== undefined) {
+        $.post(settings.ajax_delete_mailbox, {
+            mailbox: options.mailbox
+        })
+            .done(function(response) {
+                if (options.callback !== undefined) {
+                    options.callback(response);
+                }
+            })
+            .fail(function(response) {
+                if (options.callback !== undefined) {
+                    options.callback({
+                        status: "ERROR",
+                        data: response
+                    });
+                }
+            });
+    } else {
+        throw "Undefined mailbox name.";
+    }
+}
+
+// NO TESTS
+function renameMailbox(options) {
+    if (options === undefined) options = {};
+
+    if (options.newmailbox === undefined) {
+        throw "Undefined new mailbox name.";
+    }
+    if (options.oldmailbox === undefined) {
+        throw "Undefined original mailbox name.";
+    }
+
+    $.post(settings.ajax_rename_mailbox, {
+        oldmailbox: options.oldmailbox,
+        newmailbox: options.newmailbox
+    })
+        .done(function(response) {
+            if (options.callback !== undefined) {
+                options.callback(response);
+            }
+        })
+        .fail(function(response) {
+            if (options.callback !== undefined) {
+                options.callback({
+                    status: "ERROR",
+                    data: response
+                });
+            }
+        });
+}
+
+/*****************************************************************************/

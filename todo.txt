@@ -10,6 +10,8 @@ E-Mail Client:
 - sort e-mail by date
 - add search functionality
 - attachments
+- update emails list when moving mails
+- set as unseen / remove mailbox
 
 DONE:
 - add pages

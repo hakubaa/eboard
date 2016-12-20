@@ -47,8 +47,8 @@ function createEmailTree(email, $base) {
             email.content.replace(/"/g, "&quot;").replace(/'/g, "&#039;") + 
             "'></iframe></li>");
 
-        // $emailPart = $("<li class='email-part email-plain'></li>");
-        // $emailPart.html(email.content);
+        $emailPart = $("<li class='email-part email-plain'></li>");
+        $emailPart.html(email.content);
 
     }
     if ($emailPart !== undefined) {
