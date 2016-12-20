@@ -52,7 +52,7 @@ class ImapClientError(Exception):
     pass
 
 
-def imaplib_decorator(args2save = None):
+def imaplib_decorator(args2save = list()):
     def decorator(func):
         def on_call(*args, **kwargs):
             self = args[0]
@@ -62,10 +62,10 @@ def imaplib_decorator(args2save = None):
                 status, msg = func(*args, **kwargs)
             except imaplib.IMAP4.error as e:
                 raise ImapClientError(str(e)) from None
-            except:
+            except Exception as e:
                 raise e
 
-            if status == "ERROR":
+            if status != "OK":
                 raise ImapClientError(msg) 
             return status, msg   
         on_call.func = func
@@ -96,6 +96,10 @@ class ImapClient:
 
     # login = imaplib_decorator({1: "username"})(imaplib.IMAP4_SSL.login)
     # select = imaplib_decorator({1: "mailbox"})(imaplib.IMAP4_SSL.select)
+
+    create = imaplib_decorator()(imaplib.IMAP4_SSL.create)
+    delete = imaplib_decorator()(imaplib.IMAP4_SSL.delete)
+    rename = imaplib_decorator()(imaplib.IMAP4_SSL.rename)
 
     def login(self, username, password):
         '''Identify client using plaintext password.'''

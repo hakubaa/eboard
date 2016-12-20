@@ -16,6 +16,77 @@ from tests.mail import imap_responses
 
 
 @patch("app.mail.views.ImapClient")
+class RenameMailboxTest(TestCase):
+
+    def create_app(self):
+        return create_app("testing")
+
+    def login_imap_client(self, username="Testowy", password="Testowe"):
+         with self.client.session_transaction() as sess:
+            sess["imap_username"] = username
+            sess["imap_password"] = password 
+            sess["imap_addr"] = "testowy"  
+
+    def mock_rename(self, mock_client, response = ("OK", ["INFO"])):
+        mock = Mock()
+        mock.return_value = response
+        mock_client.return_value.rename = mock
+        return mock
+
+    def test_returns_error_for_not_authenticated_users(self, mock_client):
+        self.mock_rename(mock_client)
+        response = self.client.get(url_for("mail.imap_rename"),
+                        query_string=dict(oldmailbox="INBOX",
+                                          newmailbox="NEW_INBOX"))
+        data = json.loads(response.data.decode("utf-8"))
+        self.assertEqual(data["status"], "ERROR")
+
+    def test_calls_rename_method(self, mock_client):
+        mock = self.mock_rename(mock_client)
+        self.login_imap_client()
+        self.client.get(url_for("mail.imap_rename"),
+                        query_string=dict(oldmailbox="INBOX",
+                                          newmailbox="NEW_INBOX"))
+        mock.assert_called_with("INBOX", "NEW_INBOX")
+     
+
+    def test_returns_error_when_no_oldmailbox(self, mock_client):
+        mock = self.mock_rename(mock_client)
+        self.login_imap_client()
+        response = self.client.get(url_for("mail.imap_rename"),
+                        query_string=dict(newmailbox="NEW_INBOX"))
+        data = json.loads(response.data.decode("utf-8"))
+        self.assertEqual(data["status"], "ERROR")
+
+    def test_returns_error_when_no_newmailbox(self, mock_client):
+        mock = self.mock_rename(mock_client)
+        self.login_imap_client()
+        response = self.client.get(url_for("mail.imap_rename"),
+                        query_string=dict(oldmailbox="NEW_INBOX"))
+        data = json.loads(response.data.decode("utf-8"))
+        self.assertEqual(data["status"], "ERROR")
+
+    def test_returns_error_when_rename_method_fails(self, mock_client):
+        mock = self.mock_rename(mock_client, response=("NO", ["FUCK"]))
+        self.login_imap_client()
+        response = self.client.get(url_for("mail.imap_rename"),
+                        query_string=dict(oldmailbox="INBOX",
+                                          newmailbox="NEW_INBOX"))
+        data = json.loads(response.data.decode("utf-8"))
+        self.assertEqual(data["status"], "ERROR")
+
+    def test_returns_error_when_rename_method_error(self, mock_client):
+        mock = self.mock_rename(mock_client, response=("OK", ["WOW"]))
+        mock.side_effect = ImapClientError
+        self.login_imap_client()
+        response = self.client.get(url_for("mail.imap_rename"),
+                        query_string=dict(oldmailbox="INBOX",
+                                          newmailbox="NEW_INBOX"))
+        data = json.loads(response.data.decode("utf-8"))
+        self.assertEqual(data["status"], "ERROR")
+
+
+@patch("app.mail.views.ImapClient")
 class StoreTest(TestCase):
 
     def create_app(self):

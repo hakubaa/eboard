@@ -6,10 +6,61 @@ import imaplib
 from tests.base import FlaskTestCase
 from app.mail.client import (
     ImapClient, email_to_dict, ImapClientError, DEFAULT_MAILBOX,
-    process_email_for_display
+    process_email_for_display, imaplib_decorator
 )
 
 from tests.mail import imap_responses
+
+
+@patch("app.mail.client.imaplib")
+class ManagingMailboxesTest(unittest.TestCase):
+
+    def mock_mtriad(self, imap_mock, response = ('OK', [b'Success'])):
+        mocks = list()
+        for method in ("create", "delete", "rename"):
+            mock = Mock()
+            mock.return_value = response
+            setattr(ImapClient, method, imaplib_decorator()(mock))
+            mocks.append(mock)
+        imap_mock.IMAP4.error = imaplib.IMAP4.error
+        return tuple(mocks)
+
+    def test_create_calls_underlying_rename_method(self, imap_mock):
+        create_mock, *_ = self.mock_mtriad(imap_mock)
+        iclient = ImapClient("imap.gmail.com")
+        iclient.create("TESST")
+        self.assertTrue(create_mock.called)
+
+    def test_delete_calls_underlying_rename_method(self, imap_mock):
+        _, delete_mock, _ = self.mock_mtriad(imap_mock)
+        iclient = ImapClient("imap.gmail.com")
+        iclient.delete("TESST")
+        self.assertTrue(delete_mock.called)
+
+    def test_rename_calls_underlying_rename_method(self, imap_mock):
+        *_, rename_mock = self.mock_mtriad(imap_mock)
+        iclient = ImapClient("imap.gmail.com")
+        iclient.rename("TESST", "TEST")
+        self.assertTrue(rename_mock.called)
+
+    def test_create_passes_arguments_to_underlygin_method(self, imap_mock):
+        create_mock, *_ = self.mock_mtriad(imap_mock)
+        iclient = ImapClient("imap.gmail.com")
+        iclient.create("TESST")
+        create_mock.assert_called_with(iclient, "TESST")  
+        
+    def test_create_raises_error_when_exception(self, imap_mock):
+        create_mock, *_ = self.mock_mtriad(imap_mock)
+        create_mock.side_effect = imaplib.IMAP4_SSL.error
+        iclient = ImapClient("imap.gmail.com")
+        with self.assertRaises(ImapClientError):
+            iclient.create("TESST")
+
+    def test_create_raises_error_when_no_response(self, imap_mock):
+        create_mock, *_ = self.mock_mtriad(imap_mock, response=("NO", [b"FUCK"]))
+        iclient = ImapClient("imap.gmail.com")
+        with self.assertRaises(ImapClientError):
+            iclient.create("TESST")
 
 
 @patch("app.mail.client.imaplib")

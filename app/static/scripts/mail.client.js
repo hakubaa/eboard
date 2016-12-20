@@ -253,6 +253,8 @@ function updateMailboxesList(response) {
         var mailboxes = response.data;
         
         var $list = $("#mailbox-list");
+        var $moveToList = $("#move-to-btn > ul");
+
         for(var i = 0; i < mailboxes.length; i++) {
             var flags = mailboxes[i].flags.join(" ").toUpperCase();
             if (flags.indexOf("\\NOSELECT") >= 0) {
@@ -276,6 +278,11 @@ function updateMailboxesList(response) {
                 }
             });
             $list.append($mailbox);
+
+            var $li = $("<li data-name='" + mailboxes[i].utf7 + "' " +
+                             "data-flags='" + flags + "'><a href='#'>" + 
+                             mailboxes[i].utf16 + "</a></li>");
+            $moveToList.prepend($li);
         }
     } else {
         alert("ERROR: " + JSON.stringify(response.data));
@@ -296,6 +303,7 @@ function moveSelectedEMails(mailbox, $emails) {
             setInfo("");
             if (response.status == "OK") {
                 $emails.remove();
+                updateSelectBtn();
             } else {
                 alert(JSON.stringify(response.data));
             }

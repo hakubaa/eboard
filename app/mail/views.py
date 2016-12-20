@@ -287,3 +287,82 @@ def imap_store(imap_client, command):
             return jsonify({"status": "OK", "data": data})
     except ImapClientError as e:
         return jsonify({"status": "ERROR", "data": {"msg": str(e)}})      
+
+
+@mail.route("/rename", methods=["GET", "POST"])
+@imap_authentication()
+def imap_rename(imap_client):
+    if request.method == "POST":
+        args = request.form
+    elif request.method == "GET":
+        args = request.args
+
+    if "oldmailbox" not in args:
+        return jsonify({"status": "ERROR", 
+                        "data": {"msg": "Undefined original mailbox name."}})
+    if "newmailbox" not in args:
+        return jsonify({"status": "ERROR", 
+                        "data": {"msg": "Undefined new mailbox name."}})
+
+    try:
+        status, data = imap_client.rename(args["oldmailbox"], 
+                                          args["newmailbox"])
+    except ImapClientError as e:
+        return jsonify({"status": "ERROR", "data": {"msg": str(e)}})      
+
+    data = data[0].decode("ascii")    
+
+    if status != "OK":
+        return jsonify({"status": "ERROR", "data": {"msg": data}}) 
+    else:
+        return jsonify({"status": "OK", "data": data})   
+
+
+@mail.route("/create", methods=["GET", "POST"])
+@imap_authentication()
+def imap_create(imap_client):
+    if request.method == "POST":
+        args = request.form
+    elif request.method == "GET":
+        args = request.args
+
+    if "mailbox" not in args:
+        return jsonify({"status": "ERROR", 
+                        "data": {"msg": "Undefined mailbox name."}})
+
+    try:
+        status, data = imap_client.create(args["mailbox"])
+    except ImapClientError as e:
+        return jsonify({"status": "ERROR", "data": {"msg": str(e)}})  
+
+    data = data[0].decode("ascii")    
+
+    if status != "OK":
+        return jsonify({"status": "ERROR", "data": {"msg": data}}) 
+    else:
+        return jsonify({"status": "OK", "data": data})   
+
+
+@mail.route("/delete", methods=["GET", "POST"])
+@imap_authentication()
+def imap_delete(imap_client):
+    if request.method == "POST":
+        args = request.form
+    elif request.method == "GET":
+        args = request.args
+
+    if "mailbox" not in args:
+        return jsonify({"status": "ERROR", 
+                        "data": {"msg": "Undefined mailbox name."}})
+
+    try:
+        status, data = imap_client.delete(args["mailbox"])
+    except ImapClientError as e:
+        return jsonify({"status": "ERROR", "data": {"msg": str(e)}})      
+
+    data = data[0].decode("ascii")    
+
+    if status != "OK":
+        return jsonify({"status": "ERROR", "data": {"msg": data}}) 
+    else:
+        return jsonify({"status": "OK", "data": data})   
