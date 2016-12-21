@@ -11,6 +11,7 @@ Colors:
 333333
 4E91F0
 F0AD4E
+d72638
 */
     body {
         background-color: #333;
@@ -53,7 +54,7 @@ F0AD4E
         color: black;        
     }
     #mailbox-list li.droppable-hover {
-        background-color: #4e91f0;
+        background-color: #44af69;
         color: white;
     }
     #emails-list {
@@ -165,7 +166,7 @@ F0AD4E
         font-weight: bold;
     }
     .email-header.unseen {
-        background-color: #4e91f0;
+        background-color: #2274a5; /*#4e91f0;*/
         color: white;
     }
     .email-star {
@@ -176,12 +177,12 @@ F0AD4E
         text-shadow: 2px 2px #000000;
     }
     .email-dragged {
-        background-color: #4e91f0;
+        background-color: #44af69 !important;
         color: white;
     }
     .email-dragged-helper {
         border: 1px solid black;
-        background-color: #f0ad4e;
+        background-color: #44af69;
         padding: 10px 20px;
     }
     #page-ui {
@@ -291,7 +292,10 @@ F0AD4E
                 </button>
                 <ul class="dropdown-menu">
                     <li role="separator" class="divider const-item"></li>
-                    <li class="const-item"><a data-toggle="modal" href="#mailbox-modal">Create New</a></li>                  
+                    <li class="const-item">
+                        <a data-toggle="modal" href="#mailbox-modal" 
+                           data-action="create">Create New</a>
+                    </li>                  
                 </ul>
             </div>
             <div class="btn-group" id="more-btn">
@@ -300,11 +304,14 @@ F0AD4E
                     More <span class="caret"></span>
                 </button>
                 <ul class="dropdown-menu">
-                    <li><a href="#">Delete Mailbox</a></li>
-                    <li><a href="#">Rename Mailbox</a></li>
+                    <li><a data-toggle="modal" href="#mailbox-modal" 
+                           data-action="create">Create Mailbox</a></li>
+                    <li><a id="more-delete-mailbox" href="#">Delete Mailbox</a></li>
+                    <li><a data-toggle="modal" href="#mailbox-modal" 
+                           data-action="rename">Rename Mailbox</a></li>
                     <li role="separator" class="divider more-emails"></li>
-                    <li><a class="more-emails" href="#">Set as unread</a></li>
-                    <li><a class="more-emails" href="#">Set as important</a></li>
+                    <li><a class="more-emails" id="more-unread" href="#">Set As Unread</a></li>
+                    <li><a class="more-emails" id="more-read" href="#">Set As Read</a></li>
                 </ul>
             </div>
             <div id="page-ui">

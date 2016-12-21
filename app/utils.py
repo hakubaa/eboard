@@ -65,3 +65,29 @@ def utf7_decode(s):
     bin_str = ''.join(r)
     return bin_str
 
+
+
+def utf16be_to_base64(st):
+    st = st.encode("utf-16be")
+    return binascii.b2a_base64(st).decode("ascii").rstrip('\n=').replace('/', ',')
+
+
+def utf7_encode(s):
+    r = list()
+    other_chars = list()
+
+    for c in s:
+        ordC = ord(c)
+        if 0x20 <= ordC <= 0x7e:
+            if other_chars:
+                r.append('&{0}-'.format(utf16be_to_base64(''.join(other_chars))))
+            del other_chars[:]
+            r.append(c)
+            if c == '&':
+                r.append('-')
+        else:
+            other_chars.append(c)
+    if other_chars:
+        r.append('&{0}-'.format(utf16be_to_base64(''.join(other_chars))))
+        del other_chars[:]
+    return str(''.join(r))

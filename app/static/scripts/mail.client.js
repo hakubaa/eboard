@@ -25,7 +25,7 @@ var settings = {
 
 function initClient() {
     getMailboxes({callback: updateMailboxesList});
-    EMailsListController.init({mailbox: "INBOX"});
+    EMailsListController.init({mailbox: settings.default_mailbox});
 
     $(document).on("click", ".email-open", function() {
         $(this).parent().removeClass("unseen");
@@ -153,6 +153,92 @@ function initClient() {
             });
         moveSelectedEMails(mailbox, $emails);
     });
+
+    $("#more-delete-mailbox").click(function() {
+        var mailbox = $("#mailbox-list").find("[data-name='" + 
+                        EMailsListController.mailbox + "']").html();
+        if (confirm("Are you sure you want to delete '" + mailbox + "' mailbox?")) {
+            setInfo("Deleting mailbox ...");
+            deleteMailbox({
+                mailbox: EMailsListController.mailbox,
+                callback: function(response) {
+                    if (response.status == "OK") {
+                        getMailboxes({callback: updateMailboxesList});
+                        EMailsListController.init({mailbox: settings.default_mailbox});
+                        alert("Mailbox '" + mailbox + "' has been " +
+                              "successfully deleted.");
+                    } else {
+                        alert("Unable to delete mailbox: " +
+                              response.data.msg !== undefined ? response.data.msg : response.data);
+                    }
+                    setInfo("");
+                }
+            });
+        }
+        return false;
+    });
+
+    $("#more-unread").click(function() {
+        var $emails = $(".email-header").not(".unseen")
+            .filter(function() {
+                return ($(this).find(".email-check").is(":checked"));
+            });
+
+        if ($emails.length > 0) {
+            var emailsIds = $emails.map(function() {
+                    return ($(this).data("email-id"));
+                }).toArray();
+
+            setInfo("Updating e-mail's flags ...");
+            updateFlags({
+                ids: emailsIds.join(), 
+                mailbox: EMailsListController.mailbox, 
+                command: "remove",
+                flags: "\\Seen",
+                callback: function(response) {
+                    if (response.status === "OK") {
+                        $emails.addClass("unseen");
+                    } else {
+                        alert(JSON.stringify(response.data));
+                    }
+                    setInfo("");
+                }
+            });
+
+        }
+        return false;
+    });
+
+    $("#more-read").click(function() {
+        var $emails = $(".email-header.unseen")
+            .filter(function() {
+                return ($(this).find(".email-check").is(":checked"));
+            });
+
+        if ($emails.length > 0) {
+            var emailsIds = $emails.map(function() {
+                    return ($(this).data("email-id"));
+                }).toArray();
+
+            setInfo("Updating e-mail's flags ...");
+            updateFlags({
+                ids: emailsIds.join(), 
+                mailbox: EMailsListController.mailbox, 
+                command: "add",
+                flags: "\\Seen",
+                callback: function(response) {
+                    if (response.status === "OK") {
+                        $emails.removeClass("unseen");
+                    } else {
+                        alert(JSON.stringify(response.data));
+                    }
+                    setInfo("");
+                }
+            });
+
+        }
+        return false;
+    });
 }
 
 /*******************************************************************************
@@ -180,7 +266,6 @@ var EMailsListController = {
         this.page = 1;
         this.total_emails = undefined;
         this.sendEMailsHeadersRequest();
-        toggleActiveMailbox(mailbox);
     },
     getNextEMails: function() {
         var nextFrom = this.calcFrom(this.page + 1);
@@ -248,6 +333,7 @@ var EMailsListController = {
                 to: self.calcTo(self.page),
                 total_emails: self.total_emails
             });
+            toggleActiveMailbox(self.mailbox);
         } else {
             alert("ERROR: " + JSON.stringify(response.data));
         }
@@ -304,6 +390,7 @@ function updateMailboxesList(response) {
                              mailboxes[i].utf16 + "</a></li>");
             $moveToList.prepend($li);
         }
+        toggleActiveMailbox();
     } else {
         alert("ERROR: " + JSON.stringify(response.data));
     }
@@ -380,7 +467,6 @@ function updateEMailsList(response) {
                           moment(emails[i].Date).format("YYYY-MM-DD") + "</td>");
             $list.append($email);
         }
-        toggleActiveMailbox();
 
         //http://stackoverflow.com/questions/3591264/can-table-rows-be-made-draggable
         $("#emails-list .email-header").draggable({

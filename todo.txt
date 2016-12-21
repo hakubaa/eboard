@@ -1,7 +1,6 @@
 E-Mail Client:
 - read e-mails
 - add loger to ImapClient (save in database method calls and returned statuses)
-- add buttons to select emails and remove them (just like in gmail)
 - response client (mailbox list to select list above e-mails, hide date, 
                    hide checkbox, star)
 - threads (imap extension)
@@ -11,7 +10,7 @@ E-Mail Client:
 - add search functionality
 - attachments
 - update emails list when moving mails
-- set as unseen / remove mailbox
+- delete email forever
 
 DONE:
 - add pages
@@ -24,3 +23,5 @@ DONE:
 - replace add_flags with store (in views), add parameter command (add, set etc.)
 - add checklist with ["ALL", "READ", "UNREAD"]
 - add button to create new message
+- set as unseen / remove mailbox
+- add buttons to select emails and remove them (just like in gmail)

@@ -14,7 +14,7 @@ from .forms import LoginForm
 from .client import (
     ImapClient, email_to_dict, ImapClientError, process_email_for_display
 )
-from app.utils import utf7_decode
+from app.utils import utf7_decode, utf7_encode
 
 DEFAULT_IDS_FROM = 0
 DEFAULT_IDS_TO = 50
@@ -88,6 +88,8 @@ def imap_authentication(redirect_to_login=False):
         return authenticate
     return decorator
 
+def adjust_mailbox(mailbox):
+    return '"' + mailbox + '"'
 
 @mail.route("/client", methods=["GET"])
 @imap_authentication(redirect_to_login=True)
@@ -130,7 +132,7 @@ def imap_get_headers(imap_client):
 
     try:
         status, count = imap_client.len_mailbox(
-            '"' + args.get("mailbox", "INBOX") + '"'
+            adjust_mailbox(args.get("mailbox", "INBOX"))
         )
 
         if count > 0:
@@ -170,7 +172,9 @@ def imap_get_raw_emails(imap_client):
     try:
         ids = args.get("ids", None)
         if ids:
-            status_select, _ = imap_client.select(args.get("mailbox", "INBOX"))
+            status_select, _ = imap_client.select(
+                adjust_mailbox(args.get("mailbox", "INBOX"))
+            )
             status, data = imap_client.get_emails(ids)
 
             # Process & decode emails
@@ -199,7 +203,7 @@ def imap_get_email(imap_client):
     try:
         email_id = args.get("id", None)
         if email_id:
-            imap_client.select(args.get("mailbox", "INBOX"))
+            imap_client.select(adjust_mailbox(args.get("mailbox", "INBOX")))
             stuats, data = imap_client.get_emails(email_id)
 
             output = None
@@ -239,8 +243,10 @@ def imap_move_emails(imap_client):
                         "data": {"msg": "Undefined destination mailbox."}})        
 
     try:
-        imap_client.select(source_mailbox)
-        status, data = imap_client.move_emails(args["ids"], dest_mailbox)
+        imap_client.select(adjust_mailbox(source_mailbox))
+        status, data = imap_client.move_emails(
+                            args["ids"], adjust_mailbox(dest_mailbox)
+                       )
         if status == "OK":
             return jsonify({"status": "OK", "data": data})
         else:
@@ -259,6 +265,9 @@ def imap_store(imap_client, command):
         args = request.form
     elif request.method == "GET":
         args = request.args
+
+    print(80*"#")
+    print(args)
 
     if "ids" not in args:
         return jsonify({"status": "ERROR", 
@@ -279,7 +288,7 @@ def imap_store(imap_client, command):
                         "data": {"msg": "Unsupported command."}})
 
     try:
-        imap_client.select(args["mailbox"])
+        imap_client.select(adjust_mailbox(args["mailbox"]))
         status, data = flags_method(args["ids"], args["flags"])
         if status != "OK":
             return jsonify({"status": "ERROR", "data": {"msg": data}}) 
@@ -305,8 +314,10 @@ def imap_rename(imap_client):
                         "data": {"msg": "Undefined new mailbox name."}})
 
     try:
-        status, data = imap_client.rename(args["oldmailbox"], 
-                                          args["newmailbox"])
+        status, data = imap_client.rename(
+                            adjust_mailbox(args["oldmailbox"]), 
+                            adjust_mailbox(utf7_encode(args["newmailbox"]))
+                       )
     except ImapClientError as e:
         return jsonify({"status": "ERROR", "data": {"msg": str(e)}})      
 
@@ -331,7 +342,9 @@ def imap_create(imap_client):
                         "data": {"msg": "Undefined mailbox name."}})
 
     try:
-        status, data = imap_client.create(args["mailbox"])
+        status, data = imap_client.create(
+                            adjust_mailbox(utf7_encode(args["mailbox"]))
+                       )
     except ImapClientError as e:
         return jsonify({"status": "ERROR", "data": {"msg": str(e)}})  
 
@@ -356,7 +369,7 @@ def imap_delete(imap_client):
                         "data": {"msg": "Undefined mailbox name."}})
 
     try:
-        status, data = imap_client.delete(args["mailbox"])
+        status, data = imap_client.delete(adjust_mailbox(args["mailbox"]))
     except ImapClientError as e:
         return jsonify({"status": "ERROR", "data": {"msg": str(e)}})      
 
