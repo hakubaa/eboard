@@ -442,7 +442,7 @@ function updateEMailsList(response) {
                 }
 
             }
-            $email.append("<td class='email-controls'></td>");
+            $email.append("<td class='email-controls email-small'></td>");
             var $controls = $email.find(".email-controls");
             $controls.append("<input class='email-check' type='checkbox'/>");
 
@@ -465,6 +465,15 @@ function updateEMailsList(response) {
                           "</td>");
             $email.append("<td class='email-date email-open'>" + 
                           moment(emails[i].Date).format("YYYY-MM-DD") + "</td>");
+
+            $email.append("<td class='email-small email-open'>From <strong>" + 
+                          emails[i].From + "</strong> on <strong>" + 
+                          moment(emails[i].Date).format("YYYY-MM-DD") + 
+                          "</strong><br>" + 
+                          emails[i].Subject.substr(0, 100) + 
+                          (emails[i].Subject.length > 100 ? " (...)" : "") +
+                          "</td>");
+
             $list.append($email);
         }
 

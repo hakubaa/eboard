@@ -20,9 +20,10 @@ d72638
     #mailbox-container {
         float: left;
         background-repeat: no-repeat;
-        /*width: 240px;*/
-        height: 100px;
+        width: 200px;
+        /*height: 100px;*/
         text-align: center;
+        padding: 10px;
     }
     #emails-container {
         overflow: hidden; 
@@ -35,10 +36,10 @@ d72638
         list-style-type: none;
         margin: 0;
         padding: 0;
-        width: 200px;
         background-color: #444444;
         color: white;
         border: 1px solid #f0ad4e;
+        width: 100%;
     }
     #mailbox-list li {
         border: 1px solid black; /*#f0ad4e;*/
@@ -106,16 +107,16 @@ d72638
     }
 
     th.header-controls {
-        width: 7%;
+        width: 8%;
     }
     th.header-from {
-        width: 15%
+        width: 20%
     }
     th.header-date {
-        width: 13%;
+        width: 12%;
     }
     th.header-subject {
-      width: 65%; 
+      width: 60%; 
     }
     .alert-client {
         background-color: #f0ad4e;
@@ -128,16 +129,13 @@ d72638
     }
     #new-msg {
         margin-bottom: 5px;
-        width: 70%;
+        /*width: 70%;*/
         color: black !important;
     }
     #emails-ui {
         background-color: #333;
         padding-bottom: 5px;
     }
-/*    #emails-ui button {
-        color: black !important;
-    }*/
     #page-emails {
         color: white;
     }
@@ -147,8 +145,6 @@ d72638
     #search-ui {
         position: relative;
         overflow: visible;
-        padding-right: 0px !important;
-        padding-left: 0px !important;
     }
     #extended-emails-search {
         position:absolute;
@@ -202,13 +198,86 @@ d72638
         height: 400px;
         border: none;
     }
-/*    #archive-btn,
-    #spam-btn,
-    #remove-btn,
-    #move-to-list-btn,
-    #more-btn {
-        display: none;
-    }*/
+
+    @media (max-width: 768px) {
+        #mailbox-container {
+            float: none;
+            text-align: initial;
+            height: initial;
+            max-width: initial;
+            padding: 0px;
+            margin: auto 0;
+            margin-bottom: 20px;
+        }
+        #emails-container {
+            color: black;
+            min-height: 1000px;
+        }
+        #mailbox-list-wrapper {
+            display: block;
+            position: relative;
+            margin-bottom: 20px;
+        }
+        #mailbox-list {
+            position: absolute;
+            z-index: 3;
+        }
+        #mailbox-list li {
+            padding: 5px;
+        }
+        #mailbox-list > li:not(:first-child) {
+            display: none;
+        }
+        #mailbox-list:hover > li:not(:first-child) {
+            display: block;
+        }
+        #new-msg {
+            float: left;
+            margin: auto 0;
+            margin-right: 5px;
+            /*margin: 5px;*/
+        }
+        #archive-btn,
+        #spam-btn,
+        #remove-btn {
+            display: none !important;
+        }
+        .email-star {
+            display: none !important;
+        }
+        #client-info {
+            float: none;
+            color: black;
+            font-weight: bold;
+        }
+    }
+    @media (min-width: 992px) {
+        th.email-small:not(.header-controls) {
+            display: none;
+        }
+        td.email-small:not(.email-controls) {
+            display: none;
+        }
+    }
+    @media (max-width: 992px) {
+        #mailbox-container {
+            max-width: 160px;
+            padding: 5px;
+        }
+        th:not(.email-small) {
+            display: none;
+        }
+        td:not(.email-small) {
+            display: none;
+        }
+        th.header-controls {
+            width: 10%;
+        }
+        th.header-email {
+            width: 90%;
+        }
+    }
+
 </style>
 {% endblock %}
 
@@ -221,11 +290,18 @@ d72638
         (<a href="{{ url_for('mail.logout') }}">Log out</a>).
         <span id="client-info"></span>
     </div>
+
     <div id="mailbox-container">
         <button id="new-msg" type="button" class="btn btn-warning">New Message</button>
-        <ul id="mailbox-list"></ul>
+        <div id="mailbox-list-wrapper">
+            <ul id="mailbox-list">
+                <li>One</li>
+                <li>Two</li>
+                <li>Three</li>
+                <li>Four</li>
+            </ul>
+        </div>
     </div>
-
 
     <div id="emails-container">
         <div id="emails-ui">
@@ -233,6 +309,9 @@ d72638
                 <div class="col-lg-8" id="search-ui">
                     <div class="input-group" id="search-emails"> 
                         <input class="form-control" aria-label="Text input with segmented button dropdown"> 
+                        <div id="extended-emails-search">
+                            SEARCH MENU
+                        </div>
                         <div class="input-group-btn"> 
                             <button type="button" class="btn btn-warning"
                                     id="extended-search-btn"> 
@@ -240,9 +319,6 @@ d72638
                             </button> 
                             <button type="button" class="btn btn-warning">Search</button> 
                         </div> 
-                    </div>
-                    <div id="extended-emails-search">
-                        SEARCH MENU
                     </div>
                 </div>
             </div>
@@ -328,10 +404,11 @@ d72638
         <table id="emails-list">
             <thead>
                 <tr>
-                    <th class="header-controls"></th>
+                    <th class="header-controls email-small"></th>
                     <th class="header-from">From</th>
                     <th class="header-subject">Subject</th>
                     <th class="header-date">Date</th>
+                    <th class="header-email email-small">E-Mails</th>
                 </tr>
             </thead>
             <tbody></tbody>
