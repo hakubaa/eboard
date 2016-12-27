@@ -16,7 +16,8 @@ var settings = {
     ajax_store: "/mail/store",
     ajax_create_mailbox: "/mail/create",
     ajax_rename_mailbox: "/mail/rename",
-    ajax_delete_mailbox: "/mail/delete"
+    ajax_delete_mailbox: "/mail/delete",
+    ajax_search_emails: "/mail/search"
 };
 
 /*******************************************************************************
@@ -238,6 +239,43 @@ function initClient() {
 
         }
         return false;
+    });
+
+    $.datetimepicker.setLocale('en');
+    $('#email-search-after').datetimepicker({
+        timepicker:false,
+        format:'Y-m-d'
+    });
+    $('#email-search-before').datetimepicker({
+        timepicker:false,
+        format:'Y-m-d'
+    });
+    
+    $("#email-search-btn").click(function() {
+        var inputs = [
+            { key: "From", dom: "#email-search-from", decode: true },
+            { key: "To", dom: "#email-search-to", decode: true },
+            { key: "Subject", dom: "#email-search-subject", decode: true },
+            { key: "Text", dom: "#email-search-text", decode: true }
+        ];
+
+        var criteria = inputs.map(function(item) {
+            return ({
+                key: item.key,
+                value: $(item.dom).val(),
+                decode: item.decode
+            });     
+        }).filter(function(item) {
+            return (item.value !== "")
+        });
+
+        searchEMails({
+            criteria: criteria,
+            mailbox: "INBOX",
+            callback: function(response) {
+                alert(JSON.stringify(response));
+            }
+        });
     });
 }
 
@@ -564,6 +602,33 @@ function selectEMails(mode) {
 /*******************************************************************************
     XMLHttpRequest handlers
 *******************************************************************************/
+
+function searchEMails(options) {
+    if (options === undefined) options = {};
+    if (options.mailbox === undefined) {
+        throw "Undefined mailbox.";
+    }
+    if (options.criteria === undefined) {
+        throw "Undefined criteria.";
+    }
+    $.post(settings.ajax_search_emails, {
+        mailbox: options.mailbox,
+        criteria: JSON.stringify(options.criteria)
+    })
+        .done(function(response) {
+            if (options.callback !== undefined) {
+                options.callback(response);
+            }
+        })
+        .fail(function(response) {
+            if (options.callback !== undefined) {
+                options.callback({
+                    status: "ERROR",
+                    data: response
+                });
+            }
+        });
+}
 
 function updateFlags(options) {
     if (options === undefined) options = {};

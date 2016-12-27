@@ -232,37 +232,49 @@ class ImapClient:
             recvall(imap_socket, timeout=0.00001)
 
         # Split criteria into required encoding (literals) and not (strings)
-        criteria_str = filter(lambda item: not item[2], criteria)
-        criteria_lit = list(filter(lambda item: item[2], criteria)) 
+        criteria_str = filter(lambda item: not item.get("decode", False), 
+                              criteria)
+        criteria_lit = list(filter(lambda item: item.get("decode", False), 
+                                   criteria)) 
 
         # Start query in accordance with imap protocol
         tag = random.choice(string.ascii_uppercase) + \
           "".join(str(c) for c in random.sample(range(10), 4))   
 
-        query = tag.encode("ascii") + b" SEARCH "  
+        query = tag.encode("ascii")
+        if uid:
+            query += b" UID"
+        query += b" SEARCH "  
         if charset:
             query += b"CHARSET " + charset.encode("ascii") + b" "
 
         # String criteria are simple and do not require any extra processing
         for crit in criteria_str:
-            query += crit[0].encode("ascii") + b" " 
-            if crit[1]:
-                query += crit[1].encode("ascii") + b" "
+            try:
+                query += crit["key"].encode("ascii") + b" " 
+                if "value" in crit:
+                    query += crit["value"].encode("ascii") + b" "
+            except KeyError:
+                raise ImapClientError("invalid criterion")
 
         # Criteria composed of literals need special treatment
         if criteria_lit:
-            literals = [(criteria_lit[0][0], 
-                         len(criteria_lit[0][1].encode(charset)), 
-                         None)]
-            for index in range(len(criteria_lit)):
-                if index+1 < len(criteria_lit):
-                    key = criteria_lit[index+1][0]
-                    length = len(criteria_lit[index+1][1].encode(charset)) 
-                else:
-                    key = None
-                    length = None
-                value = criteria_lit[index][1]
-                literals.append((key, length, value))
+            try:
+                literals = [(criteria_lit[0]["key"], 
+                             len(criteria_lit[0]["value"].encode(charset)), 
+                             None)]
+                for index in range(len(criteria_lit)):
+                    if index+1 < len(criteria_lit):
+                        key = criteria_lit[index+1]["key"]
+                        length = len(criteria_lit[index+1]["value"].encode(charset)) 
+                    else:
+                        key = None
+                        length = None
+                    value = criteria_lit[index]["value"]
+                    literals.append((key, length, value))
+            except KeyError:
+                raise ImapClientError("invalid criterion (lack of key or " +
+                                      "value, or improper encoding)")
 
             for key, length, value in literals:
                 if value:
@@ -272,8 +284,12 @@ class ImapClient:
                              str(length).encode("ascii") + b"} "
                 query = query[:-1] + b"\r\n"
 
+                print("query: ", query)
+
                 imap_socket.send(query)
                 data_recv = recvall(imap_socket, timeout=timeout)
+
+                print("recv:  ", data_recv)
 
                 if not data_recv.startswith(b'+'):
                     break  
@@ -288,20 +304,20 @@ class ImapClient:
         data_raw = None
         for resp in resps:
             if re.match(b"^[A-Z0-9]{5}", resp):
-                status_raw = resp
+                status_raw = resp.decode("ascii")
             if resp.startswith(b"* SEARCH"):
-                data_raw = resp
+                data_raw = resp.decode("ascii")
 
-        status_match = re.search(b"^[A-Z0-9]{5} (?P<status>\w*)", status_raw)
+        status_match = re.search("^[A-Z0-9]{5} (?P<status>\w*)", status_raw)
         if status_match:
-            status = status_match.group("status").decode("ascii")
+            status = status_match.group("status")
         else:
             status = "ERROR"
 
         if data_raw:
-            data_match = re.search(b"\* SEARCH (?P<ids>.*)", data_raw) 
+            data_match = re.search("\* SEARCH (?P<ids>.*)", data_raw) 
             if data_match:
-                data = data_match.group("ids").split(b" ")
+                data = data_match.group("ids").split(" ")
             else:
                 data = []
         else:

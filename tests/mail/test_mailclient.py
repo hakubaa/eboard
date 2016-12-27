@@ -33,7 +33,8 @@ class CSearchTest(unittest.TestCase):
             b'* SEARCH 3 4\r\nA2444 OK SEARCH completed (Success)\r\n' 
         ]
         iclient = ImapClient("imap.gmail.com")
-        iclient.csearch([("SUBJECT", "Test", True)], clear_socket=False)
+        iclient.csearch([{"key": "SUBJECT", "value": "Test", "decode": True}], 
+                        clear_socket=False)
         self.assertTrue(socket_mock.called)
 
     def test_calls_socket_send_method_with_proper_args1(self, imap_mock):
@@ -45,7 +46,8 @@ class CSearchTest(unittest.TestCase):
         send_mock = Mock()
         socket_mock.return_value.send = send_mock
         iclient = ImapClient("imap.gmail.com")
-        iclient.csearch([("SUBJECT", "Test", True)], clear_socket=False)
+        iclient.csearch([{"key": "SUBJECT", "value": "Test", "decode": True}], 
+                        clear_socket=False)
         expected = [
             call(send_mock.call_args_list[0][0][0][:5] + # random tag
                  b" SEARCH CHARSET UTF-8 SUBJECT {4}\r\n"), 
@@ -64,8 +66,8 @@ class CSearchTest(unittest.TestCase):
         send_mock = Mock()
         socket_mock.return_value.send = send_mock
         iclient = ImapClient("imap.gmail.com")
-        iclient.csearch([("FROM", "JAGO", True), 
-                                  ("SUBJECT", "Test Mail", True)],
+        iclient.csearch([{"key": "FROM", "value": "JAGO", "decode": True}, 
+                         {"key": "SUBJECT", "value": "Test Mail", "decode": True}],
                         clear_socket=False)
         expected = [
             call(send_mock.call_args_list[0][0][0][:5] + # random tag 
@@ -86,10 +88,12 @@ class CSearchTest(unittest.TestCase):
         send_mock = Mock()
         socket_mock.return_value.send = send_mock
         iclient = ImapClient("imap.gmail.com")
-        status, data = iclient.csearch([("FROM", "JAGO", True), 
-                            ("SUBJECT", "Test Mail", True)], clear_socket=False)
+        status, data = iclient.csearch([
+                            {"key": "FROM", "value": "JAGO", "decode": True}, 
+                            {"key": "SUBJECT", "value": "Test Mail", "decode": True}
+                        ], clear_socket=False)
         self.assertEqual(status, "OK")
-        self.assertEqual(data, [b'3', b'4'])
+        self.assertEqual(data, ['3', '4'])
 
     def test_returns_status_and_msg_when_bad_or_error(self, imap_mock):
         socket_mock = self.mock_socket(imap_mock)
@@ -101,11 +105,29 @@ class CSearchTest(unittest.TestCase):
         send_mock = Mock()
         socket_mock.return_value.send = send_mock
         iclient = ImapClient("imap.gmail.com")
-        status, data = iclient.csearch([("FROM_error", "JAGO", True), 
-                            ("SUBJECT", "Test Mail", True)], clear_socket=False)
+        status, data = iclient.csearch([
+                            {"key": "FROM", "value": "JAGO", "decode": True}, 
+                            {"key": "SUBJECT", "value": "Test Mail", "decode": True}
+                        ], clear_socket=False)
         self.assertEqual(status, "BAD")
-        self.assertEqual(data, b'A2444 BAD Could not parse command')
+        self.assertEqual(data, 'A2444 BAD Could not parse command')
 
+    def test_raises_error_when_invalid_criterion(self, imap_mock):
+        socket_mock = self.mock_socket(imap_mock)
+        socket_mock.return_value.recv.side_effect = [ 
+            b'+ go ahead\r\n', 
+            b'+ go ahead\r\n', 
+            b'A2444 BAD Could not parse command\r\n'
+        ]
+        send_mock = Mock()
+        socket_mock.return_value.send = send_mock
+        iclient = ImapClient("imap.gmail.com")
+        with self.assertRaises(ImapClientError):
+            iclient.csearch([
+                    {"key": "FROM", "decode": True}, 
+                    {"key": "SUBJECT", "value": "Test Mail", "decode": True}
+                ], clear_socket=False)
+            
 
 @patch("app.mail.client.imaplib")
 class ManagingMailboxesTest(unittest.TestCase):

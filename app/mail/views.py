@@ -266,9 +266,6 @@ def imap_store(imap_client, command):
     elif request.method == "GET":
         args = request.args
 
-    print(80*"#")
-    print(args)
-
     if "ids" not in args:
         return jsonify({"status": "ERROR", 
                         "data": {"msg": "Undefined emails' ids."}})
@@ -379,3 +376,32 @@ def imap_delete(imap_client):
         return jsonify({"status": "ERROR", "data": {"msg": data}}) 
     else:
         return jsonify({"status": "OK", "data": data})   
+
+
+@mail.route("/search", methods=["GET", "POST"])
+@imap_authentication()
+def imap_search(imap_client):
+    if request.method == "POST":
+        args = request.form
+    elif request.method == "GET":
+        args = request.args
+
+    if "mailbox" not in args:
+        return jsonify({"status": "ERROR", 
+                        "data": {"msg": "Undefined mailbox name."}})
+
+    if "criteria" not in args:
+        return jsonify({"status": "ERROR", 
+                        "data": {"msg": "Undefined search criteria."}})
+
+    criteria = json.loads(args["criteria"])
+    try:
+        imap_client.select(adjust_mailbox(args["mailbox"]))
+        status, data = imap_client.csearch(criteria)
+    except ImapClientError as e:
+        return jsonify({"status": "ERROR", "data": {"msg": str(e)}})        
+
+    if status != "OK":
+        return jsonify({"status": "ERROR", "data": {"msg": data}}) 
+    else:
+        return jsonify({"status": "OK", "data": data})

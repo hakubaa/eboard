@@ -6,6 +6,7 @@
 {% block styles %}
 {{ super() }}
 <link rel="stylesheet" href="{{url_for('static', filename='css/mail.mailbox.css')}}">
+<link rel="stylesheet" href="{{url_for('static', filename='css/jquery.datetimepicker.min.css')}}">
 <style>
 /*
 Colors:
@@ -308,7 +309,7 @@ d72638
                     <div class="input-group" id="search-emails"> 
                         <input class="form-control" aria-label="Text input with segmented button dropdown"> 
                         <div id="extended-emails-search">
-                            <form class="form-horizontal">
+                            <div class="form-horizontal">
                                 <div class="form-group">
                                     <label class="col-sm-2 control-label">Search In</label>
                                     <div class="col-sm-10">
@@ -348,17 +349,32 @@ d72638
                                     </div>
                                 </div>
                                 <div class="form-group">
-                                    <label for="email-search-keywords" class="col-sm-2 control-label">Keywords</label>
+                                    <label for="email-search-text" class="col-sm-2 control-label">Text</label>
                                     <div class="col-sm-10">
-                                        <input class="form-control" id="email-search-keywords">
+                                        <input class="form-control" id="email-search-text">
                                     </div>
                                 </div>
+                                 <div class="form-group">
+                                    <label for="email-search-text" class="col-sm-2 control-label">Send date</label>
+                                    <div class="col-sm-5">
+                                        <div class="input-group">
+                                            <label for="email-search-after">Send after</label>
+                                            <input class="form-control" id="email-search-after">
+                                        </div>
+                                    </div>
+                                    <div class="col-sm-5">
+                                        <div class="input-group">
+                                            <label for="email-search-before">Send before</label>
+                                            <input class="form-control" id="email-search-before">
+                                        </div>
+                                    </div>
+                                </div>      
                                 <div class="form-group">
                                     <div class="col-sm-offset-2 col-sm-10">
-                                        <button class="btn btn-default">Search</button>
+                                        <button id="email-search-btn" class="btn btn-default">Search</button>
                                     </div>
                                 </div>
-                            </form>
+                            </div>
                         </div>
                         <div class="input-group-btn"> 
                             <button type="button" class="btn btn-warning"
@@ -469,6 +485,7 @@ d72638
 {{ super() }}
 <script src="{{url_for('static', filename='scripts/jquery-ui.min.js')}}"></script>
 <script src="{{url_for('static', filename='scripts/moment.js')}}"></script>
+<script src="{{url_for('static', filename='scripts/jquery.datetimepicker.full.min.js')}}"</script>
 <script src="{{url_for('static', filename='scripts/mail.email.js')}}"></script>
 <script src="{{url_for('static', filename='scripts/mail.mailbox.js')}}"></script>
 <script src="{{url_for('static', filename='scripts/mail.client.js')}}"></script>

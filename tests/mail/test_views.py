@@ -14,9 +14,8 @@ from app.mail.client import ImapClientError
 
 from tests.mail import imap_responses
 
-
 @patch("app.mail.views.ImapClient")
-class RenameMailboxTest(TestCase):
+class CSearchTest(TestCase):
 
     def create_app(self):
         return create_app("testing")
@@ -27,63 +26,203 @@ class RenameMailboxTest(TestCase):
             sess["imap_password"] = password 
             sess["imap_addr"] = "testowy"  
 
-    def mock_rename(self, mock_client, response = ("OK", ["INFO"])):
+    def mock_csearch(self, imap_client, response = ("OK", ['1', '2', '3'])):
         mock = Mock()
         mock.return_value = response
-        mock_client.return_value.rename = mock
+        imap_client.return_value.csearch = mock
         return mock
 
     def test_returns_error_for_not_authenticated_users(self, mock_client):
-        self.mock_rename(mock_client)
-        response = self.client.get(url_for("mail.imap_rename"),
-                        query_string=dict(oldmailbox="INBOX",
-                                          newmailbox="NEW_INBOX"))
+        mock = self.mock_csearch(mock_client)
+        response = self.client.get(url_for("mail.imap_search"),
+                            query_string=dict(
+                                mailbox="INBOX",
+                                criteria='[{"key":"SUBJECT","value":"Test","decode":true}]'
+                            )
+                   )
         data = json.loads(response.data.decode("utf-8"))
         self.assertEqual(data["status"], "ERROR")
 
-    def test_calls_rename_method(self, mock_client):
-        mock = self.mock_rename(mock_client)
+    def test_calls_csearch_method(self, mock_client):
+        mock = self.mock_csearch(mock_client)
         self.login_imap_client()
-        self.client.get(url_for("mail.imap_rename"),
-                        query_string=dict(oldmailbox="INBOX",
-                                          newmailbox="NEW_INBOX"))
-        mock.assert_called_with("INBOX", "NEW_INBOX")
-     
+        response = self.client.get(
+                        url_for("mail.imap_search"),
+                        query_string=dict(
+                            mailbox="INBOX",
+                            criteria='[{"key":"SUBJECT","value":"Test","decode":true}]'
+                        )
+                   )  
+        self.assertTrue(mock.called)     
 
-    def test_returns_error_when_no_oldmailbox(self, mock_client):
-        mock = self.mock_rename(mock_client)
+    def test_for_passing_args_to_csearch_method(self, mock_client):
+        mock = self.mock_csearch(mock_client)
         self.login_imap_client()
-        response = self.client.get(url_for("mail.imap_rename"),
-                        query_string=dict(newmailbox="NEW_INBOX"))
+        response = self.client.get(
+                        url_for("mail.imap_search"),
+                        query_string=dict(
+                            mailbox="INBOX",
+                            criteria='[{"key":"SUBJECT","value":"Test","decode":true}]'
+                        )
+                   )  
+        mock.assert_called_with([{"key":"SUBJECT","value":"Test","decode":True}])
+
+    def test_returns_error_when_no_mailbox(self, mock_client):
+        mock = self.mock_csearch(mock_client)
+        self.login_imap_client()
+        response = self.client.get(url_for("mail.imap_search"),
+                            query_string=dict(
+                                criteria='[{"key":"SUBJECT","value":"Test","decode":true}]'
+                            )
+                   )
         data = json.loads(response.data.decode("utf-8"))
         self.assertEqual(data["status"], "ERROR")
 
-    def test_returns_error_when_no_newmailbox(self, mock_client):
-        mock = self.mock_rename(mock_client)
+    def test_returns_error_when_no_criteria(self, mock_client):
+        mock = self.mock_csearch(mock_client)
         self.login_imap_client()
-        response = self.client.get(url_for("mail.imap_rename"),
-                        query_string=dict(oldmailbox="NEW_INBOX"))
+        response = self.client.get(
+                        url_for("mail.imap_search"),
+                        query_string=dict(
+                            mailbox="INBOX"
+                        )
+                   )  
         data = json.loads(response.data.decode("utf-8"))
         self.assertEqual(data["status"], "ERROR")
 
-    def test_returns_error_when_rename_method_fails(self, mock_client):
-        mock = self.mock_rename(mock_client, response=("NO", ["FUCK"]))
+    def test_returns_error_when_csearch_method_fails(self, mock_client):
+        mock = self.mock_csearch(mock_client, response=("NO", ["FUCK"]))
         self.login_imap_client()
-        response = self.client.get(url_for("mail.imap_rename"),
-                        query_string=dict(oldmailbox="INBOX",
-                                          newmailbox="NEW_INBOX"))
+        response = self.client.get(
+                        url_for("mail.imap_search"),
+                        query_string=dict(
+                            mailbox="INBOX",
+                            criteria='[{"key":"SUBJECT","value":"Test","decode":true}]'
+                        )
+                   )  
         data = json.loads(response.data.decode("utf-8"))
         self.assertEqual(data["status"], "ERROR")
 
-    def test_returns_error_when_rename_method_error(self, mock_client):
-        mock = self.mock_rename(mock_client, response=("OK", ["WOW"]))
+    def test_returns_error_when_csearch_method_error(self, mock_client):
+        mock = self.mock_csearch(mock_client)
         mock.side_effect = ImapClientError
         self.login_imap_client()
-        response = self.client.get(url_for("mail.imap_rename"),
-                        query_string=dict(oldmailbox="INBOX",
-                                          newmailbox="NEW_INBOX"))
+        response = self.client.get(
+                        url_for("mail.imap_search"),
+                        query_string=dict(
+                            mailbox="INBOX",
+                            criteria='[{"key":"SUBJECT","value":"Test","decode":true}]'
+                        )
+                   )  
         data = json.loads(response.data.decode("utf-8"))
         self.assertEqual(data["status"], "ERROR")
+
+    def test_for_calling_select_method(self, mock_client):
+        mock = self.mock_csearch(mock_client)
+        select_mock = Mock()
+        select_mock.return_value = ("OK", "WORK")
+        mock_client.return_value.select = select_mock
+        self.login_imap_client()
+        response = self.client.get(
+                        url_for("mail.imap_search"),
+                        query_string=dict(
+                            mailbox="INBOX2",
+                            criteria='[{"key":"SUBJECT","value":"Test","decode":true}]'
+                        )
+                   )  
+        select_mock.assert_called_with('"INBOX2"')
+
+     
+    def test_for_returning_error_when_select_fails(self, mock_client):
+        mock = self.mock_csearch(mock_client)
+        select_mock = Mock()
+        select_mock.return_value = ("OK", "WORK")
+        select_mock.side_effect = ImapClientError
+        mock_client.return_value.select = select_mock
+        self.login_imap_client()
+        response = self.client.get(
+                        url_for("mail.imap_search"),
+                        query_string=dict(
+                            mailbox="INBOX2",
+                            criteria='[{"key":"SUBJECT","value":"Test","decode":true}]'
+                        )
+                   )  
+        select_mock.assert_called_with('"INBOX2"')
+
+        data = json.loads(response.data.decode("utf-8"))
+        self.assertTrue(select_mock.called)
+        self.assertEqual(data["status"], "ERROR")
+
+
+# @patch("app.mail.views.ImapClient")
+# class RenameMailboxTest(TestCase):
+
+#     def create_app(self):
+#         return create_app("testing")
+
+#     def login_imap_client(self, username="Testowy", password="Testowe"):
+#          with self.client.session_transaction() as sess:
+#             sess["imap_username"] = username
+#             sess["imap_password"] = password 
+#             sess["imap_addr"] = "testowy"  
+
+#     def mock_rename(self, mock_client, response = ("OK", ["INFO"])):
+#         mock = Mock()
+#         mock.return_value = response
+#         mock_client.return_value.rename = mock
+#         return mock
+
+#     def test_returns_error_for_not_authenticated_users(self, mock_client):
+#         self.mock_rename(mock_client)
+#         response = self.client.get(url_for("mail.imap_rename"),
+#                         query_string=dict(oldmailbox="INBOX",
+#                                           newmailbox="NEW_INBOX"))
+#         data = json.loads(response.data.decode("utf-8"))
+#         self.assertEqual(data["status"], "ERROR")
+
+#     def test_calls_rename_method(self, mock_client):
+#         mock = self.mock_rename(mock_client)
+#         self.login_imap_client()
+#         self.client.get(url_for("mail.imap_rename"),
+#                         query_string=dict(oldmailbox="INBOX",
+#                                           newmailbox="NEW_INBOX"))
+#         mock.assert_called_with("INBOX", "NEW_INBOX")
+     
+
+#     def test_returns_error_when_no_oldmailbox(self, mock_client):
+#         mock = self.mock_rename(mock_client)
+#         self.login_imap_client()
+#         response = self.client.get(url_for("mail.imap_rename"),
+#                         query_string=dict(newmailbox="NEW_INBOX"))
+#         data = json.loads(response.data.decode("utf-8"))
+#         self.assertEqual(data["status"], "ERROR")
+
+#     def test_returns_error_when_no_newmailbox(self, mock_client):
+#         mock = self.mock_rename(mock_client)
+#         self.login_imap_client()
+#         response = self.client.get(url_for("mail.imap_rename"),
+#                         query_string=dict(oldmailbox="NEW_INBOX"))
+#         data = json.loads(response.data.decode("utf-8"))
+#         self.assertEqual(data["status"], "ERROR")
+
+#     def test_returns_error_when_rename_method_fails(self, mock_client):
+#         mock = self.mock_rename(mock_client, response=("NO", ["FUCK"]))
+#         self.login_imap_client()
+#         response = self.client.get(url_for("mail.imap_rename"),
+#                         query_string=dict(oldmailbox="INBOX",
+#                                           newmailbox="NEW_INBOX"))
+#         data = json.loads(response.data.decode("utf-8"))
+#         self.assertEqual(data["status"], "ERROR")
+
+#     def test_returns_error_when_rename_method_error(self, mock_client):
+#         mock = self.mock_rename(mock_client, response=("OK", ["WOW"]))
+#         mock.side_effect = ImapClientError
+#         self.login_imap_client()
+#         response = self.client.get(url_for("mail.imap_rename"),
+#                         query_string=dict(oldmailbox="INBOX",
+#                                           newmailbox="NEW_INBOX"))
+#         data = json.loads(response.data.decode("utf-8"))
+#         self.assertEqual(data["status"], "ERROR")
 
 
 @patch("app.mail.views.ImapClient")
@@ -181,7 +320,7 @@ class StoreTest(TestCase):
         self.client.get(url_for("mail.imap_store", command="add"),
                         query_string=dict(ids="1", mailbox="INBOX2",
                                           flags="\\Flagged"))  
-        select_mock.assert_called_with("INBOX2")
+        select_mock.assert_called_with('"INBOX2"')
 
 
     def test_for_returning_error_when_select_fails(self, mock_client):
@@ -261,7 +400,7 @@ class MoveEmailsTest(TestCase):
         self.client.get(url_for("mail.imap_move_emails"),
                         query_string=dict(ids="1", dest_mailbox="INBOX",
                                           source_mailbox="INBOX2"))
-        move_mock.assert_called_with("1", "INBOX")
+        move_mock.assert_called_with("1", '"INBOX"')
 
     def test_returns_error_when_no_ids(self, mock_client):
         move_mock = self.mock_imap_client(mock_client)
@@ -308,7 +447,7 @@ class MoveEmailsTest(TestCase):
         response = self.client.get(url_for("mail.imap_move_emails"),
                             query_string=dict(ids="1", dest_mailbox="INBOX",
                                               source_mailbox="INBOX2"))       
-        select_mock.assert_called_with("INBOX2")
+        select_mock.assert_called_with('"INBOX2"')
 
     def test_for_returning_error_when_select_fails(self, mock_client):
         move_mock = self.mock_imap_client(mock_client, ("OK", "YUPI"))
