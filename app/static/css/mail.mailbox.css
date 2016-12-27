@@ -1,0 +1,10 @@
+#email-header td:first-child {
+    text-align: right;
+    font-weight: bold;
+}
+#email-header td {
+    padding: 0px 0px 5px 5px;
+}
+#email-header tr:not(:first-child) {
+    display: none;
+}

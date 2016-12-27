@@ -24,8 +24,8 @@ var settings = {
 *******************************************************************************/
 
 function initClient() {
-    getMailboxes({callback: updateMailboxesList});
-    EMailsListController.init({mailbox: settings.default_mailbox});
+    // getMailboxes({callback: updateMailboxesList});
+    // EMailsListController.init({mailbox: settings.default_mailbox});
 
     $(document).on("click", ".email-open", function() {
         $(this).parent().removeClass("unseen");
@@ -86,7 +86,7 @@ function initClient() {
             return ($(this).data("flags").indexOf("\\ALL") >= 0);
         }).first();
         if (mailbox.length > 0) {
-            var $emails = $(".email-header")
+            var $emails = $(".email-record")
                 .filter(function() {
                     return ($(this).find(".email-check").is(":checked"));
                 });
@@ -106,7 +106,7 @@ function initClient() {
             return ($(this).data("flags").indexOf("\\JUNK") >= 0);
         }).first();
         if (mailbox.length > 0) {
-            var $emails = $(".email-header")
+            var $emails = $(".email-record")
                 .filter(function() {
                     return ($(this).find(".email-check").is(":checked"));
                 });
@@ -126,7 +126,7 @@ function initClient() {
             return ($(this).data("flags").indexOf("\\TRASH") >= 0);
         }).first();
         if (mailbox.length > 0) {
-            var $emails = $(".email-header")
+            var $emails = $(".email-record")
                 .filter(function() {
                     return ($(this).find(".email-check").is(":checked"));
                 });
@@ -147,7 +147,7 @@ function initClient() {
 
     $(document).on("click", ".move-to-btn", function() {
         var mailbox = $(this).parent().data("name");
-        var $emails = $(".email-header")
+        var $emails = $(".email-record")
             .filter(function() {
                 return ($(this).find(".email-check").is(":checked"));
             });
@@ -179,7 +179,7 @@ function initClient() {
     });
 
     $("#more-unread").click(function() {
-        var $emails = $(".email-header").not(".unseen")
+        var $emails = $(".email-record").not(".unseen")
             .filter(function() {
                 return ($(this).find(".email-check").is(":checked"));
             });
@@ -210,7 +210,7 @@ function initClient() {
     });
 
     $("#more-read").click(function() {
-        var $emails = $(".email-header.unseen")
+        var $emails = $(".email-record.unseen")
             .filter(function() {
                 return ($(this).find(".email-check").is(":checked"));
             });
@@ -374,7 +374,7 @@ function updateMailboxesList(response) {
                 },
                 drop: function(event, ui) {
                     var mailbox = $(this).data("name");
-                    var $emails = $(".email-header")
+                    var $emails = $(".email-record")
                         .filter(function() {
                             return ($(this).find(".email-check").is(":checked") 
                                     || $(this).is(ui.draggable));
@@ -434,7 +434,7 @@ function updateEMailsList(response) {
         $list.empty();
         for (var i = 0; i < emails.length; i++) {
             var $email = $("<tr data-email-id='" + emails[i].id + "' " +
-                           "class='email-header'></tr>");
+                           "class='email-record'></tr>");
             if (emails[i].Flags !== undefined) {
                 var flags = emails[i].Flags.map(function(x) { return x.toUpperCase()});
                 if (flags.indexOf("\\SEEN") < 0) {
@@ -478,10 +478,10 @@ function updateEMailsList(response) {
         }
 
         //http://stackoverflow.com/questions/3591264/can-table-rows-be-made-draggable
-        $("#emails-list .email-header").draggable({
+        $("#emails-list .email-record").draggable({
             helper: function() {
                 var $self = $(this)[0];
-                var numOfEmails = $(".email-header").filter(function() {
+                var numOfEmails = $(".email-record").filter(function() {
                     return ($(this).find(".email-check").is(":checked") 
                             && $(this)[0] != $self);
                 }).length + 1;
@@ -490,13 +490,13 @@ function updateEMailsList(response) {
             },
             start: function(event, ui) {
                 $(this).addClass("email-dragged");
-                $(".email-header").filter(function() {
+                $(".email-record").filter(function() {
                     return ($(this).find(".email-check").is(":checked"));
                 }).addClass("email-dragged");
             },
             stop: function(event, ui) {
                 $(this).removeClass("email-dragged");
-                $(".email-header").filter(function() {
+                $(".email-record").filter(function() {
                     return ($(this).find(".email-check").is(":checked"));
                 }).removeClass("email-dragged");
             },
@@ -541,21 +541,21 @@ function updateSelectBtn() {
 function selectEMails(mode) {
     if (mode !== undefined) {
         if (mode === "ALL") {
-            $(".email-header .email-check").prop("checked", true);
+            $(".email-record .email-check").prop("checked", true);
         } else if (mode === "NONE") {
-            $(".email-header .email-check").prop("checked", false);
+            $(".email-record .email-check").prop("checked", false);
         } else if (mode === "READ") {
-            $(".email-header").not("unseen").find(".email-check").prop("checked", true);
-            $(".email-header.unseen").find(".email-check").prop("checked", false);
+            $(".email-record").not("unseen").find(".email-check").prop("checked", true);
+            $(".email-record.unseen").find(".email-check").prop("checked", false);
         } else if (mode === "UNREAD") {
-            $(".email-header").not("unseen").find(".email-check").prop("checked", false);
-            $(".email-header.unseen").find(".email-check").prop("checked", true);   
+            $(".email-record").not("unseen").find(".email-check").prop("checked", false);
+            $(".email-record.unseen").find(".email-check").prop("checked", true);   
         } else if (mode === "STARRED") {
-            $(".email-header").not("flagged").find(".email-check").prop("checked", false);
-            $(".email-header.flagged").find(".email-check").prop("checked", true);   
+            $(".email-record").not("flagged").find(".email-check").prop("checked", false);
+            $(".email-record.flagged").find(".email-check").prop("checked", true);   
         } else if (mode === "UNSTARRED") {
-            $(".email-header").not("flagged").find(".email-check").prop("checked", true);
-            $(".email-header.flagged").find(".email-check").prop("checked", false);   
+            $(".email-record").not("flagged").find(".email-check").prop("checked", true);
+            $(".email-record.flagged").find(".email-check").prop("checked", false);   
         }
         updateSelectBtn();
     }

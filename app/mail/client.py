@@ -3,9 +3,14 @@ import socket
 import collections
 import re
 import email
+import datetime
+import string
+import random
+
 from email.header import decode_header
 from email.parser import HeaderParser
 from functools import partial#, partialmethod
+from app.utils import recvall
 
 # Set proper limit in order to avoid error: 
 # 'imaplib.error: command: SELECT => got more than 100000 bytes'
@@ -177,7 +182,7 @@ class ImapClient:
 
         return status, mailboxes
 
-    def list_mailbox(self, mailbox=None, *criteria, uid=False):
+    def list_mailbox(self, mailbox=None, *criteria, uid=False, charset=None):
         '''
         Returns the list of e-mails (ids or uids) from selected mailbox. 
         Accepts additional criteria which are passed to search method. 
@@ -197,11 +202,11 @@ class ImapClient:
         if select_status == "OK":
             if uid:
                 search_status, data = self.uid(
-                    "search", None, *criteria or ("ALL",)
+                    "search", charset, *criteria or ("ALL",)
                 )
             else:
                 search_status, data = self.mail.search(
-                    None, *criteria or ("ALL",)
+                    charset, *criteria or ("ALL",)
                 )
             if search_status == "OK":
                 return (search_status, data[0].split())
@@ -209,6 +214,101 @@ class ImapClient:
                 raise ImapClientError(data)
         else:
             raise ImapClientError(msg)
+
+    def csearch(self, criteria, charset="UTF-8", uid=False, 
+                timeout=10, clear_socket=True):
+        '''
+        Returns e-mails (ids or uids) which meet specified criteria from 
+        currently selected mailbox. Encodes criteria in accordance
+        with charset argument (UTF-8 by default).
+        '''
+        if not isinstance(criteria, collections.abc.Sequence):
+            raise TypeError("expected a sequence object (tuple, list etc.)")
+
+        imap_socket = self.mail.socket()
+
+        # Clear socket
+        if clear_socket:
+            recvall(imap_socket, timeout=0.00001)
+
+        # Split criteria into required encoding (literals) and not (strings)
+        criteria_str = filter(lambda item: not item[2], criteria)
+        criteria_lit = list(filter(lambda item: item[2], criteria)) 
+
+        # Start query in accordance with imap protocol
+        tag = random.choice(string.ascii_uppercase) + \
+          "".join(str(c) for c in random.sample(range(10), 4))   
+
+        query = tag.encode("ascii") + b" SEARCH "  
+        if charset:
+            query += b"CHARSET " + charset.encode("ascii") + b" "
+
+        # String criteria are simple and do not require any extra processing
+        for crit in criteria_str:
+            query += crit[0].encode("ascii") + b" " 
+            if crit[1]:
+                query += crit[1].encode("ascii") + b" "
+
+        # Criteria composed of literals need special treatment
+        if criteria_lit:
+            literals = [(criteria_lit[0][0], 
+                         len(criteria_lit[0][1].encode(charset)), 
+                         None)]
+            for index in range(len(criteria_lit)):
+                if index+1 < len(criteria_lit):
+                    key = criteria_lit[index+1][0]
+                    length = len(criteria_lit[index+1][1].encode(charset)) 
+                else:
+                    key = None
+                    length = None
+                value = criteria_lit[index][1]
+                literals.append((key, length, value))
+
+            for key, length, value in literals:
+                if value:
+                   query += value.encode(charset) + b" " 
+                if key and length:
+                    query += key.encode("ascii") + b" {" + \
+                             str(length).encode("ascii") + b"} "
+                query = query[:-1] + b"\r\n"
+
+                imap_socket.send(query)
+                data_recv = recvall(imap_socket, timeout=timeout)
+
+                if not data_recv.startswith(b'+'):
+                    break  
+                query = b""   
+        else:
+            query = query[:-1] + b"\r\n"
+            imap_socket.send(query)
+            data_recv = recvall(imap_socket, timeout=timeout)
+
+        resps = data_recv.split(b"\r\n")
+        status_raw = None
+        data_raw = None
+        for resp in resps:
+            if re.match(b"^[A-Z0-9]{5}", resp):
+                status_raw = resp
+            if resp.startswith(b"* SEARCH"):
+                data_raw = resp
+
+        status_match = re.search(b"^[A-Z0-9]{5} (?P<status>\w*)", status_raw)
+        if status_match:
+            status = status_match.group("status").decode("ascii")
+        else:
+            status = "ERROR"
+
+        if data_raw:
+            data_match = re.search(b"\* SEARCH (?P<ids>.*)", data_raw) 
+            if data_match:
+                data = data_match.group("ids").split(b" ")
+            else:
+                data = []
+        else:
+            data = status_raw
+        
+        return (status, data)
+
 
     def len_mailbox(self, mailbox=None):
         '''Returns number of messages in a mailbox'''
@@ -243,7 +343,8 @@ class ImapClient:
     def get_headers(
         self, ids, *, fields=None, uid=False, 
         header_decoders=default_decoders,
-        flags=True
+        flags=True,
+        sort_by_date=True
     ): 
         '''
         Returns the list with headers for given e-mails id-s/uid-s. Accepts
@@ -307,6 +408,12 @@ class ImapClient:
                     
                     headers.append(header)
 
+            if sort_by_date:
+                date_picker = lambda x: datetime.datetime.strptime(
+                                            x["Date"], 
+                                            "%a, %d %b %Y %H:%M:%S %z"   
+                                        )
+                headers = sorted(headers, key=date_picker)
             return ("OK", headers)
         else:
             raise ImapClientError(data)

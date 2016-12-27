@@ -4,6 +4,8 @@ import sys
 import inspect
 import ctypes
 import binascii
+import socket
+
 
 def merge_dicts(*dict_args):
     '''
@@ -66,13 +68,14 @@ def utf7_decode(s):
     return bin_str
 
 
-
 def utf16be_to_base64(st):
+    '''Convert utf16be to base64'''
     st = st.encode("utf-16be")
     return binascii.b2a_base64(st).decode("ascii").rstrip('\n=').replace('/', ',')
 
 
 def utf7_encode(s):
+    '''Encode text decoded with utf-7. https://tools.ietf.org/pdf/rfc2152.pdf'''
     r = list()
     other_chars = list()
 
@@ -91,3 +94,21 @@ def utf7_encode(s):
         r.append('&{0}-'.format(utf16be_to_base64(''.join(other_chars))))
         del other_chars[:]
     return str(''.join(r))
+
+
+def recvall(sock, timeout=5, buflen=1024):
+    data_recv = b''
+    prev_timeout = sock.gettimeout()
+    while True:
+        try:
+            sock.settimeout(timeout)
+            temp_recv = sock.recv(buflen)
+        except socket.timeout:
+            break
+        if not temp_recv:
+            break
+        data_recv = data_recv + temp_recv
+        if len(temp_recv) < buflen:
+            break
+    sock.settimeout(prev_timeout)
+    return data_recv

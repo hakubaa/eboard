@@ -6,11 +6,11 @@ E-Mail Client:
 - threads (imap extension)
 - sending e-mails
 - working version on ie (iframe issue)
-- sort e-mail by date
 - add search functionality
 - attachments
 - update emails list when moving mails
 - delete email forever
+- email and name
 
 DONE:
 - add pages
@@ -25,3 +25,7 @@ DONE:
 - add button to create new message
 - set as unseen / remove mailbox
 - add buttons to select emails and remove them (just like in gmail)
+- sort e-mail by date, but only the emails shown in current view 
+    (imap by default doesn't enable to sort emails, there is
+    an imap extension which has this functionality but it's not required to 
+    be implmented by service providers (e.g. gmail))

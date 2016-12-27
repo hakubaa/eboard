@@ -3,6 +3,7 @@ $("#email-modal").on("show.bs.modal", function(event) {
     $modal.find("#email-subject").html("");
     $modal.find("#email-base").empty();
     $modal.find("#email-subject").html("Loading email ....");
+    $modal.find("#email-header").hide();
 });
 
 $("#email-modal").on("shown.bs.modal", function (event) {
@@ -16,6 +17,16 @@ $("#email-modal").on("shown.bs.modal", function (event) {
     })
 });
 
+$(document).on("click", "#email-header-more", function() {
+    $("#email-header > tbody").children().not(":first-child").toggle();
+    if ($(this).html() == "More") {
+        $(this).html("Less");
+    } else {
+        $(this).html("More");
+    }
+    return false;
+});
+
 function updateEmailModal(response) {
     if (response.status == "OK") {
         var email = response.data;
@@ -25,6 +36,16 @@ function updateEmailModal(response) {
         } else {
             $modal.find("#email-subject").html("&lt;No SUBJECT&gt;");
         }
+        $modal.find("#email-header").show();
+        $modal.find("#email-header-from").html(
+            email.header["From"].replace("<", "&lt").replace(">", "&gt")  +
+            " (<a id='email-header-more' href='#'>More</a>)");
+        $modal.find("#email-header-subject").html(
+            email.header["Subject"].replace("<", "&lt").replace(">", "&gt"));
+        $modal.find("#email-header-date").html(
+            moment(email.header["Date"]).format("YYYY-MM-DD HH:mm"));
+        $modal.find("#email-header-to").html(
+            email.header["To"].replace("<", "&lt").replace(">", "&gt"));
         var $emailBase = $modal.find("#email-base");
         createEmailTree(email, $emailBase);
     } else {

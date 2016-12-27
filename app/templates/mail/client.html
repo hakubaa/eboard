@@ -5,6 +5,7 @@
 
 {% block styles %}
 {{ super() }}
+<link rel="stylesheet" href="{{url_for('static', filename='css/mail.mailbox.css')}}">
 <style>
 /*
 Colors:
@@ -149,19 +150,20 @@ d72638
     #extended-emails-search {
         position:absolute;
         left: 0px;
-        top: 0px;
+        top: 2.5em;
         z-index:1;
         display: none;
         background-color: white;
-        height: 200px;
+        height: 400px;
         width: 100%;
+        padding: 10px;
     }
     #client-info {
         float: right;
         color: black;
         font-weight: bold;
     }
-    .email-header.unseen {
+    .email-record.unseen {
         background-color: #2274a5; /*#4e91f0;*/
         color: white;
     }
@@ -294,23 +296,69 @@ d72638
     <div id="mailbox-container">
         <button id="new-msg" type="button" class="btn btn-warning">New Message</button>
         <div id="mailbox-list-wrapper">
-            <ul id="mailbox-list">
-                <li>One</li>
-                <li>Two</li>
-                <li>Three</li>
-                <li>Four</li>
-            </ul>
+            <ul id="mailbox-list"></ul>
         </div>
     </div>
 
     <div id="emails-container">
+
         <div id="emails-ui">
             <div class="row">
                 <div class="col-lg-8" id="search-ui">
                     <div class="input-group" id="search-emails"> 
                         <input class="form-control" aria-label="Text input with segmented button dropdown"> 
                         <div id="extended-emails-search">
-                            SEARCH MENU
+                            <form class="form-horizontal">
+                                <div class="form-group">
+                                    <label class="col-sm-2 control-label">Search In</label>
+                                    <div class="col-sm-10">
+                                        <div class="dropdown">
+                                            <button class="btn btn-default dropdown-toggle" type="button" 
+                                                     id="dropdownMenu1" data-toggle="dropdown" 
+                                                     aria-haspopup="true" aria-expanded="true">
+                                            Dropdown
+                                            <span class="caret"></span>
+                                            </button>
+                                            <ul class="dropdown-menu" aria-labelledby="dropdownMenu1">
+                                                <li><a href="#">Action</a></li>
+                                                <li><a href="#">Another action</a></li>
+                                                <li><a href="#">Something else here</a></li>
+                                                <li role="separator" class="divider"></li>
+                                                <li><a href="#">Separated link</a></li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="email-search-from" class="col-sm-2 control-label">From</label>
+                                    <div class="col-sm-10">
+                                        <input class="form-control" id="email-search-from">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="email-search-to" class="col-sm-2 control-label">To</label>
+                                    <div class="col-sm-10">
+                                        <input class="form-control" id="email-search-to">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="email-search-subject" class="col-sm-2 control-label">Subject</label>
+                                    <div class="col-sm-10">
+                                        <input class="form-control" id="email-search-subject">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="email-search-keywords" class="col-sm-2 control-label">Keywords</label>
+                                    <div class="col-sm-10">
+                                        <input class="form-control" id="email-search-keywords">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <div class="col-sm-offset-2 col-sm-10">
+                                        <button class="btn btn-default">Search</button>
+                                    </div>
+                                </div>
+                            </form>
                         </div>
                         <div class="input-group-btn"> 
                             <button type="button" class="btn btn-warning"

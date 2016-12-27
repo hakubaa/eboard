@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import patch, Mock, ANY
+from unittest.mock import patch, Mock, ANY, call
 import email
 import imaplib
 
@@ -10,6 +10,101 @@ from app.mail.client import (
 )
 
 from tests.mail import imap_responses
+
+
+@patch("app.mail.client.imaplib")
+class CSearchTest(unittest.TestCase):
+
+    def mock_socket(self, imap_mock):
+        mock = Mock()
+        imap_mock.IMAP4_SSL.return_value.socket = mock
+        imap_mock.IMAP4.error = imaplib.IMAP4.error
+        return mock
+
+    def test_for_raising_error_when_criteria_not_sequence(self, imap_mock):
+        iclient = ImapClient("imap.gmail.com")
+        with self.assertRaises(TypeError):
+            iclient.csearch({"key": "value"}, clear_socket=False)
+
+    def test_for_calling_socket_method(self, imap_mock):
+        socket_mock = self.mock_socket(imap_mock)
+        socket_mock.return_value.recv.side_effect = [ 
+            b'+ go ahead\r\n', 
+            b'* SEARCH 3 4\r\nA2444 OK SEARCH completed (Success)\r\n' 
+        ]
+        iclient = ImapClient("imap.gmail.com")
+        iclient.csearch([("SUBJECT", "Test", True)], clear_socket=False)
+        self.assertTrue(socket_mock.called)
+
+    def test_calls_socket_send_method_with_proper_args1(self, imap_mock):
+        socket_mock = self.mock_socket(imap_mock)
+        socket_mock.return_value.recv.side_effect = [ 
+            b'+ go ahead\r\n', 
+            b'* SEARCH 3 4\r\nA2444 OK SEARCH completed (Success)\r\n' 
+        ]
+        send_mock = Mock()
+        socket_mock.return_value.send = send_mock
+        iclient = ImapClient("imap.gmail.com")
+        iclient.csearch([("SUBJECT", "Test", True)], clear_socket=False)
+        expected = [
+            call(send_mock.call_args_list[0][0][0][:5] + # random tag
+                 b" SEARCH CHARSET UTF-8 SUBJECT {4}\r\n"), 
+            call(b"Test\r\n")
+        ]
+        self.assertEqual(send_mock.call_count, 2)
+        self.assertEqual(send_mock.call_args_list, expected)
+
+    def test_calls_socket_send_method_with_proper_args2(self, imap_mock):
+        socket_mock = self.mock_socket(imap_mock)
+        socket_mock.return_value.recv.side_effect = [ 
+            b'+ go ahead\r\n', 
+            b'+ go ahead\r\n', 
+            b'* SEARCH 3 4\r\nA2444 OK SEARCH completed (Success)\r\n' 
+        ]
+        send_mock = Mock()
+        socket_mock.return_value.send = send_mock
+        iclient = ImapClient("imap.gmail.com")
+        iclient.csearch([("FROM", "JAGO", True), 
+                                  ("SUBJECT", "Test Mail", True)],
+                        clear_socket=False)
+        expected = [
+            call(send_mock.call_args_list[0][0][0][:5] + # random tag 
+                 b" SEARCH CHARSET UTF-8 FROM {4}\r\n"), 
+            call(b"JAGO SUBJECT {9}\r\n"),
+            call(b"Test Mail\r\n")
+        ]
+        self.assertEqual(send_mock.call_count, 3)
+        self.assertEqual(send_mock.call_args_list, expected)
+
+    def test_returns_status_and_data(self, imap_mock):
+        socket_mock = self.mock_socket(imap_mock)
+        socket_mock.return_value.recv.side_effect = [ 
+            b'+ go ahead\r\n', 
+            b'+ go ahead\r\n', 
+            b'* SEARCH 3 4\r\nA2444 OK SEARCH completed (Success)\r\n' 
+        ]
+        send_mock = Mock()
+        socket_mock.return_value.send = send_mock
+        iclient = ImapClient("imap.gmail.com")
+        status, data = iclient.csearch([("FROM", "JAGO", True), 
+                            ("SUBJECT", "Test Mail", True)], clear_socket=False)
+        self.assertEqual(status, "OK")
+        self.assertEqual(data, [b'3', b'4'])
+
+    def test_returns_status_and_msg_when_bad_or_error(self, imap_mock):
+        socket_mock = self.mock_socket(imap_mock)
+        socket_mock.return_value.recv.side_effect = [ 
+            b'+ go ahead\r\n', 
+            b'+ go ahead\r\n', 
+            b'A2444 BAD Could not parse command\r\n'
+        ]
+        send_mock = Mock()
+        socket_mock.return_value.send = send_mock
+        iclient = ImapClient("imap.gmail.com")
+        status, data = iclient.csearch([("FROM_error", "JAGO", True), 
+                            ("SUBJECT", "Test Mail", True)], clear_socket=False)
+        self.assertEqual(status, "BAD")
+        self.assertEqual(data, b'A2444 BAD Could not parse command')
 
 
 @patch("app.mail.client.imaplib")
@@ -446,13 +541,14 @@ class GetHeadersTest(FlaskTestCase):
     def test_calls_fetch_method(self, imap_mock):
         fetch_mock = self.mock_fetch(imap_mock)
         iclient = ImapClient("imap.gmail.com")
-        iclient.get_headers(b'1')
+        iclient.get_headers(b'1', sort_by_date=False)
         self.assertTrue(fetch_mock.called)
 
     def test_returns_list_of_dicts_with_fields_as_keys(self, imap_mock):
         fetch_mock = self.mock_fetch(imap_mock)
         iclient = ImapClient("imap.gmail.com")
-        status, header = iclient.get_headers(b'1', fields = ["Subject", "From"])
+        status, header = iclient.get_headers(b'1', fields=["Subject", "From"],
+                                             sort_by_date=False)
         self.assertTrue(isinstance(header, list))
         self.assertIn("Subject", header[0])
         self.assertIn("From", header[0])
@@ -460,7 +556,8 @@ class GetHeadersTest(FlaskTestCase):
     def test_check_for_proper_data_in_header(self, imap_mock):
         fetch_mock = self.mock_fetch(imap_mock)
         iclient = ImapClient("imap.gmail.com")
-        status, header = iclient.get_headers(b'1', fields = ["Subject", "From"])
+        status, header = iclient.get_headers(b'1', fields=["Subject", "From"],
+                                             sort_by_date=False)
         self.assertTrue(
             header[0]["Subject"],
             "New on CodinGame: Check it out!"
