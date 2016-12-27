@@ -101,14 +101,8 @@ def client(imap_client):
 @mail.route("/list", methods=["GET", "POST"])
 @imap_authentication()
 def imap_list(imap_client):
-    if request.method == "POST":
-        args = request.form
-    elif request.method == "GET":
-        args = request.args
-
     try:
         status, data = imap_client.list()
-
         mailboxes = list()
         for name, flags in data:
             mailboxes.append({
@@ -116,7 +110,6 @@ def imap_list(imap_client):
                 "utf16": utf7_decode(name),
                 "flags": flags
             })
-
         return jsonify({"status": "OK", "data": mailboxes})
     except ImapClientError as e:
         return jsonify({"status": "ERROR", "data": {"msg": str(e)}})
@@ -130,27 +123,39 @@ def imap_get_headers(imap_client):
     elif request.method == "GET":
         args = request.args
 
+    if "mailbox" not in args:
+        return jsonify({"status": "ERROR", 
+                        "data": {"msg": "Undefined mailbox name."}})
+
+    if "ids" not in args and ("ids_from" not in args or "ids_to" not in args):
+        return jsonify({"status": "ERROR", 
+                        "data": {"msg": "Undefined mailbox name."}})
+
     try:
         status, count = imap_client.len_mailbox(
             adjust_mailbox(args.get("mailbox", "INBOX"))
         )
 
         if count > 0:
-            ids = range(count, 0, -1) # Create ids of mails
-            ids_from = max(int(args.get(
-                           "ids_from", DEFAULT_IDS_FROM)), 1) - 1
-            ids_to = min(int(args.get(
-                         "ids_to", DEFAULT_IDS_TO)), len(ids))
-
-            if ids_from > ids_to:
-                status = "ERROR"
-                data = "Invalid e-mails' ranges (ids_from <= ids_to)."
+            if "ids" in args:
+                ids = args["ids"]
             else:
-                status, data = imap_client.get_headers(
-                    ids[slice(ids_from, ids_to)],
-                    fields=["Subject", "Date", "From", "Content-Type"]
-                )
-                data = list(reversed(data))
+                ids_from = max(int(args.get(
+                               "ids_from", DEFAULT_IDS_FROM)), 1) - 1
+                ids_to = min(int(args.get(
+                             "ids_to", DEFAULT_IDS_TO)), count)
+
+                if ids_from > ids_to:
+                    raise ImapClientError("Invalid e-mails' ranges " +
+                                          "(ids_from > ids_to).")
+
+                ids = range(ids_from, ids_to + 1)
+
+            status, data = imap_client.get_headers(
+                ids,
+                fields=["Subject", "Date", "From", "Content-Type"]
+            )
+            data = list(reversed(data))
         else:
             status, data = "OK", [] # Empty mailbox
 

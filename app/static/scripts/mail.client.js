@@ -25,8 +25,8 @@ var settings = {
 *******************************************************************************/
 
 function initClient() {
-    // getMailboxes({callback: updateMailboxesList});
-    // EMailsListController.init({mailbox: settings.default_mailbox});
+    getMailboxes({callback: updateMailboxesList});
+    EMailsListController.init({mailbox: settings.default_mailbox});
 
     $(document).on("click", ".email-open", function() {
         $(this).parent().removeClass("unseen");
@@ -242,21 +242,23 @@ function initClient() {
     });
 
     $.datetimepicker.setLocale('en');
-    $('#email-search-after').datetimepicker({
+    $('#email-search-date-from').datetimepicker({
         timepicker:false,
-        format:'Y-m-d'
+        format:'Y-m-d',
+        theme: "dark"
     });
-    $('#email-search-before').datetimepicker({
+    $('#email-search-date-to').datetimepicker({
         timepicker:false,
-        format:'Y-m-d'
+        format:'Y-m-d',
+        theme: "dark"
     });
     
     $("#email-search-btn").click(function() {
         var inputs = [
-            { key: "From", dom: "#email-search-from", decode: true },
-            { key: "To", dom: "#email-search-to", decode: true },
-            { key: "Subject", dom: "#email-search-subject", decode: true },
-            { key: "Text", dom: "#email-search-text", decode: true }
+            { key: "FROM", dom: "#email-search-from", decode: true },
+            { key: "TO", dom: "#email-search-to", decode: true },
+            { key: "SUBJECT", dom: "#email-search-subject", decode: true },
+            { key: "TEXT", dom: "#email-search-text", decode: true }
         ];
 
         var criteria = inputs.map(function(item) {
@@ -269,13 +271,47 @@ function initClient() {
             return (item.value !== "")
         });
 
-        searchEMails({
-            criteria: criteria,
-            mailbox: "INBOX",
-            callback: function(response) {
-                alert(JSON.stringify(response));
+        var date_from = $("#email-search-date-from").val();
+        if (date_from !== "") {
+            var date_from_m = moment(date_from, "YYYY-MM-DD");
+            if (date_from_m.isValid()) {
+                criteria.push({
+                    key: "SENTSINCE",
+                    value: date_from_m.format("D-MMM-YYYY"),
+                    decode: false
+                });
+            } else {
+                alert("Invalid format of 'from' date.");
             }
-        });
+        }
+        var date_to = $("#email-search-date-to").val();
+        if (date_to !== "") {
+            var date_to_m = moment(date_to, "YYYY-MM-DD");
+            if (date_to_m.isValid()) {
+                criteria.push({
+                    key: "SENTBEFORE",
+                    value: date_to_m.add(1, "day").format("D-MMM-YYYY"),
+                    decode: false
+                });
+            } else {
+                alert("Invalid format of 'to' date");
+            }
+        }
+
+        var mailbox = $("#email-search-mailbox option:selected").data("name");
+
+        if (criteria.length > 0) {
+            searchEMails({
+                criteria: criteria,
+                mailbox: mailbox,
+                callback: function(response) {
+                    alert(JSON.stringify(response));
+                    $("#extended-emails-search").hide();
+                }
+            });          
+        } else {
+            alert("You have not specified any criteria.");
+        }
     });
 }
 
@@ -398,6 +434,9 @@ function updateMailboxesList(response) {
         var $moveToList = $("#move-to-list-btn > ul");
         $moveToList.children().not(".const-item").remove();
 
+        var $searchList = $("#email-search-mailbox");
+        $searchList.empty();
+
         for(var i = 0; i < mailboxes.length; i++) {
             var flags = mailboxes[i].flags.join(" ").toUpperCase();
             if (flags.indexOf("\\NOSELECT") >= 0) {
@@ -427,6 +466,10 @@ function updateMailboxesList(response) {
                              "<a class='move-to-btn' href='#'>" + 
                              mailboxes[i].utf16 + "</a></li>");
             $moveToList.prepend($li);
+
+            $searchList.append("<option data-name='" + mailboxes[i].utf7 + "' " +
+                               (flags.indexOf("\\ALL") >= 0 ? "selected" : "") + 
+                               ">" + mailboxes[i].utf16 + "</option>");
         }
         toggleActiveMailbox();
     } else {
