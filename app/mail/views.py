@@ -135,13 +135,12 @@ def imap_get_headers(imap_client):
         status, count = imap_client.len_mailbox(
             adjust_mailbox(args.get("mailbox", "INBOX"))
         )
-
         if count > 0:
             if "ids" in args:
                 ids = args["ids"]
             else:
                 ids_from = max(int(args.get(
-                               "ids_from", DEFAULT_IDS_FROM)), 1) - 1
+                               "ids_from", DEFAULT_IDS_FROM)), 1)
                 ids_to = min(int(args.get(
                              "ids_to", DEFAULT_IDS_TO)), count)
 
@@ -403,6 +402,29 @@ def imap_search(imap_client):
     try:
         imap_client.select(adjust_mailbox(args["mailbox"]))
         status, data = imap_client.csearch(criteria)
+    except ImapClientError as e:
+        return jsonify({"status": "ERROR", "data": {"msg": str(e)}})        
+
+    if status != "OK":
+        return jsonify({"status": "ERROR", "data": {"msg": data}}) 
+    else:
+        return jsonify({"status": "OK", "data": data})
+
+
+@mail.route("/len_mailbox", methods=["GET", "POST"])
+@imap_authentication()
+def imap_len_mailbox(imap_client):
+    if request.method == "POST":
+        args = request.form
+    elif request.method == "GET":
+        args = request.args
+
+    if "mailbox" not in args:
+        return jsonify({"status": "ERROR", 
+                        "data": {"msg": "Undefined mailbox name."}})
+
+    try:
+        status, data = imap_client.len_mailbox(args["mailbox"])
     except ImapClientError as e:
         return jsonify({"status": "ERROR", "data": {"msg": str(e)}})        
 

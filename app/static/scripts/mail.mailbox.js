@@ -8,7 +8,7 @@ $("#mailbox-modal").on("show.bs.modal", function(event) {
         $(this).find("#create-mailbox-btn").html("Create");
     } else if (action === "rename") {
         var mailbox = $("#mailbox-list").find("[data-name='" + 
-                        EMailsListController.mailbox + "']").html();
+                        ClientController.mailbox + "']").html();
         $(this).find(".modal-header").html("Rename Mailbox '" + mailbox + "'");
         $(this).find("#create-mailbox-btn").html("Rename");
     }
@@ -43,14 +43,14 @@ $("#create-mailbox-btn").click(function() {
         } else if (action == "rename") {
 
             renameMailbox({
-                oldmailbox: EMailsListController.mailbox,
+                oldmailbox: ClientController.mailbox,
                 newmailbox: mailbox,
                 callback: function(response) {
                     if (response.status == "OK") {
                         getMailboxes({
                             callback: function(response) {
                                 // Update name of active mailbox stored
-                                // in EMailsListController. 
+                                // in ClientController. 
                                 if (response.status == "OK") {
                                     var mboxes = response.data.filter(
                                         function(item) {
@@ -58,7 +58,7 @@ $("#create-mailbox-btn").click(function() {
                                         }
                                     );
                                     if (mboxes.length > 0) {
-                                        EMailsListController.mailbox = mboxes[0].utf7;
+                                        ClientController.mailbox = mboxes[0].utf7;
                                     }
                                 }
                                 updateMailboxesList(response);

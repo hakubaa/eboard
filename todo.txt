@@ -10,7 +10,8 @@ E-Mail Client:
 - attachments
 - update emails list when moving mails
 - delete email forever
-- email and name
+- email and 
+- refactor e-mailslistcontroller
 
 DONE:
 - add pages

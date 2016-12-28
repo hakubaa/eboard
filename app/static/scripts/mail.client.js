@@ -26,22 +26,22 @@ var settings = {
 
 function initClient() {
     getMailboxes({callback: updateMailboxesList});
-    EMailsListController.init({mailbox: settings.default_mailbox});
+    ClientController.init({mailbox: settings.default_mailbox});
 
     $(document).on("click", ".email-open", function() {
         $(this).parent().removeClass("unseen");
         $("#email-modal").data("email-id", $(this).parent().data("email-id"));
-        $("#email-modal").data("mailbox", EMailsListController.mailbox);
+        $("#email-modal").data("mailbox", ClientController.mailbox);
         $("#email-modal").modal("show");
     });
     $(document).on("click", "#mailbox-list li", function() {
-        EMailsListController.selectMailbox($(this).data("name"));
+        ClientController.selectMailbox($(this).data("name"));
     });
     $("#prev-emails-btn").click(function() {
-        EMailsListController.getPrevEMails();
+        ClientController.getPrevEMails();
     });
     $("#next-emails-btn").click(function() {
-        EMailsListController.getNextEMails();
+        ClientController.getNextEMails();
     });    
     $(".select-emails").click(function() {
         var mode = $(this).data("select-type");
@@ -59,7 +59,7 @@ function initClient() {
             command = "remove";
         }
         var id = $(this).parent().parent().data("email-id");
-        var mailbox = EMailsListController.mailbox;
+        var mailbox = ClientController.mailbox;
 
         var $self = $(this);;
         setInfo("Updating e-mail's flags ...");
@@ -143,7 +143,7 @@ function initClient() {
     });
 
     $("#refresh-btn").click(function() {
-        EMailsListController.init({mailbox: EMailsListController.mailbox});
+        ClientController.init({mailbox: ClientController.mailbox});
     });
 
     $(document).on("click", ".move-to-btn", function() {
@@ -157,15 +157,15 @@ function initClient() {
 
     $("#more-delete-mailbox").click(function() {
         var mailbox = $("#mailbox-list").find("[data-name='" + 
-                        EMailsListController.mailbox + "']").html();
+                        ClientController.mailbox + "']").html();
         if (confirm("Are you sure you want to delete '" + mailbox + "' mailbox?")) {
             setInfo("Deleting mailbox ...");
             deleteMailbox({
-                mailbox: EMailsListController.mailbox,
+                mailbox: ClientController.mailbox,
                 callback: function(response) {
                     if (response.status == "OK") {
                         getMailboxes({callback: updateMailboxesList});
-                        EMailsListController.init({mailbox: settings.default_mailbox});
+                        ClientController.init({mailbox: settings.default_mailbox});
                         alert("Mailbox '" + mailbox + "' has been " +
                               "successfully deleted.");
                     } else {
@@ -193,7 +193,7 @@ function initClient() {
             setInfo("Updating e-mail's flags ...");
             updateFlags({
                 ids: emailsIds.join(), 
-                mailbox: EMailsListController.mailbox, 
+                mailbox: ClientController.mailbox, 
                 command: "remove",
                 flags: "\\Seen",
                 callback: function(response) {
@@ -224,7 +224,7 @@ function initClient() {
             setInfo("Updating e-mail's flags ...");
             updateFlags({
                 ids: emailsIds.join(), 
-                mailbox: EMailsListController.mailbox, 
+                mailbox: ClientController.mailbox, 
                 command: "add",
                 flags: "\\Seen",
                 callback: function(response) {
@@ -305,7 +305,17 @@ function initClient() {
                 criteria: criteria,
                 mailbox: mailbox,
                 callback: function(response) {
-                    alert(JSON.stringify(response));
+                    if (response.status == "OK") {
+                        getEMailsHeaders({
+                            mailbox: mailbox,
+                            ids: response.data,
+                            callback: function(response) {
+                                
+                            }
+                        })
+                    } else {
+                        alert(JSON.stringify(response.data));
+                    }
                     $("#extended-emails-search").hide();
                 }
             });          
@@ -319,7 +329,11 @@ function initClient() {
     UI controllers
 *******************************************************************************/
 
-var EMailsListController = {
+var ClientController = {
+    select: function(mailbox) {
+        
+    },
+    
     init: function(options) {
         if (options === undefined) options = {};
         if (options.emailsPerPage === undefined) {
@@ -485,7 +499,7 @@ function moveSelectedEMails(mailbox, $emails) {
     setInfo("Moving e-mails ...");
     moveEMails({
         ids: emailsIds.join(),
-        source_mailbox: EMailsListController.mailbox,
+        source_mailbox: ClientController.mailbox,
         dest_mailbox: mailbox,
         callback: function(response) {
             setInfo("");
@@ -500,7 +514,7 @@ function moveSelectedEMails(mailbox, $emails) {
 }
 
 function toggleActiveMailbox(mailbox) {
-    if (mailbox === undefined) mailbox = EMailsListController.mailbox;
+    if (mailbox === undefined) mailbox = ClientController.mailbox;
     if (mailbox) {
         var $list = $("#mailbox-list");
         $list.children(".active").removeClass("active");
@@ -764,11 +778,21 @@ function getEMailsHeaders(options) {
     if (options.to === undefined) options.to = options.from + 
                                                settings.emails_per_page;
 
-    $.post(settings.ajax_get_headers, {
-        mailbox: options.mailbox,
-        ids_from: options.from,
-        ids_to: options.to
-    })
+    var params;
+    if (options.ids !== undefined) {
+        params = {
+            mailbox: options.mailbox,
+            ids: options.ids
+        };   
+    } else {
+        params = {
+            mailbox: options.mailbox,
+            ids_from: options.from,
+            ids_to: options.to
+        };          
+    }
+
+    $.post(settings.ajax_get_headers, params)
         .done(function(response) {
             if (options.callback !== undefined) {
                 options.callback(response);
