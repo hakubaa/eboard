@@ -32,17 +32,55 @@ function EMailsManager(options) {
     this.requestInProgress = false;
     this.callbacks = {
         onLoad: undefined,
-        onLoaded: undefined
+        onLoaded: undefined,
+        onInit: undefined
     };
     this.uid = options.uid;
     this.ids = undefined;
     this.cache = {};
+    this.source = undefined;
 }
 
 EMailsManager.prototype.init = function(options) {
+    if (this.callbacks.onInit !== undefined) {
+        this.callbacks.onInit();
+    }
     if (options === undefined) options = {};
     this.mailbox = options.mailbox;
     this.page = 0;
+    if (this.source === undefined) {
+        throw("Undefined source of e-mails.");
+    }
+    var self = this; // used in callback
+
+    // source.load should call our callback and user callback (in options)
+    // Move user's callback to outer_callback and call it from our
+    // callback.
+    options.outer_callback = options.callback;
+    options.uid = this.uid;
+    options.callback = function(response) {
+        if (response.status === "OK") {
+            self.ids = response.data;
+            self.ids.reverse();
+        }
+        if (options.outer_callback !== undefined) {
+            options.outer_callback(response);
+        }
+    }
+    // Save options, used in refresh method.
+    this.init_options = options;
+    this.source.load(options);
+}
+
+EMailsManager.prototype.setSource = function(source) {
+    this.source = source;
+}
+
+EMailsManager.prototype.refresh = function() {
+    if (this.callbacks.onInit !== undefined) {
+        this.callbacks.onInit();
+    }
+    this.source.load(this.init_options);  
 }
 
 EMailsManager.prototype.getCurrentPage = function() {
@@ -138,7 +176,7 @@ EMailsManager.prototype.loadEMails = function(page) {
                 response.status = "OK";
                 response.data = [];
                 for (var i = 0; i < ids.length; i++) {
-                    response.push(this.cache[this.toCacheId(ids[i])]);
+                    response.data.push(this.cache[this.toCacheId(ids[i])]);
                 }
                 this.callbacks.onLoaded(response);
             }
@@ -187,34 +225,27 @@ EMailsManager.prototype.getEMailsCount = function() {
     }
 };
 
+
 /******************************************************************************
- * SelectManager
- * - iterate all emails in selected mailbox
+ * SelectSource
+ * - get emails ids from select
  ******************************************************************************/
 
-function SelectManager(options) {
-    EMailsManager.call(this, options);
-    
-}
-SelectManager.prototype = Object.create(EMailsManager.prototype);
-SelectManager.prototype.constructor = SelectManager;
+function SelectSource() { }
 
-SelectManager.prototype.init = function(options) {
+SelectSource.prototype.load = function(options) {
     if (options === undefined) options = {};
     if (options.mailbox === undefined) {
-        throw("SelectManager: undefined mailbox in init"); 
+        throw("SelectSource: undefined mailbox in init"); 
     }
-    EMailsManager.prototype.init.call(this, options);
-
-    var self = this;
+    var is_uid = false;
+    if (options.uid !== undefined) {
+        is_uid = options.uid;
+    }
     getEMailsList({
         mailbox: options.mailbox,
-        uid: this.uid,
+        uid: is_uid,
         callback: function(response) {
-            if (response.status === "OK") {
-                self.ids = response.data;
-                self.ids.reverse();
-            }
             if (options.callback !== undefined) {
                 options.callback(response);
             }
@@ -223,36 +254,29 @@ SelectManager.prototype.init = function(options) {
 };
 
 /******************************************************************************
- * SearchManager 
- * - iterate emails returns by search method
+ * SearchSource
+ * - get e-mails ids from search
  ******************************************************************************/
 
-function SearchManager(options) {
-    EMailsManager.call(this, options);
-}
-SearchManager.prototype = Object.create(EMailsManager.prototype);
-SearchManager.prototype.constructor = SelectManager;
+function SearchSource() { }
 
-SearchManager.prototype.init = function(options) {
+SearchSource.prototype.load = function(options) {
     if (options === undefined) options = {};
     if (options.mailbox === undefined) {
-        throw("SearchManager: undefined mailbox in init"); 
+        throw("SearchSource: undefined mailbox in init"); 
     }
     if (options.criteria === undefined) {
-        throw("SearchManager: undefined criteria in init"); 
+        throw("SearchSource: undefined criteria in init"); 
     }
-    EMailsManager.prototype.init.call(this, options);
-
-    var self = this;
+    var is_uid = false;
+    if (options.uid !== undefined) {
+        is_uid = options.uid;
+    }
     searchEMails({
             mailbox: options.mailbox,
             criteria: options.criteria,
-            uid: this.uid,
+            uid: is_uid,
             callback: function(response) {
-                if (response.status === "OK") {
-                    self.ids = response.data;
-                    self.ids.reverse();
-                }
                 if (options.callback !== undefined) {
                     options.callback(response);
                 }         

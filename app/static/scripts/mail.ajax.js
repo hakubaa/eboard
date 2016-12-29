@@ -166,6 +166,10 @@ function updateFlags(options) {
         });
 }
 
+/**
+ * Send XMLHttpRequest for moving selected e-mails between mailboxes.
+ * @param {Object} options
+ */
 function moveEMails(options) {
     if (options === undefined) options = {};
     if (options.ids === undefined) {
@@ -200,6 +204,10 @@ function moveEMails(options) {
         });
 }
 
+/**
+ * Send XMLHttpRequest for list of mailboxes.
+ * @param {Object} options
+ */
 function getMailboxes(options) {
     if (options === undefined) options = {};
 
@@ -219,6 +227,10 @@ function getMailboxes(options) {
         });
 }
 
+/**
+ * Send XMLHttpRequest for raw e-mails.
+ * @param {Object} options
+ */
 function getRawEMails(options) {
     if (options === undefined) options = {};
     if (options.uid === undefined) options.uid = false;
@@ -246,6 +258,10 @@ function getRawEMails(options) {
     }
 }
 
+/**
+ * Send XMLHttpRequest for formated e-mail.
+ * @param {Object} options
+ */
 function getEMail(options) {
     if (options === undefined) options = {};
     if (options.mailbox === undefined) options.mailbox = settings.default_mailbox;
@@ -275,7 +291,10 @@ function getEMail(options) {
     }
 }
 
-// NO TESTS
+/**
+ * Send XMLHttpRequest to create new mailbox.
+ * @param {Object} options
+ */
 function createMailbox(options) {
     if (options === undefined) options = {};
     if (options.mailbox !== undefined) {
@@ -300,7 +319,10 @@ function createMailbox(options) {
     }
 }
 
-// NO TESTS
+/**
+ * Send XMLHttpRequest to delete the mailbox.
+ * @param {Object} options
+ */
 function deleteMailbox(options) {
     if (options === undefined) options = {};
     if (options.mailbox !== undefined) {
@@ -325,7 +347,10 @@ function deleteMailbox(options) {
     }
 }
 
-// NO TESTS
+/**
+ * Send XMLHttpRequest to rename the mailbox.
+ * @param {Object} options
+ */
 function renameMailbox(options) {
     if (options === undefined) options = {};
 

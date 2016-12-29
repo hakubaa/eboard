@@ -5,7 +5,8 @@
 var settings = {
     default_mailbox: "INBOX",
     emails_per_page: 50,
-    enable_uid: true
+    enable_uid: true,
+    enable_caching: true
 };
 
 /*******************************************************************************
@@ -16,10 +17,38 @@ var settings = {
  * The manager of emails.
  * @type {EMailsIterator}
  */
-var emanager = undefined;
+var emanager;
 
 function initClient() {
-    emanager = createSelectManager(settings.default_mailbox);
+    emanager = new EMailsManager({
+            emailsPerPage: settings.emails_per_page,
+            uid: settings.enable_uid,
+            caching: settings.enable_caching
+    });
+    emanager.on("onInit", function() {
+        setInfo("Initializing source ...");
+    });
+    emanager.on("onLoad", function() {
+        setInfo("Loading e-mails ...");    
+    });
+    emanager.on("onLoaded", function(response) {
+        if (response.status == "OK") {
+            updateEMailsList(response);
+            toggleActiveMailbox(emanager.getCurrentMailbox());
+            updatePageInfo({
+                from: 0,
+                to: 0,
+                total_emails: emanager.getEMailsCount()
+            });
+        } else {
+            alert("ERROR: " + JSON.stringify(response.data));
+        }
+        setInfo("");
+    });
+    initSelectSource(settings.default_mailbox);
+    emanager.setSource(new SelectSource());
+
+    // emanager = createSelectManager(settings.default_mailbox);
     getMailboxes({callback: updateMailboxesList});
 
     $(document).on("click", ".email-open", function() {
@@ -29,7 +58,7 @@ function initClient() {
         $("#email-modal").modal("show");
     });
     $(document).on("click", "#mailbox-list li", function() {
-        emanager = createSelectManager($(this).data("name"));
+        initSelectSource(JSON.stringify(response.data));
     });
     $("#prev-emails-btn").click(function() {
         emanager.prevPage();
@@ -138,7 +167,8 @@ function initClient() {
     });
 
     $("#refresh-btn").click(function() {
-        emanager = createSelectManager(emanager.getCurrentMailbox());
+        // emanager = createSelectManager(emanager.getCurrentMailbox());
+        emanager.refresh();
     });
 
     $(document).on("click", ".move-to-btn", function() {
@@ -160,7 +190,7 @@ function initClient() {
                 callback: function(response) {
                     if (response.status == "OK") {
                         getMailboxes({callback: updateMailboxesList});
-                        emanager = createSelectManager(settings.default_mailbox);
+                        initSelectSource(settings.default_mailbox);
                         alert("Mailbox '" + mailbox + "' has been " +
                               "successfully deleted.");
                     } else {
@@ -298,12 +328,13 @@ function initClient() {
         var mailbox = $("#email-search-mailbox option:selected").data("name");
 
         if (criteria.length > 0) {
-            var smanager = new SearchManager({
-                                emailsPerPage: settings.emails_per_page,
-                                uid: settings.enable_uid
-                            });
+            emanager.setSource(new SearchSource());
+            // var smanager = new SearchManager({
+                                // emailsPerPage: settings.emails_per_page,
+                                // uid: settings.enable_uid
+                            // });
             setInfo("Searching e-mails ...");
-            smanager.init({
+            emanager.init({
                 mailbox: mailbox, 
                 criteria: criteria,
                 uid: settings.enable_uid,
@@ -313,19 +344,19 @@ function initClient() {
                         // Response ok. Check number of found emails. When more
                         // than zero switch emanager with smanager, but save
                         // callbacks. Load first page.
-                        if (smanager.getEMailsCount() > 0) {
+                        if (emanager.getEMailsCount() > 0) {
                             
-                            smanager.on("onLoad", function() {
+                            emanager.on("onLoad", function() {
                                 setInfo("Loading e-mails ...");    
                             });
-                            smanager.on("onLoaded", function(response) {
+                            emanager.on("onLoaded", function(response) {
                                 if (response.status == "OK") {
                                     updateEMailsList(response);
-                                    toggleActiveMailbox(smanager.getCurrentMailbox());
+                                    toggleActiveMailbox(emanager.getCurrentMailbox());
                                     updatePageInfo({
                                         from: 0,
                                         to: 0,
-                                        total_emails: smanager.getEMailsCount()
+                                        total_emails: emanager.getEMailsCount()
                                     });
                                 } else {
                                     alert("ERROR: " + JSON.stringify(response.data));
@@ -333,7 +364,7 @@ function initClient() {
                                 setInfo("");
                             });
                             
-                            emanager = smanager;
+                            // emanager = smanager;
                             emanager.loadEMails(page=1);
                         }  
                     } else {
@@ -351,39 +382,17 @@ function initClient() {
     Functions
 *******************************************************************************/
 
-function createSelectManager(mailbox) {
-    var manager = new SelectManager({
-            emailsPerPage: settings.emails_per_page,
-            uid: settings.enable_uid
-        });
-
-    manager.on("onLoad", function() {
-        setInfo("Loading e-mails ...");    
-    });
-    manager.on("onLoaded", function(response) {
-        if (response.status == "OK") {
-            updateEMailsList(response);
-            toggleActiveMailbox(manager.getCurrentMailbox());
-            updatePageInfo({
-                from: 0,
-                to: 0,
-                total_emails: manager.getEMailsCount()
-            });
-        } else {
-            alert("ERROR: " + JSON.stringify(response.data));
-        }
-        setInfo("");
-    });
-    manager.init({
+function initSelectSource(mailbox) {
+    emanager.setSource(new SelectSource());
+    emanager.init({
         mailbox: mailbox, 
         callback: function(response) {
             if (response.status === "OK") {
-                manager.loadEMails(page=1);
+                emanager.loadEMails(page=1);
             } else {
                 alert("ERROR: " + JSON.stringify(response.data));
             }
         }});  
-    return manager;      
 }
 
 function setInfo(text) {
