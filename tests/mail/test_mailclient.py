@@ -93,7 +93,7 @@ class CSearchTest(unittest.TestCase):
                             {"key": "SUBJECT", "value": "Test Mail", "decode": True}
                         ], clear_socket=False)
         self.assertEqual(status, "OK")
-        self.assertEqual(data, ['3', '4'])
+        self.assertEqual(set(data), set([3, 4]))
 
     def test_returns_status_and_msg_when_bad_or_error(self, imap_mock):
         socket_mock = self.mock_socket(imap_mock)
@@ -767,7 +767,7 @@ class ListMailboxTest(FlaskTestCase):
         iclient = ImapClient("imap.gmail.com")
         status, mails_ids = iclient.list_mailbox()
         self.assertEqual(status, "OK")
-        self.assertEqual(mails_ids, [b'1', b'2', b'3', b'4', b'5'])
+        self.assertEqual(mails_ids, [1, 2, 3, 4, 5])
         
 
 

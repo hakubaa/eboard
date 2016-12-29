@@ -97,7 +97,6 @@ def client(imap_client):
     return render_template("mail/client.html", 
                            username=imap_client.username)
 
-
 @mail.route("/list", methods=["GET", "POST"])
 @imap_authentication()
 def imap_list(imap_client):
@@ -131,6 +130,7 @@ def imap_get_headers(imap_client):
         return jsonify({"status": "ERROR", 
                         "`data": {"msg": "Undefined mailbox name."}})
 
+    is_uid = args.get("uid", "False").upper() in ("TRUE", "T", "YES", "Y")
     try:
         status, count = imap_client.len_mailbox(
             adjust_mailbox(args.get("mailbox", "INBOX"))
@@ -139,6 +139,7 @@ def imap_get_headers(imap_client):
             if "ids" in args:
                 ids = args["ids"]
             else:
+                is_uid = False #uid required ids
                 ids = range(count, 0, -1) # Create ids of mails
                 ids_from = max(int(args.get(
                                "ids_from", DEFAULT_IDS_FROM)), 1) - 1
@@ -154,7 +155,7 @@ def imap_get_headers(imap_client):
             status, data = imap_client.get_headers(
                 ids,
                 fields=["Subject", "Date", "From", "Content-Type"],
-                sort_by_date=False
+                uid=is_uid, sort_by_date=False
             )
             data = list(reversed(data))
         else:
@@ -175,13 +176,14 @@ def imap_get_raw_emails(imap_client):
     elif request.method == "GET":
         args = request.args
 
+    is_uid = args.get("uid", "False").upper() in ("TRUE", "T", "YES", "Y")
     try:
         ids = args.get("ids", None)
         if ids:
             status_select, _ = imap_client.select(
                 adjust_mailbox(args.get("mailbox", "INBOX"))
             )
-            status, data = imap_client.get_emails(ids)
+            status, data = imap_client.get_emails(ids, uid=is_uid)
 
             # Process & decode emails
             emails = list()
@@ -206,11 +208,12 @@ def imap_get_email(imap_client):
     elif request.method == "GET":
         args = request.args
 
+    is_uid = args.get("uid", "False").upper() in ("TRUE", "T", "YES", "Y")
     try:
         email_id = args.get("id", None)
         if email_id:
             imap_client.select(adjust_mailbox(args.get("mailbox", "INBOX")))
-            stuats, data = imap_client.get_emails(email_id)
+            stuats, data = imap_client.get_emails(email_id, uid=is_uid)
 
             output = None
             if (len(data) > 0):
@@ -248,10 +251,12 @@ def imap_move_emails(imap_client):
         return jsonify({"status": "ERROR", 
                         "data": {"msg": "Undefined destination mailbox."}})        
 
+    is_uid = args.get("uid", "False").upper() in ("TRUE", "T", "YES", "Y")
     try:
         imap_client.select(adjust_mailbox(source_mailbox))
         status, data = imap_client.move_emails(
-                            args["ids"], adjust_mailbox(dest_mailbox)
+                            args["ids"], adjust_mailbox(dest_mailbox),
+                            uid=is_uid
                        )
         if status == "OK":
             return jsonify({"status": "OK", "data": data})
@@ -290,9 +295,10 @@ def imap_store(imap_client, command):
         return jsonify({"status": "ERROR", 
                         "data": {"msg": "Unsupported command."}})
 
+    is_uid = args.get("uid", "False").upper() in ("TRUE", "T", "YES", "Y")
     try:
         imap_client.select(adjust_mailbox(args["mailbox"]))
-        status, data = flags_method(args["ids"], args["flags"])
+        status, data = flags_method(args["ids"], args["flags"], uid=is_uid)
         if status != "OK":
             return jsonify({"status": "ERROR", "data": {"msg": data}}) 
         else:
@@ -400,10 +406,11 @@ def imap_search(imap_client):
         return jsonify({"status": "ERROR", 
                         "data": {"msg": "Undefined search criteria."}})
 
+    is_uid = args.get("uid", "False").upper() in ("TRUE", "T", "YES", "Y")
     criteria = json.loads(args["criteria"])
     try:
         imap_client.select(adjust_mailbox(args["mailbox"]))
-        status, data = imap_client.csearch(criteria)
+        status, data = imap_client.csearch(criteria, uid=is_uid)
     except ImapClientError as e:
         return jsonify({"status": "ERROR", "data": {"msg": str(e)}})        
 
@@ -448,8 +455,10 @@ def imap_list_mailbox(imap_client):
         return jsonify({"status": "ERROR", 
                         "data": {"msg": "Undefined mailbox name."}})
 
+    is_uid = args.get("uid", "False").upper() in ("TRUE", "T", "YES", "Y")
     try:
-        status, data = imap_client.list_mailbox(adjust_mailbox(args["mailbox"]))
+        status, data = imap_client.list_mailbox(adjust_mailbox(args["mailbox"]),
+                                                uid=is_uid)
     except ImapClientError as e:
         return jsonify({"status": "ERROR", "data": {"msg": str(e)}})     
 

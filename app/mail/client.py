@@ -209,7 +209,7 @@ class ImapClient:
                     charset, *criteria or ("ALL",)
                 )
             if search_status == "OK":
-                return (search_status, data[0].split())
+                return (search_status, [int(item) for item in data[0].split()])
             else:
                 raise ImapClientError(data)
         else:
@@ -313,8 +313,7 @@ class ImapClient:
         if data_raw:
             data_match = re.search("\* SEARCH (?P<ids>.*)", data_raw) 
             if data_match:
-                data = data_match.group("ids").split(" ")
-                data = sorted(data, key = lambda item: int(item), reverse=True)
+                data = sorted(int(item) for item in data_match.group("ids").split(" "))
             else:
                 data = []
         else:
@@ -430,7 +429,6 @@ class ImapClient:
             return ("OK", headers)
         else:
             raise ImapClientError(data)
-
 
     def get_emails(self, ids, *, msg_parts = "(RFC822)", uid=False): 
         '''

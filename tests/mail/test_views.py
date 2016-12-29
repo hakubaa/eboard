@@ -45,7 +45,7 @@ class ListMailboxTest(TestCase):
         self.login_imap_client()
         response = self.client.get(url_for("mail.imap_list_mailbox"),
                                    query_string=dict(mailbox="INBOX")) 
-        mock.assert_called_with('"INBOX"')    
+        mock.assert_called_with('"INBOX"', uid=False)    
 
     def test_returns_status_and_list_with_ids(self, mock_client):
         mock = self.mock_list_mailbox(mock_client)
@@ -82,6 +82,12 @@ class ListMailboxTest(TestCase):
         data = json.loads(response.data.decode("utf-8"))
         self.assertEqual(data["status"], "ERROR")
 
+    def test_accepts_uid_and_pass_it_to_list_mailbox(self, mock_client):
+        mock = self.mock_list_mailbox(mock_client)
+        self.login_imap_client()
+        response = self.client.get(url_for("mail.imap_list_mailbox"),
+                                   query_string=dict(mailbox="INBOX", uid=True))     
+        mock.assert_called_with('"INBOX"', uid=True)                  
 
 @patch("app.mail.views.ImapClient")
 class LenMailboxTest(TestCase):
@@ -201,7 +207,8 @@ class CSearchTest(TestCase):
                             criteria='[{"key":"SUBJECT","value":"Test","decode":true}]'
                         )
                    )  
-        mock.assert_called_with([{"key":"SUBJECT","value":"Test","decode":True}])
+        mock.assert_called_with([{"key":"SUBJECT","value":"Test","decode":True}],
+                                uid=False)
 
     def test_returns_error_when_no_mailbox(self, mock_client):
         mock = self.mock_csearch(mock_client)
@@ -289,76 +296,90 @@ class CSearchTest(TestCase):
         self.assertTrue(select_mock.called)
         self.assertEqual(data["status"], "ERROR")
 
+    def test_accepts_uid_and_passes_it_to_csearch_method(self, mock_client):
+        mock = self.mock_csearch(mock_client)
+        self.login_imap_client()
+        response = self.client.get(
+                        url_for("mail.imap_search"),
+                        query_string=dict(
+                            mailbox="INBOX",
+                            criteria='[{"key":"SUBJECT","value":"Test","decode":true}]',
+                            uid="True"
+                        )
+                   )  
+        mock.assert_called_with([{"key":"SUBJECT","value":"Test","decode":True}],
+                                uid=True)       
 
-# @patch("app.mail.views.ImapClient")
-# class RenameMailboxTest(TestCase):
 
-#     def create_app(self):
-#         return create_app("testing")
+@patch("app.mail.views.ImapClient")
+class RenameMailboxTest(TestCase):
 
-#     def login_imap_client(self, username="Testowy", password="Testowe"):
-#          with self.client.session_transaction() as sess:
-#             sess["imap_username"] = username
-#             sess["imap_password"] = password 
-#             sess["imap_addr"] = "testowy"  
+    def create_app(self):
+        return create_app("testing")
 
-#     def mock_rename(self, mock_client, response = ("OK", ["INFO"])):
-#         mock = Mock()
-#         mock.return_value = response
-#         mock_client.return_value.rename = mock
-#         return mock
+    def login_imap_client(self, username="Testowy", password="Testowe"):
+         with self.client.session_transaction() as sess:
+            sess["imap_username"] = username
+            sess["imap_password"] = password 
+            sess["imap_addr"] = "testowy"  
 
-#     def test_returns_error_for_not_authenticated_users(self, mock_client):
-#         self.mock_rename(mock_client)
-#         response = self.client.get(url_for("mail.imap_rename"),
-#                         query_string=dict(oldmailbox="INBOX",
-#                                           newmailbox="NEW_INBOX"))
-#         data = json.loads(response.data.decode("utf-8"))
-#         self.assertEqual(data["status"], "ERROR")
+    def mock_rename(self, mock_client, response = ("OK", [b"INFO"])):
+        mock = Mock()
+        mock.return_value = response
+        mock_client.return_value.rename = mock
+        return mock
 
-#     def test_calls_rename_method(self, mock_client):
-#         mock = self.mock_rename(mock_client)
-#         self.login_imap_client()
-#         self.client.get(url_for("mail.imap_rename"),
-#                         query_string=dict(oldmailbox="INBOX",
-#                                           newmailbox="NEW_INBOX"))
-#         mock.assert_called_with("INBOX", "NEW_INBOX")
+    def test_returns_error_for_not_authenticated_users(self, mock_client):
+        self.mock_rename(mock_client)
+        response = self.client.get(url_for("mail.imap_rename"),
+                        query_string=dict(oldmailbox="INBOX",
+                                          newmailbox="NEW_INBOX"))
+        data = json.loads(response.data.decode("utf-8"))
+        self.assertEqual(data["status"], "ERROR")
+
+    def test_calls_rename_method(self, mock_client):
+        mock = self.mock_rename(mock_client)
+        self.login_imap_client()
+        self.client.get(url_for("mail.imap_rename"),
+                        query_string=dict(oldmailbox="INBOX",
+                                          newmailbox="NEW_INBOX"))
+        mock.assert_called_with('"INBOX"', '"NEW_INBOX"')
      
 
-#     def test_returns_error_when_no_oldmailbox(self, mock_client):
-#         mock = self.mock_rename(mock_client)
-#         self.login_imap_client()
-#         response = self.client.get(url_for("mail.imap_rename"),
-#                         query_string=dict(newmailbox="NEW_INBOX"))
-#         data = json.loads(response.data.decode("utf-8"))
-#         self.assertEqual(data["status"], "ERROR")
+    def test_returns_error_when_no_oldmailbox(self, mock_client):
+        mock = self.mock_rename(mock_client)
+        self.login_imap_client()
+        response = self.client.get(url_for("mail.imap_rename"),
+                        query_string=dict(newmailbox="NEW_INBOX"))
+        data = json.loads(response.data.decode("utf-8"))
+        self.assertEqual(data["status"], "ERROR")
 
-#     def test_returns_error_when_no_newmailbox(self, mock_client):
-#         mock = self.mock_rename(mock_client)
-#         self.login_imap_client()
-#         response = self.client.get(url_for("mail.imap_rename"),
-#                         query_string=dict(oldmailbox="NEW_INBOX"))
-#         data = json.loads(response.data.decode("utf-8"))
-#         self.assertEqual(data["status"], "ERROR")
+    def test_returns_error_when_no_newmailbox(self, mock_client):
+        mock = self.mock_rename(mock_client)
+        self.login_imap_client()
+        response = self.client.get(url_for("mail.imap_rename"),
+                        query_string=dict(oldmailbox="NEW_INBOX"))
+        data = json.loads(response.data.decode("utf-8"))
+        self.assertEqual(data["status"], "ERROR")
 
-#     def test_returns_error_when_rename_method_fails(self, mock_client):
-#         mock = self.mock_rename(mock_client, response=("NO", ["FUCK"]))
-#         self.login_imap_client()
-#         response = self.client.get(url_for("mail.imap_rename"),
-#                         query_string=dict(oldmailbox="INBOX",
-#                                           newmailbox="NEW_INBOX"))
-#         data = json.loads(response.data.decode("utf-8"))
-#         self.assertEqual(data["status"], "ERROR")
+    def test_returns_error_when_rename_method_fails(self, mock_client):
+        mock = self.mock_rename(mock_client, response=("NO", [b"FUCK"]))
+        self.login_imap_client()
+        response = self.client.get(url_for("mail.imap_rename"),
+                        query_string=dict(oldmailbox="INBOX",
+                                          newmailbox="NEW_INBOX"))
+        data = json.loads(response.data.decode("utf-8"))
+        self.assertEqual(data["status"], "ERROR")
 
-#     def test_returns_error_when_rename_method_error(self, mock_client):
-#         mock = self.mock_rename(mock_client, response=("OK", ["WOW"]))
-#         mock.side_effect = ImapClientError
-#         self.login_imap_client()
-#         response = self.client.get(url_for("mail.imap_rename"),
-#                         query_string=dict(oldmailbox="INBOX",
-#                                           newmailbox="NEW_INBOX"))
-#         data = json.loads(response.data.decode("utf-8"))
-#         self.assertEqual(data["status"], "ERROR")
+    def test_returns_error_when_rename_method_error(self, mock_client):
+        mock = self.mock_rename(mock_client, response=("OK", ["WOW"]))
+        mock.side_effect = ImapClientError
+        self.login_imap_client()
+        response = self.client.get(url_for("mail.imap_rename"),
+                        query_string=dict(oldmailbox="INBOX",
+                                          newmailbox="NEW_INBOX"))
+        data = json.loads(response.data.decode("utf-8"))
+        self.assertEqual(data["status"], "ERROR")
 
 
 @patch("app.mail.views.ImapClient")
@@ -394,7 +415,7 @@ class StoreTest(TestCase):
         self.client.get(url_for("mail.imap_store", command="add"),
                         query_string=dict(ids="1", mailbox="INBOX",
                                           flags="\\Flagged"))
-        add_flags_mock.assert_called_with("1", "\\Flagged")
+        add_flags_mock.assert_called_with("1", "\\Flagged", uid=False)
 
     def test_calls_remove_flags_method(self, mock_client):
         flags_mock = self.mock_store(mock_client, command="remove_flags")
@@ -402,7 +423,7 @@ class StoreTest(TestCase):
         self.client.get(url_for("mail.imap_store", command="remove"),
                         query_string=dict(ids="1", mailbox="INBOX",
                                           flags="\\Flagged"))
-        flags_mock.assert_called_with("1", "\\Flagged")
+        flags_mock.assert_called_with("1", "\\Flagged", uid=False)
 
     def test_calls_set_flags_method(self, mock_client):
         flags_mock = self.mock_store(mock_client, command="set_flags")
@@ -410,7 +431,7 @@ class StoreTest(TestCase):
         self.client.get(url_for("mail.imap_store", command="set"),
                         query_string=dict(ids="1", mailbox="INBOX",
                                           flags="\\Flagged"))
-        flags_mock.assert_called_with("1", "\\Flagged")       
+        flags_mock.assert_called_with("1", "\\Flagged", uid=False)       
 
     def test_returns_error_when_improper_command(self, mock_client):
         flags_mock = self.mock_store(mock_client, command="set_flags")
@@ -486,6 +507,15 @@ class StoreTest(TestCase):
         data = json.loads(response.data.decode("utf-8"))
         self.assertEqual(data["status"], "ERROR")
 
+    def test_accepts_uid_and_passes_it_further(self, mock_client):
+        add_flags_mock = self.mock_store(mock_client, command="add_flags")
+        self.login_imap_client()
+        self.client.get(url_for("mail.imap_store", command="add"),
+                        query_string=dict(ids="1", mailbox="INBOX",
+                                          flags="\\Flagged",
+                                          uid="YES"))
+        add_flags_mock.assert_called_with("1", "\\Flagged", uid=True)
+
 
 @patch("app.mail.views.ImapClient")
 class MoveEmailsTest(TestCase):
@@ -536,7 +566,7 @@ class MoveEmailsTest(TestCase):
         self.client.get(url_for("mail.imap_move_emails"),
                         query_string=dict(ids="1", dest_mailbox="INBOX",
                                           source_mailbox="INBOX2"))
-        move_mock.assert_called_with("1", '"INBOX"')
+        move_mock.assert_called_with("1", '"INBOX"', uid=False)
 
     def test_returns_error_when_no_ids(self, mock_client):
         move_mock = self.mock_imap_client(mock_client)
@@ -598,175 +628,179 @@ class MoveEmailsTest(TestCase):
         data = json.loads(response.data.decode("utf-8"))
         self.assertEqual(data["status"], "ERROR")
 
+    def test_accepts_uid_and_passes_it_further(self, mock_client):
+        move_mock = self.mock_imap_client(mock_client)
+        self.login_imap_client()
+        self.client.get(url_for("mail.imap_move_emails"),
+                        query_string=dict(ids="1", dest_mailbox="INBOX",
+                                          source_mailbox="INBOX2",
+                                          uid="Y"))
+        move_mock.assert_called_with("1", '"INBOX"', uid=True)
 
 
+@patch("app.mail.views.ImapClient")
+@patch("app.mail.views.process_email_for_display")
+class GetEmailTest(TestCase):
 
-# @patch("app.mail.views.ImapClient")
-# class GetEmailTest(TestCase):
+    def create_app(self):
+        return create_app("testing")
 
-#     def create_app(self):
-#         return create_app("testing")
+    def login_imap_client(self, username="Testowy", password="Testowe"):
+         with self.client.session_transaction() as sess:
+            sess["imap_username"] = username
+            sess["imap_password"] = password 
+            sess["imap_addr"] = "testowy"     
 
-#     def login_imap_client(self, username="Testowy", password="Testowe"):
-#          with self.client.session_transaction() as sess:
-#             sess["imap_username"] = username
-#             sess["imap_password"] = password 
-#             sess["imap_addr"] = "testowy"     
+    def mock_imap_client(self, mock_client):
+        mock = Mock()
+        mock.get_emails.return_value = ("OK", ["EMAIL"])
+        mock.select.return_value = ("OK", b'1')
+        mock_client.return_value = mock    
+        return mock
 
-#     def mock_imap_client(self, mock_client):
-#         mock = Mock()
-#         mock.get_emails.return_value = ("OK", ["EMAIL"])
-#         mock.select.return_value = ("OK", b'1')
-#         mock_client.return_value = mock    
-#         return mock
+    def test_returns_error_for_not_authenticated_users(self, mock_process, 
+                                                       mock_client):
+        response = self.client.get(url_for("mail.imap_get_email"))
+        data = json.loads(response.data.decode("utf-8"))
+        self.assertEqual(data["status"], "ERROR")
 
-#     def test_returns_error_for_not_authenticated_users(self, mock_client):
-#         response = self.client.get(url_for("mail.imap_get_email"))
-#         data = json.loads(response.data.decode("utf-8"))
-#         self.assertEqual(data["status"], "ERROR")
+    def test_returns_ok_for_authenticated_users(self, mock_process, mock_client):
+        self.login_imap_client()
+        self.mock_imap_client(mock_client)
+        mock_process.return_value = None
+        response = self.client.get(url_for("mail.imap_get_email"),
+                                   query_string=dict(id='1'))
+        data = json.loads(response.data.decode("utf-8"))
+        self.assertEqual(data["status"], "OK")      
 
-#     def test_returns_ok_for_authenticated_users(self, mock_client):
-#         self.login_imap_client()
-#         self.mock_imap_client(mock_client)
-#         response = self.client.get(url_for("mail.imap_get_email"),
-#                                    query_string=dict(id='1'))
-#         data = json.loads(response.data.decode("utf-8"))
-#         self.assertEqual(data["status"], "OK")      
+    def test_calls_get_emails_with_proper_id(self, mock_process, mock_client):
+        self.login_imap_client()
+        mock = self.mock_imap_client(mock_client)
+        mock_process.return_value = None
+        response = self.client.get(url_for("mail.imap_get_email"),
+                                   query_string=dict(id='1'))
+        mock.get_emails.assert_called_with('1', uid=False)
 
-#     def test_calls_get_emails_with_proper_id(self, mock_client):
-#         self.login_imap_client()
-#         mock = self.mock_imap_client(mock_client)
-#         response = self.client.get(url_for("mail.imap_get_email"),
-#                                    query_string=dict(id='1'))
-#         mock.get_emails.assert_called_with('1')
+    def test_calls_process_email_for_display(self, mock_process, mock_client):
+        self.login_imap_client()
+        self.mock_imap_client(mock_client)
+        mock_process.return_value = None
+        response = self.client.get(url_for("mail.imap_get_email"),
+                                   query_string=dict(id='1'))
+        mock_process.assert_called_with("EMAIL")
 
-#     @patch("app.mail.views.process_email_for_display")
-#     def test_calls_process_email_for_display(self, mock_process, mock_client):
-#         self.login_imap_client()
-#         self.mock_imap_client(mock_client)
-#         mock_process.return_value = None
-#         response = self.client.get(url_for("mail.imap_get_email"),
-#                                    query_string=dict(id='1'))
-#         mock_process.assert_called_with("EMAIL")
-
-
-# @patch("app.mail.views.imap_clients")
-# @patch("app.mail.views.current_user")
-# class GetEmailViewTest(TestCase):
-
-#     def create_app(self):
-#         return create_app("testing")
-
-#     def mock_imap_client(self, iclients_mock):
-#         client_mock = Mock()
-#         iclients_mock.get.return_value = client_mock
-#         _, data = imap_responses.get_emails
-#         emails = []
-#         for item in data:
-#             if item == b')': continue   
-#             if isinstance(item, tuple):
-#                 msg = email.message_from_string(item[1].decode())
-#                 emails.append(msg)
-#         client_mock.get_emails.return_value = ("OK", emails)
-#         client_mock.len_mailbox.return_value = ("OK", 100)
-#         client_mock.select.return_value = ("OK", b'2044')
-#         return client_mock    
-
-#     def test_returns_error_status_when_noauth_user(
-#         self, user_mock, iclients_mock
-#     ):
-#         client_mock = self.mock_imap_client(iclients_mock)
-#         iclients_mock.get.return_value = None
-#         response = self.client.get(url_for("mail.imap_get_email"))
-#         data = json.loads(response.data.decode("utf-8"))
-#         self.assertEqual(data["status"], "ERROR")
+    def test_accepts_uid_and_passes_it_further(self, mock_process, mock_client):
+        self.login_imap_client()
+        mock = self.mock_imap_client(mock_client)
+        mock_process.return_value = None
+        response = self.client.get(url_for("mail.imap_get_email"),
+                                   query_string=dict(id='1', uid="TRUE"))
+        mock.get_emails.assert_called_with('1', uid=True)       
 
 
+@patch("app.mail.views.ImapClient")
+@patch("app.mail.views.email_to_dict")
+class GetRawEmailsViewTest(TestCase):
 
-# @patch("app.mail.views.imap_clients")
-# @patch("app.mail.views.current_user")
-# class GetRawEmailsViewTest(TestCase):
+    def create_app(self):
+        return create_app("testing")
 
-#     def create_app(self):
-#         return create_app("testing")
+    def login_imap_client(self, username="Testowy", password="Testowe"):
+         with self.client.session_transaction() as sess:
+            sess["imap_username"] = username
+            sess["imap_password"] = password 
+            sess["imap_addr"] = "testowy"   
 
-#     def mock_imap_client(self, iclients_mock):
-#         client_mock = Mock()
-#         iclients_mock.get.return_value = client_mock
-#         _, data = imap_responses.get_emails
-#         emails = []
-#         for item in data:
-#             if item == b')': continue   
-#             if isinstance(item, tuple):
-#                 msg = email.message_from_string(item[1].decode())
-#                 emails.append(msg)
-#         client_mock.get_emails.return_value = ("OK", emails)
-#         client_mock.len_mailbox.return_value = ("OK", 100)
-#         client_mock.select.return_value = ("OK", b'2044')
-#         return client_mock      
+    def mock_imap_client(self, mock_client):
+        mock = Mock()
+        mock.get_emails.return_value = imap_responses.get_emails
+        mock.select.return_value = ("OK", b'2044')
+        mock_client.return_value = mock    
+        return mock
 
-#     def test_returns_error_status_when_noauth_user(
-#         self, user_mock, iclients_mock
-#     ):
-#         client_mock = self.mock_imap_client(iclients_mock)
-#         iclients_mock.get.return_value = None
-#         response = self.client.get(url_for("mail.imap_get_raw_emails"))
-#         data = json.loads(response.data.decode("utf-8"))
-#         self.assertEqual(data["status"], "ERROR")
+    def test_returns_error_status_when_noauth_user(self, mock_dict, mock_client):
+        client_mock = self.mock_imap_client(mock_client)
+        response = self.client.get(url_for("mail.imap_get_raw_emails"))
+        data = json.loads(response.data.decode("utf-8"))
+        self.assertEqual(data["status"], "ERROR")
 
-#     def test_calls_get_emails(self, user_mock, iclients_mock):
-#         client_mock = self.mock_imap_client(iclients_mock)
-#         response = self.client.get(url_for("mail.imap_get_raw_emails"), 
-#                                            query_string = dict(ids="1,2"))
-#         self.assertTrue(client_mock.get_emails.called)
+    def test_calls_get_emails(self, mock_dict, mock_client):
+        client_mock = self.mock_imap_client(mock_client)
+        mock_dict.return_value = None
+        self.login_imap_client()
+        response = self.client.get(url_for("mail.imap_get_raw_emails"), 
+                                           query_string = dict(ids="1,2"))
+        self.assertTrue(client_mock.get_emails.called)
 
-#     def test_passes_ids_to_get_emails(self, user_mock, iclients_mock):
-#         client_mock = self.mock_imap_client(iclients_mock)
-#         response = self.client.get(url_for("mail.imap_get_raw_emails"), 
-#                                            query_string = dict(ids="1,2"))
-#         client_mock.get_emails.assert_called_with("1,2")
+    def test_passes_ids_to_get_emails(self, mock_dict, mock_client):
+        client_mock = self.mock_imap_client(mock_client)
+        mock_dict.return_value = None
+        self.login_imap_client()
+        response = self.client.get(url_for("mail.imap_get_raw_emails"), 
+                                           query_string = dict(ids="1,2"))
+        client_mock.get_emails.assert_called_with("1,2", uid=False)
 
-#     def test_returns_error_when_ids_not_specified(
-#         self, user_mock, iclients_mock
-#     ):
-#         client_mock = self.mock_imap_client(iclients_mock)
-#         response = self.client.get(url_for("mail.imap_get_raw_emails"))
-#         data = json.loads(response.data.decode("utf-8"))
-#         self.assertEqual(data["status"], "ERROR")        
+    def test_returns_error_when_ids_not_specified(
+        self, mock_dict, mock_client
+    ):
+        client_mock = self.mock_imap_client(mock_client)
+        mock_dict.return_value = None
+        self.login_imap_client()
+        response = self.client.get(url_for("mail.imap_get_raw_emails"))
+        data = json.loads(response.data.decode("utf-8"))
+        self.assertEqual(data["status"], "ERROR")        
 
-#     def test_returns_ok_status_when_ids_correct(
-#         self, user_mock, iclients_mock
-#     ):
-#         client_mock = self.mock_imap_client(iclients_mock)
-#         response = self.client.get(url_for("mail.imap_get_raw_emails"), 
-#                                            query_string = dict(ids="1,2"))
-#         data = json.loads(response.data.decode("utf-8"))
-#         self.assertEqual(data["status"], "OK")    
+    def test_returns_ok_status_when_ids_correct(
+        self, mock_dict, mock_client
+    ):
+        client_mock = self.mock_imap_client(mock_client)
+        mock_dict.return_value = None
+        self.login_imap_client()
+        response = self.client.get(url_for("mail.imap_get_raw_emails"), 
+                                           query_string = dict(ids="1,2"))
+        data = json.loads(response.data.decode("utf-8"))
+        self.assertEqual(data["status"], "OK")    
 
-#     def test_returns_list_of_emails_in_data(
-#         self, user_mock, iclients_mock
-#     ):
-#         client_mock = self.mock_imap_client(iclients_mock)
-#         response = self.client.get(url_for("mail.imap_get_raw_emails"), 
-#                                            query_string = dict(ids="1,2"))
-#         data = json.loads(response.data.decode("utf-8"))
-#         self.assertIsInstance(data["data"], list)
-#         self.assertEqual(len(data["data"]), 2)
+    def test_returns_list_of_emails_in_data(
+        self, mock_dict, mock_client
+    ):
+        client_mock = self.mock_imap_client(mock_client)
+        mock_dict.return_value = None
+        self.login_imap_client()
+        response = self.client.get(url_for("mail.imap_get_raw_emails"), 
+                                           query_string = dict(ids="1,2,3,4"))
+        data = json.loads(response.data.decode("utf-8"))
+        self.assertIsInstance(data["data"], list)
+        self.assertEqual(len(data["data"]), 4)
 
-#     def test_calls_select_method(self, user_mock, iclients_mock):
-#         client_mock = self.mock_imap_client(iclients_mock)
-#         self.client.get(url_for("mail.imap_get_raw_emails"), 
-#                                 query_string=dict(ids="1,2", mailbox="Praca"))   
-#         client_mock.select.assert_called_once_with("Praca")
+    def test_calls_select_method(self, mock_dict, mock_client):
+        client_mock = self.mock_imap_client(mock_client)
+        mock_dict.return_value = None
+        self.login_imap_client()
+        self.client.get(url_for("mail.imap_get_raw_emails"), 
+                                query_string=dict(ids="1,2", mailbox="Praca"))   
+        client_mock.select.assert_called_once_with('"Praca"')
            
-#     def test_calls_select_method_with_default_mailbox(
-#         self, user_mock, iclients_mock
-#     ):
-#         client_mock = self.mock_imap_client(iclients_mock)
-#         self.client.get(url_for("mail.imap_get_raw_emails"), 
-#                                 query_string=dict(ids="1,2"))   
-#         client_mock.select.assert_called_once_with("INBOX")
+    def test_calls_select_method_with_default_mailbox(
+        self, mock_dict, mock_client
+    ):
+        client_mock = self.mock_imap_client(mock_client)
+        mock_dict.return_value = None
+        self.login_imap_client()
+        self.client.get(url_for("mail.imap_get_raw_emails"), 
+                                query_string=dict(ids="1,2"))   
+        client_mock.select.assert_called_once_with('"INBOX"')
 
+    def test_accepts_uid_and_passes_it_to_get_emails(
+        self, mock_dict, mock_client
+    ):
+        client_mock = self.mock_imap_client(mock_client)
+        mock_dict.return_value = None
+        self.login_imap_client()
+        response = self.client.get(url_for("mail.imap_get_raw_emails"), 
+                                           query_string = dict(ids="1,2", 
+                                                               uid="T"))
+        client_mock.get_emails.assert_called_with("1,2", uid=True)
 
 @patch("app.mail.views.ImapClient")
 class GetHeadersViewTest(TestCase):
@@ -821,7 +855,7 @@ class GetHeadersViewTest(TestCase):
         mock.assert_called_once_with(
             range(200, 100, -1),
             fields = ["Subject", "Date", "From", "Content-Type"],
-            sort_by_date=False
+            uid=False, sort_by_date=False
         )
 
     def test_accepts_ids(self, imap_client):
@@ -836,7 +870,7 @@ class GetHeadersViewTest(TestCase):
         mock.assert_called_once_with(
             '1,2,3,4,5',
             fields = ["Subject", "Date", "From", "Content-Type"],
-            sort_by_date=False
+            uid=False, sort_by_date=False
         )      
 
     def test_returns_list_with_headers(self, imap_client):
@@ -883,6 +917,50 @@ class GetHeadersViewTest(TestCase):
         )  
         data = json.loads(response.data.decode("utf-8"))
         self.assertEqual(data["status"], "ERROR")
+
+    def test_accepts_uid_and_pass_it_further(self, imap_client):
+        mock = self.mock_get_headers(imap_client)
+        self.mock_len_mailbox(imap_client, response = ("OK", 200))
+        self.login_imap_client()
+        response = self.client.get(
+            url_for("mail.imap_get_headers"),
+            query_string = dict(mailbox="Praca", ids="1,2,3,4,5", 
+                                uid=True)
+        )
+        mock.assert_called_once_with(
+            '1,2,3,4,5',
+            fields = ["Subject", "Date", "From", "Content-Type"],
+            uid=True,
+            sort_by_date=False
+        )
+
+    def test_uid_is_valid_only_when_ids_in_args(self, imap_client):
+        mock = self.mock_get_headers(imap_client)
+        self.mock_len_mailbox(imap_client, response = ("OK", 200))
+        self.login_imap_client()
+        response = self.client.get(
+            url_for("mail.imap_get_headers"),
+            query_string = dict(mailbox="Praca", ids_from=0, ids_to=100, 
+                                uid=True)
+        )
+        mock.assert_called_once_with(
+            range(200, 100, -1),
+            fields = ["Subject", "Date", "From", "Content-Type"],
+            uid=False,
+            sort_by_date=False
+        )
+        mock.reset_mock()
+        response = self.client.get(
+            url_for("mail.imap_get_headers"),
+            query_string = dict(mailbox="Praca", ids="1,2,3,4,5", 
+                                uid=True)
+        )
+        mock.assert_called_once_with(
+            '1,2,3,4,5',
+            fields = ["Subject", "Date", "From", "Content-Type"],
+            uid=True,
+            sort_by_date=False
+        )
 
 # @patch("app.mail.views.imap_clients")
 # @patch("app.mail.views.current_user")
