@@ -14,6 +14,75 @@ from app.mail.client import ImapClientError
 
 from tests.mail import imap_responses
 
+
+@patch("app.mail.views.ImapClient")
+class ListMailboxTest(TestCase):
+
+    def create_app(self):
+        return create_app("testing")
+
+    def login_imap_client(self, username="Testowy", password="Testowe"):
+         with self.client.session_transaction() as sess:
+            sess["imap_username"] = username
+            sess["imap_password"] = password 
+            sess["imap_addr"] = "testowy"  
+
+    def mock_list_mailbox(self, imap_client, response = ("OK", ['1', '2', '3'])):
+        mock = Mock()
+        mock.return_value = response
+        imap_client.return_value.list_mailbox = mock
+        return mock
+
+    def test_returns_error_for_not_authenticated_users(self, mock_client):
+        mock = self.mock_list_mailbox(mock_client)
+        response = self.client.get(url_for("mail.imap_list_mailbox"),
+                                   query_string=dict(mailbox="INBOX"))
+        data = json.loads(response.data.decode("utf-8"))
+        self.assertEqual(data["status"], "ERROR")
+
+    def test_calls_list_mailbox_method(self, mock_client):
+        mock = self.mock_list_mailbox(mock_client)
+        self.login_imap_client()
+        response = self.client.get(url_for("mail.imap_list_mailbox"),
+                                   query_string=dict(mailbox="INBOX")) 
+        mock.assert_called_with('"INBOX"')    
+
+    def test_returns_status_and_list_with_ids(self, mock_client):
+        mock = self.mock_list_mailbox(mock_client)
+        self.login_imap_client()
+        response = self.client.get(url_for("mail.imap_list_mailbox"),
+                                   query_string=dict(mailbox="INBOX")) 
+        data = json.loads(response.data.decode("utf-8"))
+        self.assertEqual(data["status"], "OK")
+        self.assertIsInstance(data["data"], list)
+        self.assertEqual(data["data"], ['1', '2', '3'])
+
+    def test_returns_error_when_no_mailbox(self, mock_client):
+        mock = self.mock_list_mailbox(mock_client)
+        self.login_imap_client()
+        response = self.client.get(url_for("mail.imap_list_mailbox"),
+                                   query_string=dict(mailblox="INBOX")) 
+        data = json.loads(response.data.decode("utf-8"))
+        self.assertEqual(data["status"], "ERROR")
+
+    def test_returns_error_when_list_mailbox_method_fails(self, mock_client):
+        mock = self.mock_list_mailbox(mock_client, response=("NO", "BAD"))
+        self.login_imap_client()
+        response = self.client.get(url_for("mail.imap_list_mailbox"),
+                                   query_string=dict(mailbox="INBOX")) 
+        data = json.loads(response.data.decode("utf-8"))
+        self.assertEqual(data["status"], "ERROR")
+
+    def test_returns_error_when_list_mailbox_method_error(self, mock_client):
+        mock = self.mock_list_mailbox(mock_client)
+        mock.side_effect = ImapClientError
+        self.login_imap_client()
+        response = self.client.get(url_for("mail.imap_list_mailbox"),
+                                   query_string=dict(mailbox="INBOX")) 
+        data = json.loads(response.data.decode("utf-8"))
+        self.assertEqual(data["status"], "ERROR")
+
+
 @patch("app.mail.views.ImapClient")
 class LenMailboxTest(TestCase):
 
@@ -44,7 +113,7 @@ class LenMailboxTest(TestCase):
         self.login_imap_client()
         response = self.client.get(url_for("mail.imap_len_mailbox"),
                                    query_string=dict(mailbox="INBOX")) 
-        mock.assert_called_with("INBOX")    
+        mock.assert_called_with('"INBOX"')    
 
     def test_returns_status_and_count(self, mock_client):
         mock = self.mock_len_mailbox(mock_client)
@@ -750,8 +819,9 @@ class GetHeadersViewTest(TestCase):
             query_string = dict(mailbox="Praca", ids_from=0, ids_to=100)
         )
         mock.assert_called_once_with(
-            range(1, 101),
-            fields = ["Subject", "Date", "From", "Content-Type"]
+            range(200, 100, -1),
+            fields = ["Subject", "Date", "From", "Content-Type"],
+            sort_by_date=False
         )
 
     def test_accepts_ids(self, imap_client):
@@ -765,7 +835,8 @@ class GetHeadersViewTest(TestCase):
         )            
         mock.assert_called_once_with(
             '1,2,3,4,5',
-            fields = ["Subject", "Date", "From", "Content-Type"]
+            fields = ["Subject", "Date", "From", "Content-Type"],
+            sort_by_date=False
         )      
 
     def test_returns_list_with_headers(self, imap_client):

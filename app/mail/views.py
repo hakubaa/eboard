@@ -436,6 +436,29 @@ def imap_len_mailbox(imap_client):
         return jsonify({"status": "OK", "data": data})
 
 
+@mail.route("/list_mailbox", methods=["GET", "POST"])
+@imap_authentication()
+def imap_list_mailbox(imap_client):
+    if request.method == "POST":
+        args = request.form
+    elif request.method == "GET":
+        args = request.args
+
+    if "mailbox" not in args:
+        return jsonify({"status": "ERROR", 
+                        "data": {"msg": "Undefined mailbox name."}})
+
+    try:
+        status, data = imap_client.list_mailbox(adjust_mailbox(args["mailbox"]))
+    except ImapClientError as e:
+        return jsonify({"status": "ERROR", "data": {"msg": str(e)}})     
+
+    if status != "OK":
+        return jsonify({"status": "ERROR", "data": {"msg": data}}) 
+    else:
+        return jsonify({"status": "OK", "data": data})
+
+
 @mail.route("/integration", methods=["GET", "POST"])
 @imap_authentication()
 def integration(imap_client):
