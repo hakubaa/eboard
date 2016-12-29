@@ -4,7 +4,8 @@
 
 var settings = {
     default_mailbox: "INBOX",
-    emails_per_page: 50
+    emails_per_page: 50,
+    enable_uid: true
 };
 
 /*******************************************************************************
@@ -58,6 +59,7 @@ function initClient() {
         setInfo("Updating e-mail's flags ...");
         updateFlags({
             ids: id, mailbox: mailbox, command: command,
+            uid: settings.enable_uid,
             flags: "\\Flagged",
             callback: function(response) {
                 if (response.status === "OK") {
@@ -187,6 +189,7 @@ function initClient() {
             updateFlags({
                 ids: emailsIds.join(), 
                 mailbox: emanager.getCurrentMailbox(), 
+                uid: settings.enable_uid,
                 command: "remove",
                 flags: "\\Seen",
                 callback: function(response) {
@@ -218,6 +221,7 @@ function initClient() {
             updateFlags({
                 ids: emailsIds.join(), 
                 mailbox: emanager.getCurrentMailbox(), 
+                uid: settings.enable_uid,
                 command: "add",
                 flags: "\\Seen",
                 callback: function(response) {
@@ -295,11 +299,14 @@ function initClient() {
 
         if (criteria.length > 0) {
             var smanager = new SearchManager({
-                                emailsPerPage: settings.emails_per_page});
+                                emailsPerPage: settings.emails_per_page,
+                                uid: settings.enable_uid
+                            });
             setInfo("Searching e-mails ...");
             smanager.init({
                 mailbox: mailbox, 
                 criteria: criteria,
+                uid: settings.enable_uid,
                 callback: function(response) {
                     setInfo("");
                     if (response.status === "OK") {
@@ -345,7 +352,11 @@ function initClient() {
 *******************************************************************************/
 
 function createSelectManager(mailbox) {
-    var manager = new SelectManager({emailsPerPage: settings.emails_per_page});
+    var manager = new SelectManager({
+            emailsPerPage: settings.emails_per_page,
+            uid: settings.enable_uid
+        });
+
     manager.on("onLoad", function() {
         setInfo("Loading e-mails ...");    
     });
@@ -446,6 +457,7 @@ function moveSelectedEMails(mailbox, $emails) {
     setInfo("Moving e-mails ...");
     moveEMails({
         ids: emailsIds.join(),
+        uid: settings.enable_uid,
         source_mailbox: emanager.getCurrentMailbox(),
         dest_mailbox: mailbox,
         callback: function(response) {

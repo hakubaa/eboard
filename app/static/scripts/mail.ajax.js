@@ -15,7 +15,8 @@ var ajax_urls = {
     rename_mailbox: "/mail/rename",
     delete_mailbox: "/mail/delete",
     search_emails: "/mail/search",
-    len_mailbox: "/mail/len_mailbox"
+    len_mailbox: "/mail/len_mailbox",
+    list_mailbox: "/mail/list_mailbox"
 };
 
 /**
@@ -54,12 +55,14 @@ function getEMailsHeaders(options) {
     if (options.to === undefined && options.ids === undefined) {
         throw "Undefined 'to'/'ids' argument.";
     }
+    if (options.uid === undefined) options.uid = false;
 
     var params;
     if (options.ids !== undefined) {
         params = {
             mailbox: options.mailbox,
-            ids: options.ids
+            ids: options.ids,
+            uid: options.uid
         };   
     } else {
         params = {
@@ -84,9 +87,12 @@ function searchEMails(options) {
     if (options.criteria === undefined) {
         throw "Undefined criteria.";
     }
+    if (options.uid === undefined) options.uid = false;
+
     sendRequest(ajax_urls.search_emails, {
             mailbox: options.mailbox,
-            criteria: JSON.stringify(options.criteria)
+            criteria: JSON.stringify(options.criteria),
+            uid: options.uid
         }, 
         options.callback);
 }
@@ -105,6 +111,24 @@ function getEMailsCount(options) {
                 options.callback);
 }
 
+/**
+ * Send XMLHttpRequest for list of emails in the mailbox
+ * @param {Object} options
+ */
+function getEMailsList(options) {
+    if (options === undefined) options = {};
+    if (options.mailbox === undefined) {
+        throw "Undefined mailbox.";
+    }
+    sendRequest(ajax_urls.list_mailbox, 
+                {mailbox: options.mailbox, uid: options.uid},
+                options.callback);
+}
+
+/**
+ * Send XMLHttpRequest for update flags of selected e-mails.
+ * @param {Object} options
+ */
 function updateFlags(options) {
     if (options === undefined) options = {};
     if (options.command === undefined) {
@@ -119,10 +143,13 @@ function updateFlags(options) {
     if (options.mailbox === undefined) {
         throw "Undefined mailbox.";
     }
+    if (options.uid === undefined) options.uid = false;
+
     $.post(ajax_urls.store + "/" + options.command, {
         ids: options.ids,
         flags: options.flags,
-        mailbox: options.mailbox
+        mailbox: options.mailbox,
+        uid: options.uid
     })
         .done(function(response) {
             if (options.callback !== undefined) {
@@ -150,10 +177,13 @@ function moveEMails(options) {
     if (options.source_mailbox === undefined) {
         throw "Undefined source mailbox.";
     }
+    if (options.uid === undefined) options.uid = false;
+
     $.post(ajax_urls.move_emails, {
         ids: options.ids,
         dest_mailbox: options.dest_mailbox,
-        source_mailbox: options.source_mailbox
+        source_mailbox: options.source_mailbox,
+        uid: options.uid
     })
         .done(function(response) {
             if (options.callback !== undefined) {
@@ -191,9 +221,12 @@ function getMailboxes(options) {
 
 function getRawEMails(options) {
     if (options === undefined) options = {};
+    if (options.uid === undefined) options.uid = false;
+
     if (options.ids !== undefined) {
         $.post(ajax_urls.get_raw_emails, {
-            ids: options.ids
+            ids: options.ids,
+            uid: options.uid
         })
             .done(function(response) {
                 if (options.callback !== undefined) {
@@ -216,10 +249,13 @@ function getRawEMails(options) {
 function getEMail(options) {
     if (options === undefined) options = {};
     if (options.mailbox === undefined) options.mailbox = settings.default_mailbox;
+    if (options.uid === undefined) options.uid = false;
+
     if (options.id !== undefined) {
         $.post(ajax_urls.get_email, {
             id: options.id,
-            mailbox: options.mailbox
+            mailbox: options.mailbox,
+            uid: options.uid
         })
             .done(function(response) {
                 if (options.callback !== undefined) {

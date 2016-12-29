@@ -1,0 +1,251 @@
+<!doctype html>
+<html>
+    <head>
+        <title>Mocha Tests</title>
+        <link rel="stylesheet" href="mocha.css">
+    </head>
+
+    <body>
+
+        <div id="fixtures"></div>
+        <div id="mocha"></div>
+
+        <script src="jquery-1.7.1.min.js"></script>
+        <script src="mocha.js"></script>
+        <script src="chai.js"></script>
+        <script src="sinon-1.17.6.js"></script>
+        <script>mocha.setup("bdd");</script>
+
+        <!-- load code you want to test heere -->
+        <script src="../../app/static/scripts/mail.ajax.js"></script>
+        <script src="../../app/static/scripts/mail.manager.js"></script>
+
+        <!-- load your test files here -->
+        <script>
+
+        var assert = chai.assert;
+
+        function getJsonFromUrl(query) {
+            var result = {};
+            if (query !== null && query !== undefined) {
+                query.split("&").forEach(function(part) {
+                    var item = part.split("=");
+                    result[item[0]] = decodeURIComponent(item[1]);
+                });
+            }
+            return result;
+        }
+
+        function jsonOk (body) {
+            return [
+                200, {
+                'Content-type': 'application/json'
+                }, JSON.stringify(body)
+            ];
+        }
+
+        describe("E-Mails Managers Test", function() {
+
+        describe("EMailsManager Test", function() { 
+
+            describe("Catching Test", function() {
+
+
+                var stub_sendrequest = null;
+
+                beforeEach(function() {
+                    stub_sendrequest = sinon.stub(window, "sendRequest");
+                });
+
+                afterEach(function() {
+                    stub_sendrequest.restore();
+                });
+
+                it.skip("catches e-mails", function() {
+                    // Init Manager
+                    stub_sendrequest.callsArgWith(2, {
+                            status: "OK",
+                            data: [1, 2, 3]
+                        });
+                    var iterator = new SelectManager({
+                            emailsPerPage: 1,
+                            caching: true
+                        });
+                    iterator.init({mailbox: "INBOX"});
+
+                    assert.sameMembers(iterator.ids, [1, 2, 3]);
+
+                    // Load 1st E-Mails
+                    stub_sendrequest.callsArgWith(2, {
+                        status: "OK",
+                        total_emails: 3,
+                        data: [
+                            {Subject: "Email 1", id: 1}
+                        ]
+                    });
+                    iterator.loadEMails(page=1);
+                    assert.equal(iterator.cache["1"]["id"], 1);
+                    assert.isUndefined(iterator.cache["2"]);
+
+                    // Load 2nd E-Mails
+                    stub_sendrequest.callsArgWith(2, {
+                        status: "OK",
+                        total_emails: 3,
+                        data: [
+                            {Subject: "Email 2", id: 2}
+                        ]
+                    });
+                    iterator.loadEMails(page=1);
+                    assert.isDefined(iterator.cache["2"]);
+                    assert.equal(iterator.cache["2"]["Subject"], "Email 2");
+
+                });
+
+                it("does not download the same e-mail twice", function() {
+                    // Init Manager
+                    stub_sendrequest.callsArgWith(2, {
+                            status: "OK",
+                            data: [1, 2, 3]
+                        });
+                    var iterator = new SelectManager({
+                            emailsPerPage: 2,
+                            caching: true
+                        });
+                    iterator.init({mailbox: "INBOX"});
+
+                    assert.sameMembers(iterator.ids, [1, 2, 3]);
+
+                    // Load E-Mails
+                    stub_sendrequest.reset();
+                    stub_sendrequest.callsArgWith(2, {
+                        status: "OK",
+                        total_emails: 3,
+                        data: [
+                            {Subject: "Email 2", id: 2},
+                            {Subject: "Email 3", id: 3}
+                        ]
+                    });
+                    iterator.loadEMails(page=1);
+                    assert.equal(iterator.cache["2"]["id"], 2);
+                    assert.isDefined(iterator.cache["3"]);
+
+                    iterator.loadEMails(page=1);
+
+                    assert.equal(stub_sendrequest.callCount, 1);
+                });
+
+            });
+
+        });
+
+        describe.skip("SelectManager Test", function() {
+
+            describe("init Test", function() {
+
+                var stub_getEMailsList = null;
+
+                beforeEach(function() {
+                    stub_getEMailsList = sinon.stub(window, "getEMailsList");
+                });
+
+                afterEach(function() {
+                    stub_getEMailsList.restore();
+                });
+
+                it("test for calling getEMailsList", function() {
+                    var iterator = new SelectManager({
+                            emailsPerPage: 10
+                        });
+                    iterator.init({mailbox: "INBOX"});
+                    assert.isTrue(stub_getEMailsList.calledOnce);
+                });
+
+                it("raises error when no mailbox", function() {
+                    var iterator = new SelectManager({
+                            emailsPerPage: 10
+                        });
+                    assert.throws(function() {
+                            iterator.init({mailblox: "INBOX"});
+                        });
+                });
+
+            });
+
+        }); // SelectManager Test
+
+        describe.skip("SearchManager Test", function() {
+
+            describe("init Test", function() {
+
+                var stub_searchEMails = null;
+
+                beforeEach(function() {
+                    stub_searchEMails = sinon.stub(window, "searchEMails");
+                });
+
+                afterEach(function() {
+                    stub_searchEMails.restore();
+                });
+
+                it("test for calling searchEMails", function() {
+                    var iterator = new SearchManager({
+                            emailsPerPage: 10
+                        });
+                    iterator.init({mailbox: "INBOX", criteria: [
+                        {key: "SUBJECT", value: "Test", decode: true}]});
+                    assert.isTrue(stub_searchEMails.calledOnce);
+                });
+
+                it("passes args to search function", function() {
+                    var iterator = new SearchManager({
+                            emailsPerPage: 10
+                        });
+                    iterator.init({mailbox: "INBOX", criteria: [
+                        {key: "SUBJECT", value: "Test", decode: true}]});
+                    assert.equal(stub_searchEMails.getCall(0).args[0].mailbox, 
+                                 "INBOX");
+                    assert.equal(stub_searchEMails.getCall(0).args[0].criteria[0].key, 
+                                 "SUBJECT");
+                });
+
+                it("sets callback in search function", function() {
+                    var iterator = new SearchManager({
+                            emailsPerPage: 10
+                        });
+                    iterator.init({mailbox: "INBOX", criteria: [
+                        {key: "SUBJECT", value: "Test", decode: true}]});
+                    assert.isFunction(stub_searchEMails.getCall(0).args[0].callback);
+                });
+
+                it("raises error when no mailbox", function() {
+                    var iterator = new SearchManager({
+                            emailsPerPage: 10
+                        });
+                    assert.throws(function() {
+                            iterator.init({mailblox: "INBOX"});
+                        });
+                });
+
+                it("raises error when no criteria", function() {
+                    var iterator = new SearchManager({
+                            emailsPerPage: 10
+                        });
+                    assert.throws(function() {
+                            iterator.init({mailbox: "INBOX"});
+                        });
+                });
+
+            });         
+
+        }); // SearchManager Test    
+
+        }); // E-Mails Managers Test
+
+        </script>
+
+        <script>
+            mocha.run();
+        </script>
+    </body>
+
+</html>

@@ -12,6 +12,7 @@ $("#email-modal").on("shown.bs.modal", function (event) {
     var mailbox = $modal.data("mailbox");
     getEMail({
         id: emailId.toString(),
+        uid: settings.enable_uid,
         mailbox: mailbox,
         callback: updateEmailModal
     })

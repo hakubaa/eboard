@@ -128,7 +128,7 @@ def imap_get_headers(imap_client):
 
     if "ids" not in args and ("ids_from" not in args or "ids_to" not in args):
         return jsonify({"status": "ERROR", 
-                        "`data": {"msg": "Undefined mailbox name."}})
+                        "`data": {"msg": "Undefined ids."}})
 
     is_uid = args.get("uid", "False").upper() in ("TRUE", "T", "YES", "Y")
     try:
@@ -212,6 +212,12 @@ def imap_get_email(imap_client):
     try:
         email_id = args.get("id", None)
         if email_id:
+
+            print(80*"#")
+            print("uid: ", is_uid)
+            print("email_id: ", email_id)
+            print("mailbox: ", args.get("mailbox", "INBOX"))
+
             imap_client.select(adjust_mailbox(args.get("mailbox", "INBOX")))
             stuats, data = imap_client.get_emails(email_id, uid=is_uid)
 

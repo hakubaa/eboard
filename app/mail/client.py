@@ -313,7 +313,7 @@ class ImapClient:
         if data_raw:
             data_match = re.search("\* SEARCH (?P<ids>.*)", data_raw) 
             if data_match:
-                data = sorted(int(item) for item in data_match.group("ids").split(" "))
+                data = [int(item) for item in data_match.group("ids").split(" ")]
             else:
                 data = []
         else:
@@ -440,8 +440,13 @@ class ImapClient:
 
         try:
             if uid:
+                print(80*"$")
+                print("ids_bytes: ", ids_bytes)
+                print("msg_parts: ", msg_parts)
                 fetch_status, data = self.mail.uid("fetch", ids_bytes, 
                                                    msg_parts)
+                print("status: ", fetch_status)
+                print("data: ", data)
             else:
                 fetch_status, data = self.mail.fetch(ids_bytes, msg_parts)
         except imaplib.IMAP4.error as e:
