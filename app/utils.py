@@ -96,7 +96,7 @@ def utf7_encode(s):
     return str(''.join(r))
 
 
-def recvall(sock, timeout=5, buflen=1024):
+def imap_recvall(sock, timeout=5, buflen=1024):
     data_recv = b''
     prev_timeout = sock.gettimeout()
     while True:
@@ -104,11 +104,12 @@ def recvall(sock, timeout=5, buflen=1024):
             sock.settimeout(timeout)
             temp_recv = sock.recv(buflen)
         except socket.timeout:
+            temp_recv = b""
             break
         if not temp_recv:
             break
         data_recv = data_recv + temp_recv
-        if len(temp_recv) < buflen:
+        if temp_recv.endswith(b"\r\n"):
             break
     sock.settimeout(prev_timeout)
     return data_recv

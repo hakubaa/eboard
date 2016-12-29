@@ -10,7 +10,7 @@ import random
 from email.header import decode_header
 from email.parser import HeaderParser
 from functools import partial#, partialmethod
-from app.utils import recvall
+from app.utils import imap_recvall
 
 # Set proper limit in order to avoid error: 
 # 'imaplib.error: command: SELECT => got more than 100000 bytes'
@@ -216,7 +216,7 @@ class ImapClient:
             raise ImapClientError(msg)
 
     def csearch(self, criteria, charset="UTF-8", uid=False, 
-                timeout=10, clear_socket=True):
+                timeout=5, clear_socket=True):
         '''
         Returns e-mails (ids or uids) which meet specified criteria from 
         currently selected mailbox. Encodes criteria in accordance
@@ -229,7 +229,7 @@ class ImapClient:
 
         # Clear socket
         if clear_socket:
-            recvall(imap_socket, timeout=0.00001)
+            imap_recvall(imap_socket, timeout=0.00001)
 
         # Split criteria into required encoding (literals) and not (strings)
         criteria_str = filter(lambda item: not item.get("decode", False), 
@@ -252,7 +252,7 @@ class ImapClient:
         for crit in criteria_str:
             try:
                 query += crit["key"].encode("ascii") + b" " 
-                if "value" in crit:
+                if "value" in crit and crit["value"]:
                     query += crit["value"].encode("ascii") + b" "
             except KeyError:
                 raise ImapClientError("invalid criterion")
@@ -284,12 +284,8 @@ class ImapClient:
                              str(length).encode("ascii") + b"} "
                 query = query[:-1] + b"\r\n"
 
-                print("query: ", query)
-
                 imap_socket.send(query)
-                data_recv = recvall(imap_socket, timeout=timeout)
-
-                print("recv:  ", data_recv)
+                data_recv = imap_recvall(imap_socket, timeout=timeout)
 
                 if not data_recv.startswith(b'+'):
                     break  
@@ -297,7 +293,7 @@ class ImapClient:
         else:
             query = query[:-1] + b"\r\n"
             imap_socket.send(query)
-            data_recv = recvall(imap_socket, timeout=timeout)
+            data_recv = imap_recvall(imap_socket, timeout=timeout)
 
         resps = data_recv.split(b"\r\n")
         status_raw = None
@@ -318,6 +314,7 @@ class ImapClient:
             data_match = re.search("\* SEARCH (?P<ids>.*)", data_raw) 
             if data_match:
                 data = data_match.group("ids").split(" ")
+                data = sorted(data, key = lambda item: int(item), reverse=True)
             else:
                 data = []
         else:

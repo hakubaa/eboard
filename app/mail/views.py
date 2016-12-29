@@ -129,7 +129,7 @@ def imap_get_headers(imap_client):
 
     if "ids" not in args and ("ids_from" not in args or "ids_to" not in args):
         return jsonify({"status": "ERROR", 
-                        "data": {"msg": "Undefined mailbox name."}})
+                        "`data": {"msg": "Undefined mailbox name."}})
 
     try:
         status, count = imap_client.len_mailbox(
@@ -139,20 +139,22 @@ def imap_get_headers(imap_client):
             if "ids" in args:
                 ids = args["ids"]
             else:
+                ids = range(count, 0, -1) # Create ids of mails
                 ids_from = max(int(args.get(
-                               "ids_from", DEFAULT_IDS_FROM)), 1)
+                               "ids_from", DEFAULT_IDS_FROM)), 1) - 1
                 ids_to = min(int(args.get(
-                             "ids_to", DEFAULT_IDS_TO)), count)
+                             "ids_to", DEFAULT_IDS_TO)), len(ids))
 
                 if ids_from > ids_to:
                     raise ImapClientError("Invalid e-mails' ranges " +
                                           "(ids_from > ids_to).")
 
-                ids = range(ids_from, ids_to + 1)
+                ids = ids[slice(ids_from, ids_to)]
 
             status, data = imap_client.get_headers(
                 ids,
-                fields=["Subject", "Date", "From", "Content-Type"]
+                fields=["Subject", "Date", "From", "Content-Type"],
+                sort_by_date=False
             )
             data = list(reversed(data))
         else:
@@ -424,7 +426,7 @@ def imap_len_mailbox(imap_client):
                         "data": {"msg": "Undefined mailbox name."}})
 
     try:
-        status, data = imap_client.len_mailbox(args["mailbox"])
+        status, data = imap_client.len_mailbox(adjust_mailbox(args["mailbox"]))
     except ImapClientError as e:
         return jsonify({"status": "ERROR", "data": {"msg": str(e)}})        
 
@@ -432,3 +434,9 @@ def imap_len_mailbox(imap_client):
         return jsonify({"status": "ERROR", "data": {"msg": data}}) 
     else:
         return jsonify({"status": "OK", "data": data})
+
+
+@mail.route("/integration", methods=["GET", "POST"])
+@imap_authentication()
+def integration(imap_client):
+    return render_template("integration.html")    

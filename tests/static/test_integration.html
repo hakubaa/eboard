@@ -1,0 +1,71 @@
+<!doctype html>
+<html>
+    <head>
+        <title>Mocha Tests</title>
+        <link rel="stylesheet" href="mocha.css">
+    </head>
+
+    <body>
+
+        <div id="fixtures"></div>
+        <div id="mocha"></div>
+
+        <script src="jquery-1.7.1.min.js"></script>
+        <script src="mocha.js"></script>
+        <script src="chai.js"></script>
+        <script src="sinon-1.17.6.js"></script>
+        <script>mocha.setup("bdd");</script>
+
+        <!-- load code you want to test heere -->
+        <script src="../../app/static/scripts/mail.ajax.js"></script>
+        <script src="../../app/static/scripts/mail.iterator.js"></script>
+
+        <!-- load your test files here -->
+        <script>
+
+        var assert = chai.assert;
+
+        describe("E-Mails Iterators Test", function() {
+
+        // Test JS use in iterators.
+        describe("Integration Test", function() {
+            it.skip("array.slice test", function() {
+                var numbers = [1, 2, 3, 4];
+                numbers.slice(1, 8).join(",");
+            });
+
+            it.skip("SearchIterator - getIds", function() {
+                var iterator = new SearchIterator({emailsPerPage: 10});
+                iterator.mailbox = "INBOX";
+                iterator.ids = ['1', '2', '3', '4', '5', '6'];
+                iterator.page = 1;
+                alert(iterator.getIds(2).ids);
+            });
+
+            it.skip("SelectIterator - getIds", function() {
+                var iterator = new SelectIterator({emailsPerPage: 10});
+                iterator.mailbox = "INBOX";
+                iterator.total_emails = 100;
+                iterator.page = 1;
+                alert(iterator.getIds(1).from + " - " + iterator.getIds(1).to);
+            });
+
+            it("SelectIterator - integration test", function() {
+                var iterator = new SelectIterator({emailsPerPage: 10});
+                iterator.init({mailbox: "INBOX", callback: function(response) {
+                    alert(response.status);
+                }});
+            });
+
+        });
+
+        }); // E-Mails Iterators Test
+
+        </script>
+
+        <script>
+            mocha.run();
+        </script>
+    </body>
+
+</html>

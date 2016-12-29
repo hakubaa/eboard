@@ -4,44 +4,37 @@
 
 var settings = {
     default_mailbox: "INBOX",
-    emails_per_page: 50,
-    ajax_list: "/mail/list",
-    ajax_get_headers: "/mail/get_headers",
-    ajax_get_raw_emails: "/mail/get_raw_emails",
-    ajax_get_email: "/mail/get_email",
-    ajax_move_emails: "/mail/move_emails",
-    ajax_flags_add: "/mail/add_flags",
-    ajax_flags_remove: "/mail/remove_flags",
-    ajax_flags_set: "/mail/set_flags",
-    ajax_store: "/mail/store",
-    ajax_create_mailbox: "/mail/create",
-    ajax_rename_mailbox: "/mail/rename",
-    ajax_delete_mailbox: "/mail/delete",
-    ajax_search_emails: "/mail/search"
+    emails_per_page: 50
 };
 
 /*******************************************************************************
     Init 
 *******************************************************************************/
 
+/**
+ * The manager of emails.
+ * @type {EMailsIterator}
+ */
+var emanager = undefined;
+
 function initClient() {
+    emanager = createSelectManager(settings.default_mailbox);
     getMailboxes({callback: updateMailboxesList});
-    ClientController.init({mailbox: settings.default_mailbox});
 
     $(document).on("click", ".email-open", function() {
         $(this).parent().removeClass("unseen");
         $("#email-modal").data("email-id", $(this).parent().data("email-id"));
-        $("#email-modal").data("mailbox", ClientController.mailbox);
+        $("#email-modal").data("mailbox", emanager.getCurrentMailbox());
         $("#email-modal").modal("show");
     });
     $(document).on("click", "#mailbox-list li", function() {
-        ClientController.selectMailbox($(this).data("name"));
+        emanager = createSelectManager($(this).data("name"));
     });
     $("#prev-emails-btn").click(function() {
-        ClientController.getPrevEMails();
+        emanager.prevPage();
     });
     $("#next-emails-btn").click(function() {
-        ClientController.getNextEMails();
+        emanager.nextPage();
     });    
     $(".select-emails").click(function() {
         var mode = $(this).data("select-type");
@@ -59,7 +52,7 @@ function initClient() {
             command = "remove";
         }
         var id = $(this).parent().parent().data("email-id");
-        var mailbox = ClientController.mailbox;
+        var mailbox = emanager.getCurrentMailbox();
 
         var $self = $(this);;
         setInfo("Updating e-mail's flags ...");
@@ -143,7 +136,7 @@ function initClient() {
     });
 
     $("#refresh-btn").click(function() {
-        ClientController.init({mailbox: ClientController.mailbox});
+        emanager = createSelectManager(emanager.getCurrentMailbox());
     });
 
     $(document).on("click", ".move-to-btn", function() {
@@ -157,15 +150,15 @@ function initClient() {
 
     $("#more-delete-mailbox").click(function() {
         var mailbox = $("#mailbox-list").find("[data-name='" + 
-                        ClientController.mailbox + "']").html();
+                        emanager.getCurrentMailbox() + "']").html();
         if (confirm("Are you sure you want to delete '" + mailbox + "' mailbox?")) {
             setInfo("Deleting mailbox ...");
             deleteMailbox({
-                mailbox: ClientController.mailbox,
+                mailbox: emanager.getCurrentMailbox(),
                 callback: function(response) {
                     if (response.status == "OK") {
                         getMailboxes({callback: updateMailboxesList});
-                        ClientController.init({mailbox: settings.default_mailbox});
+                        emanager = createSelectManager(settings.default_mailbox);
                         alert("Mailbox '" + mailbox + "' has been " +
                               "successfully deleted.");
                     } else {
@@ -193,7 +186,7 @@ function initClient() {
             setInfo("Updating e-mail's flags ...");
             updateFlags({
                 ids: emailsIds.join(), 
-                mailbox: ClientController.mailbox, 
+                mailbox: emanager.getCurrentMailbox(), 
                 command: "remove",
                 flags: "\\Seen",
                 callback: function(response) {
@@ -224,7 +217,7 @@ function initClient() {
             setInfo("Updating e-mail's flags ...");
             updateFlags({
                 ids: emailsIds.join(), 
-                mailbox: ClientController.mailbox, 
+                mailbox: emanager.getCurrentMailbox(), 
                 command: "add",
                 flags: "\\Seen",
                 callback: function(response) {
@@ -241,17 +234,17 @@ function initClient() {
         return false;
     });
 
-    $.datetimepicker.setLocale('en');
-    $('#email-search-date-from').datetimepicker({
-        timepicker:false,
-        format:'Y-m-d',
-        theme: "dark"
-    });
-    $('#email-search-date-to').datetimepicker({
-        timepicker:false,
-        format:'Y-m-d',
-        theme: "dark"
-    });
+    // $.datetimepicker.setLocale('en');
+    // $('#email-search-date-from').datetimepicker({
+    //     timepicker:false,
+    //     format:'Y-m-d',
+    //     theme: "dark"
+    // });
+    // $('#email-search-date-to').datetimepicker({
+    //     timepicker:false,
+    //     format:'Y-m-d',
+    //     theme: "dark"
+    // });
     
     $("#email-search-btn").click(function() {
         var inputs = [
@@ -301,24 +294,46 @@ function initClient() {
         var mailbox = $("#email-search-mailbox option:selected").data("name");
 
         if (criteria.length > 0) {
-            searchEMails({
+            var smanager = new SearchManager({
+                                emailsPerPage: settings.emails_per_page});
+            setInfo("Searching e-mails ...");
+            smanager.init({
+                mailbox: mailbox, 
                 criteria: criteria,
-                mailbox: mailbox,
                 callback: function(response) {
-                    if (response.status == "OK") {
-                        getEMailsHeaders({
-                            mailbox: mailbox,
-                            ids: response.data,
-                            callback: function(response) {
-                                
-                            }
-                        })
+                    setInfo("");
+                    if (response.status === "OK") {
+                        // Response ok. Check number of found emails. When more
+                        // than zero switch emanager with smanager, but save
+                        // callbacks. Load first page.
+                        if (smanager.getEMailsCount() > 0) {
+                            
+                            smanager.on("onLoad", function() {
+                                setInfo("Loading e-mails ...");    
+                            });
+                            smanager.on("onLoaded", function(response) {
+                                if (response.status == "OK") {
+                                    updateEMailsList(response);
+                                    toggleActiveMailbox(smanager.getCurrentMailbox());
+                                    updatePageInfo({
+                                        from: 0,
+                                        to: 0,
+                                        total_emails: smanager.getEMailsCount()
+                                    });
+                                } else {
+                                    alert("ERROR: " + JSON.stringify(response.data));
+                                }
+                                setInfo("");
+                            });
+                            
+                            emanager = smanager;
+                            emanager.loadEMails(page=1);
+                        }  
                     } else {
-                        alert(JSON.stringify(response.data));
+                        alert("ERROR: " + JSON.stringify(response.data));
                     }
-                    $("#extended-emails-search").hide();
-                }
-            });          
+                }});  
+
         } else {
             alert("You have not specified any criteria.");
         }
@@ -326,107 +341,39 @@ function initClient() {
 }
 
 /*******************************************************************************
-    UI controllers
+    Functions
 *******************************************************************************/
 
-var ClientController = {
-    select: function(mailbox) {
-        
-    },
-    
-    init: function(options) {
-        if (options === undefined) options = {};
-        if (options.emailsPerPage === undefined) {
-            options.emailsPerPage = settings.emails_per_page;
-        }
-        if (options.mailbox === undefined) {
-            options.mailbox = settings.default_mailbox;
-        }
-        // this.mailbox = options.mailbox;
-        // this.page = 1;
-        this.emailsPerPage = options.emailsPerPage;
-        this.requestInProgress = false;
-        this.selectMailbox(options.mailbox);
-    },
-    selectMailbox: function(mailbox) {
-        if (mailbox === undefined) mailbox = settings.default_mailbox;
-        this.mailbox = mailbox;
-        this.page = 1;
-        this.total_emails = undefined;
-        this.sendEMailsHeadersRequest();
-    },
-    getNextEMails: function() {
-        var nextFrom = this.calcFrom(this.page + 1);
-        var nextTo = this.calcTo(this.page + 1);
-        if (this.total_emails !== undefined) {
-            nextTo = Math.min(nextTo, this.total_emails);
-        }
-        if (nextTo > nextFrom) {
-            this.page += 1;
-            this.sendEMailsHeadersRequest();
-        }
-    },
-    getCurrentEMails: function() {
-        this.sendEMailsHeadersRequest();    
-    },
-    getPrevEMails: function() {
-        if (this.page > 1) {
-            this.page -= 1;
-            this.sendEMailsHeadersRequest();
-        }
-    },
-    sendEMailsHeadersRequest: function() {
-        if (!this.requestInProgress) { // only one request at once
-            var self = this; // required for callback
-            this.requestInProgress = true;
-            setInfo("Loading e-mails ...");
-            getEMailsHeaders({
-                from: this.calcFrom(this.page),
-                to: this.calcTo(this.page),
-                mailbox: this.mailbox,
-                callback: function(response) {
-                    setInfo("");
-                    self.headersCallback(response, self);
-                }
-            });      
-        }  
-    },
-    calcFrom: function(page) {
-        if (page === undefined || page === null || page == 0) {
-            return 1;
-        }
-        var emailsFrom = 1 + (page - 1)*this.emailsPerPage;
-        if (this.total_emails !== undefined)
-            emailsFrom = Math.min(emailsFrom, this.total_emails)
-        return emailsFrom;
-    },
-    calcTo: function(page) {
-        if (page === undefined || page === null || page == 0) {
-            return Math.min(this.emailsPerPage, this.total_emails);
-        } 
-        var emailsTo = page * this.emailsPerPage;
-        if (this.total_emails !== undefined)
-            emailsTo = Math.min(emailsTo, this.total_emails)     
-        return emailsTo;
-    },
-    headersCallback: function(response, self) {
-        if (self === undefined) self = this;
-
-        self.requestInProgress = false;
+function createSelectManager(mailbox) {
+    var manager = new SelectManager({emailsPerPage: settings.emails_per_page});
+    manager.on("onLoad", function() {
+        setInfo("Loading e-mails ...");    
+    });
+    manager.on("onLoaded", function(response) {
         if (response.status == "OK") {
-            self.total_emails = response.total_emails;
             updateEMailsList(response);
+            toggleActiveMailbox(manager.getCurrentMailbox());
             updatePageInfo({
-                from: self.calcFrom(self.page),
-                to: self.calcTo(self.page),
-                total_emails: self.total_emails
+                from: 0,
+                to: 0,
+                total_emails: manager.getEMailsCount()
             });
-            toggleActiveMailbox(self.mailbox);
         } else {
             alert("ERROR: " + JSON.stringify(response.data));
         }
-    }
-};
+        setInfo("");
+    });
+    manager.init({
+        mailbox: mailbox, 
+        callback: function(response) {
+            if (response.status === "OK") {
+                manager.loadEMails(page=1);
+            } else {
+                alert("ERROR: " + JSON.stringify(response.data));
+            }
+        }});  
+    return manager;      
+}
 
 function setInfo(text) {
     $("#client-info").html(text);
@@ -499,7 +446,7 @@ function moveSelectedEMails(mailbox, $emails) {
     setInfo("Moving e-mails ...");
     moveEMails({
         ids: emailsIds.join(),
-        source_mailbox: ClientController.mailbox,
+        source_mailbox: emanager.getCurrentMailbox(),
         dest_mailbox: mailbox,
         callback: function(response) {
             setInfo("");
@@ -514,7 +461,7 @@ function moveSelectedEMails(mailbox, $emails) {
 }
 
 function toggleActiveMailbox(mailbox) {
-    if (mailbox === undefined) mailbox = ClientController.mailbox;
+    if (mailbox === undefined) mailbox = emanager.getCurrentMailbox();
     if (mailbox) {
         var $list = $("#mailbox-list");
         $list.children(".active").removeClass("active");
@@ -654,288 +601,6 @@ function selectEMails(mode) {
         }
         updateSelectBtn();
     }
-}
-
-/*******************************************************************************
-    XMLHttpRequest handlers
-*******************************************************************************/
-
-function searchEMails(options) {
-    if (options === undefined) options = {};
-    if (options.mailbox === undefined) {
-        throw "Undefined mailbox.";
-    }
-    if (options.criteria === undefined) {
-        throw "Undefined criteria.";
-    }
-    $.post(settings.ajax_search_emails, {
-        mailbox: options.mailbox,
-        criteria: JSON.stringify(options.criteria)
-    })
-        .done(function(response) {
-            if (options.callback !== undefined) {
-                options.callback(response);
-            }
-        })
-        .fail(function(response) {
-            if (options.callback !== undefined) {
-                options.callback({
-                    status: "ERROR",
-                    data: response
-                });
-            }
-        });
-}
-
-function updateFlags(options) {
-    if (options === undefined) options = {};
-    if (options.command === undefined) {
-        throw "Undefined command.";
-    }
-    if (options.flags === undefined) {
-        throw "Undefined flags.";
-    }
-    if (options.ids === undefined) {
-        throw "Undefined emails' ids.";
-    }
-    if (options.mailbox === undefined) {
-        throw "Undefined mailbox.";
-    }
-    $.post(settings.ajax_store + "/" + options.command, {
-        ids: options.ids,
-        flags: options.flags,
-        mailbox: options.mailbox
-    })
-        .done(function(response) {
-            if (options.callback !== undefined) {
-                options.callback(response);
-            }
-        })
-        .fail(function(response) {
-            if (options.callback !== undefined) {
-                options.callback({
-                    status: "ERROR",
-                    data: response
-                });
-            }
-        });
-}
-
-function moveEMails(options) {
-    if (options === undefined) options = {};
-    if (options.ids === undefined) {
-        throw "Undefined emails' ids.";
-    }
-    if (options.dest_mailbox === undefined) {
-        throw "Undefined destination mailbox.";
-    }
-    if (options.source_mailbox === undefined) {
-        throw "Undefined source mailbox.";
-    }
-    $.post(settings.ajax_move_emails, {
-        ids: options.ids,
-        dest_mailbox: options.dest_mailbox,
-        source_mailbox: options.source_mailbox
-    })
-        .done(function(response) {
-            if (options.callback !== undefined) {
-                options.callback(response);
-            }
-        })
-        .fail(function(response) {
-            if (options.callback !== undefined) {
-                options.callback({
-                    status: "ERROR",
-                    data: response
-                });
-            }
-        });
-}
-
-function getMailboxes(options) {
-    if (options === undefined) options = {};
-
-    $.post(settings.ajax_list)
-        .done(function(response) {
-            if (options.callback !== undefined) {
-                options.callback(response);
-            }
-        })
-        .fail(function(response) {
-            if (options.callback !== undefined) {
-                options.callback({
-                    status: "ERROR",
-                    data: response
-                });
-            }
-        });
-}
-
-function getEMailsHeaders(options) {
-    if (options === undefined) options = {};
-    if (options.mailbox === undefined) options.mailbox = settings.default_mailbox;
-    if (options.from === undefined) options.from = 0;
-    if (options.to === undefined) options.to = options.from + 
-                                               settings.emails_per_page;
-
-    var params;
-    if (options.ids !== undefined) {
-        params = {
-            mailbox: options.mailbox,
-            ids: options.ids
-        };   
-    } else {
-        params = {
-            mailbox: options.mailbox,
-            ids_from: options.from,
-            ids_to: options.to
-        };          
-    }
-
-    $.post(settings.ajax_get_headers, params)
-        .done(function(response) {
-            if (options.callback !== undefined) {
-                options.callback(response);
-            }
-        })
-        .fail(function(response) {
-            if (options.callback !== undefined) {
-                options.callback({
-                    status: "ERROR",
-                    data: response
-                });
-            }
-        });
-}
-
-function getRawEMails(options) {
-    if (options === undefined) options = {};
-    if (options.ids !== undefined) {
-        $.post(settings.ajax_get_raw_emails, {
-            ids: options.ids
-        })
-            .done(function(response) {
-                if (options.callback !== undefined) {
-                    options.callback(response);
-                }
-            })
-            .fail(function(response) {
-                if (options.callback !== undefined) {
-                    options.callback({
-                        status: "ERROR",
-                        data: response
-                    });
-                }
-            });
-    } else {
-        throw "Undefined emails' ids.";
-    }
-}
-
-function getEMail(options) {
-    if (options === undefined) options = {};
-    if (options.mailbox === undefined) options.mailbox = settings.default_mailbox;
-    if (options.id !== undefined) {
-        $.post(settings.ajax_get_email, {
-            id: options.id,
-            mailbox: options.mailbox
-        })
-            .done(function(response) {
-                if (options.callback !== undefined) {
-                    options.callback(response);
-                }
-            })
-            .fail(function(response) {
-                if (options.callback !== undefined) {
-                    options.callback({
-                        status: "ERROR",
-                        data: response
-                    });
-                }
-            });
-    } else {
-        throw "Undefined email's id.";
-    }
-}
-
-// NO TESTS
-function createMailbox(options) {
-    if (options === undefined) options = {};
-    if (options.mailbox !== undefined) {
-        $.post(settings.ajax_create_mailbox, {
-            mailbox: options.mailbox
-        })
-            .done(function(response) {
-                if (options.callback !== undefined) {
-                    options.callback(response);
-                }
-            })
-            .fail(function(response) {
-                if (options.callback !== undefined) {
-                    options.callback({
-                        status: "ERROR",
-                        data: response
-                    });
-                }
-            });
-    } else {
-        throw "Undefined mailbox name.";
-    }
-}
-
-// NO TESTS
-function deleteMailbox(options) {
-    if (options === undefined) options = {};
-    if (options.mailbox !== undefined) {
-        $.post(settings.ajax_delete_mailbox, {
-            mailbox: options.mailbox
-        })
-            .done(function(response) {
-                if (options.callback !== undefined) {
-                    options.callback(response);
-                }
-            })
-            .fail(function(response) {
-                if (options.callback !== undefined) {
-                    options.callback({
-                        status: "ERROR",
-                        data: response
-                    });
-                }
-            });
-    } else {
-        throw "Undefined mailbox name.";
-    }
-}
-
-// NO TESTS
-function renameMailbox(options) {
-    if (options === undefined) options = {};
-
-    if (options.newmailbox === undefined) {
-        throw "Undefined new mailbox name.";
-    }
-    if (options.oldmailbox === undefined) {
-        throw "Undefined original mailbox name.";
-    }
-
-    $.post(settings.ajax_rename_mailbox, {
-        oldmailbox: options.oldmailbox,
-        newmailbox: options.newmailbox
-    })
-        .done(function(response) {
-            if (options.callback !== undefined) {
-                options.callback(response);
-            }
-        })
-        .fail(function(response) {
-            if (options.callback !== undefined) {
-                options.callback({
-                    status: "ERROR",
-                    data: response
-                });
-            }
-        });
 }
 
 /*****************************************************************************/

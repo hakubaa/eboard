@@ -1,0 +1,128 @@
+<!doctype html>
+<html>
+    <head>
+        <title>Mocha Tests</title>
+        <link rel="stylesheet" href="mocha.css">
+    </head>
+
+    <body>
+
+        <div id="fixtures"></div>
+        <div id="mocha"></div>
+
+        <script src="jquery-1.7.1.min.js"></script>
+        <script src="mocha.js"></script>
+        <script src="chai.js"></script>
+        <script src="sinon-1.17.6.js"></script>
+        <script>mocha.setup("bdd");</script>
+
+        <!-- load code you want to test heere -->
+        <script src="../../app/static/scripts/mail.ajax.js"></script>
+        <script src="../../app/static/scripts/mail.iterator.js"></script>
+
+        <!-- load your test files here -->
+        <script>
+
+        var assert = chai.assert;
+
+        function getJsonFromUrl(query) {
+            var result = {};
+            if (query !== null && query !== undefined) {
+                query.split("&").forEach(function(part) {
+                    var item = part.split("=");
+                    result[item[0]] = decodeURIComponent(item[1]);
+                });
+            }
+            return result;
+        }
+
+        function jsonOk (body) {
+            return [
+                200, {
+                'Content-type': 'application/json'
+                }, JSON.stringify(body)
+            ];
+        }
+        
+        describe("Ajax Functions Test", function() {
+
+        describe("getEMailsCount Test", function() {
+
+            describe("Sending Request", function() {
+
+                var xhr = null;
+                var requests = null;
+
+                beforeEach(function() {
+                    xhr = sinon.useFakeXMLHttpRequest();
+                    requests = [];
+                    xhr.onCreate = function(xhr) {
+                        requests.push(xhr);
+                    };
+                });
+
+                afterEach(function() {
+                    xhr.restore();
+                });
+
+                it("test for sending post request", function() {
+                    getEMailsCount({mailbox: "INBOX"});
+                    assert.equal(requests.length, 1);
+                });                
+
+                it("test for using proper ulr", function() {
+                    getEMailsCount({mailbox: "INBOX"});
+                    assert.equal(requests[0].url, ajax_urls.len_mailbox);
+                });
+
+                it("test for raising exception when no mailbox", function() {
+                    chai.expect(function(){
+                        getEMailsCount({mailblox: "INBOX"});
+                    }).to.throw("Undefined mailbox.");
+                });
+
+                it("test for passing arguments to request", function() {
+                    getEMailsCount({mailbox: "INBOX"});
+                    var params = getJsonFromUrl(requests[0].requestBody);
+                    assert.equal(params.mailbox, "INBOX");
+                });
+
+            });   
+
+            describe("Handling Response", function() {
+                var server = null;
+
+                beforeEach(function () {
+                    server = sinon.fakeServer.create();
+                });
+
+                afterEach(function () {
+                    server.restore();
+                });
+
+                it("test for calling callback", function() {
+                    server.respondWith("POST", ajax_urls.len_mailbox,
+                        jsonOk({
+                            status: "OK"
+                        })
+                    );
+                    var spy = sinon.spy();
+                    getEMailsCount({mailbox: "INBOX", callback: spy});
+                    server.respond();
+                    assert.isTrue(spy.called);
+                });
+
+            });              
+           
+        }); // getEMailsCount Test
+
+        }); // E-Mails Iterators Test
+
+        </script>
+
+        <script>
+            mocha.run();
+        </script>
+    </body>
+
+</html>
