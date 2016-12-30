@@ -32,11 +32,7 @@ function initClient() {
         if (response.status == "OK") {
             updateEMailsList(response);
             toggleActiveMailbox(emanager.getCurrentMailbox());
-            updatePageInfo({
-                from: 0,
-                to: 0,
-                total_emails: emanager.getEMailsCount()
-            });
+            updatePageInfo(emanager.getCurrentPageInfo());
         } else {
             alert("ERROR: " + JSON.stringify(response.data));
         }
@@ -505,6 +501,17 @@ function moveSelectedEMails(mailbox, $emails) {
             setInfo("");
             if (response.status == "OK") {
                 $emails.remove();
+                // Check it there are some e-mails after current page
+                var load_next = $("#emails-list > tbody").children().length > 0 
+                        || emanager.hasNextPage();
+                emanager.removeEMails(emailsIds, true);
+                if (load_next) {
+                    // Refresh current page
+                    emanager.loadEMails(emanager.getCurrentPage());   
+                } else { // Move to previous page
+                    emanager.prevPage();    
+                }
+                
                 updateSelectBtn();
             } else {
                 alert(JSON.stringify(response.data));

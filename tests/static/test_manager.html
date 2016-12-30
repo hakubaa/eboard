@@ -50,7 +50,6 @@
 
             describe("Catching Test", function() {
 
-
                 var stub_sendrequest = null;
 
                 beforeEach(function() {
@@ -67,14 +66,16 @@
                             status: "OK",
                             data: [1, 2, 3]
                         });
-                    var iterator = new EMailsManager({
+                    var manager = new EMailsManager({
                             emailsPerPage: 1,
                             caching: true
                         });
-                    iterator.setSource(new SelectSource());
-                    iterator.init({mailbox: "INBOX"});
+                    manager.setSource(new SelectSource({
+                        mailbox: "INBOX"
+                    }));
+                    manager.updateSource();
 
-                    assert.sameMembers(iterator.ids, [1, 2, 3]);
+                    assert.sameMembers(manager.getIds(), [1, 2, 3]);
 
                     // Load 1st E-Mails
                     stub_sendrequest.callsArgWith(2, {
@@ -84,9 +85,9 @@
                             {Subject: "Email 1", id: 1}
                         ]
                     });
-                    iterator.loadEMails(page=1);
-                    assert.equal(iterator.cache["1"]["id"], 1);
-                    assert.isUndefined(iterator.cache["2"]);
+                    manager.loadEMails(page=1);
+                    assert.equal(manager.cache["1"]["id"], 1);
+                    assert.isUndefined(manager.cache["2"]);
 
                     // Load 2nd E-Mails
                     stub_sendrequest.callsArgWith(2, {
@@ -96,10 +97,9 @@
                             {Subject: "Email 2", id: 2}
                         ]
                     });
-                    iterator.loadEMails(page=1);
-                    assert.isDefined(iterator.cache["2"]);
-                    assert.equal(iterator.cache["2"]["Subject"], "Email 2");
-
+                    manager.loadEMails(page=1);
+                    assert.isDefined(manager.cache["2"]);
+                    assert.equal(manager.cache["2"]["Subject"], "Email 2");
                 });
 
                 it("does not download the same e-mail twice", function() {
@@ -108,14 +108,16 @@
                             status: "OK",
                             data: [1, 2, 3]
                         });
-                    var iterator = new EMailsManager({
-                            emailsPerPage: 2,
+                    var manager = new EMailsManager({
+                            emailsPerPage: 1,
                             caching: true
                         });
-                    iterator.setSource(new SelectSource());
-                    iterator.init({mailbox: "INBOX"});
+                    manager.setSource(new SelectSource({
+                        mailbox: "INBOX"
+                    }));
+                    manager.updateSource();
 
-                    assert.sameMembers(iterator.ids, [1, 2, 3]);
+                    assert.sameMembers(manager.getIds(), [1, 2, 3]);
 
                     // Load E-Mails
                     stub_sendrequest.reset();
@@ -127,13 +129,79 @@
                             {Subject: "Email 3", id: 3}
                         ]
                     });
-                    iterator.loadEMails(page=1);
-                    assert.equal(iterator.cache["2"]["id"], 2);
-                    assert.isDefined(iterator.cache["3"]);
+                    manager.loadEMails(page=1);
 
-                    iterator.loadEMails(page=1);
+
+                    assert.equal(manager.cache["2"]["id"], 2);
+                    assert.isDefined(manager.cache["3"]);
+
+                    manager.loadEMails(page=1);
 
                     assert.equal(stub_sendrequest.callCount, 1);
+                });
+
+                it("test for removing e-mail from ids but not from cache", function() {
+                    // Init Manager
+                    stub_sendrequest.callsArgWith(2, {
+                            status: "OK",
+                            data: [1, 2, 3]
+                        });
+                    var manager = new EMailsManager({
+                            emailsPerPage: 1,
+                            caching: true
+                        });
+                    manager.setSource(new SelectSource({
+                        mailbox: "INBOX"
+                    }));
+                    manager.updateSource();
+
+                    stub_sendrequest.callsArgWith(2, {
+                        status: "OK",
+                        total_emails: 3,
+                        data: [
+                            {Subject: "Email 2", id: 2},
+                            {Subject: "Email 3", id: 3}
+                        ]
+                    });
+                    manager.loadEMails(page=1);
+
+                    manager.removeEMails(ids=[2], from_cache=false);
+
+                    assert.sameMembers(manager.getIds(), [1, 3]);
+                    assert.isDefined(manager.cache["2"]);
+                    assert.isDefined(manager.cache["3"]);
+                });
+
+                it("test for removing e-mail from ids and from cache", function() {
+                    // Init Manager
+                    stub_sendrequest.callsArgWith(2, {
+                            status: "OK",
+                            data: [1, 2, 3]
+                        });
+                    var manager = new EMailsManager({
+                            emailsPerPage: 1,
+                            caching: true
+                        });
+                    manager.setSource(new SelectSource({
+                        mailbox: "INBOX"
+                    }));
+                    manager.updateSource();
+
+                    stub_sendrequest.callsArgWith(2, {
+                        status: "OK",
+                        total_emails: 3,
+                        data: [
+                            {Subject: "Email 2", id: 2},
+                            {Subject: "Email 3", id: 3}
+                        ]
+                    });
+                    manager.loadEMails(page=1);
+
+                    manager.removeEMails(ids=[2], from_cache=true);
+
+                    assert.sameMembers(manager.getIds(), [1, 3]);
+                    assert.isUndefined(manager.cache["2"]);
+                    assert.isDefined(manager.cache["3"]);
                 });
 
             });
@@ -155,15 +223,14 @@
                 });
 
                 it("test for calling getEMailsList", function() {
-                    var source = new SelectSource();
-                    source.load({mailbox: "INBOX"});
+                    var source = new SelectSource({mailbox: "INBOX"});
+                    source.update();
                     assert.isTrue(stub_getEMailsList.calledOnce);
                 });
 
                 it("raises error when no mailbox", function() {
-                    var source = new SelectSource();
                     assert.throws(function() {
-                            source.load({mailblox: "INBOX"});
+                        var source = new SelectSource();
                         });
                 });
 
@@ -186,40 +253,41 @@
                 });
 
                 it("test for calling searchEMails", function() {
-                    var source = new SearchSource();
-                    source.load({mailbox: "INBOX", criteria: [
-                        {key: "SUBJECT", value: "Test", decode: true}]});
+                    var source = new SearchSource({
+                            mailbox: "INBOX", 
+                            criteria: [
+                                {key: "SUBJECT", value: "Test", decode: true}
+                            ]   
+                        });
+                    source.update();
                     assert.isTrue(stub_searchEMails.calledOnce);
                 });
 
                 it("passes args to search function", function() {
-                    var source = new SearchSource();
-                    source.load({mailbox: "INBOX", criteria: [
-                        {key: "SUBJECT", value: "Test", decode: true}]});
+                    var source = new SearchSource({
+                            mailbox: "INBOX", 
+                            criteria: [
+                                {key: "SUBJECT", value: "Test", decode: true}
+                            ]   
+                        });
+                    source.update();
                     assert.equal(stub_searchEMails.getCall(0).args[0].mailbox, 
                                  "INBOX");
                     assert.equal(stub_searchEMails.getCall(0).args[0].criteria[0].key, 
                                  "SUBJECT");
                 });
 
-                it("sets callback in search function", function() {
-                    var source = new SearchSource();
-                    source.load({mailbox: "INBOX", criteria: [
-                        {key: "SUBJECT", value: "Test", decode: true}]});
-                    assert.isFunction(stub_searchEMails.getCall(0).args[0].callback);
-                });
 
                 it("raises error when no mailbox", function() {
-                    var source = new SearchSource();
                     assert.throws(function() {
-                            source.init({mailblox: "INBOX"});
+                            var source = new SearchSource({mailblox: "INBOX",
+                                            criteria: []});
                         });
                 });
 
                 it("raises error when no criteria", function() {
-                    var source = new SearchSource();
                     assert.throws(function() {
-                            source.init({mailbox: "INBOX"});
+                            var source = new SearchSource({mailbox: "INBOX"});
                         });
                 });
 

@@ -1,16 +1,16 @@
 E-Mail Client:
-- read e-mails
-- add loger to ImapClient (save in database method calls and returned statuses)
 - sending e-mails
-- working version on ie (iframe issue)
-- add search functionality
-- attachments
-- update emails list when moving mails
 - delete email forever
+- database issue in deployment
 
 NEXT TO DO:
-- finish search functionality (main input and button)
-- update emails list when moving mails
+- attachments
+    - store attachments in database, identified by e-mail uid, show user
+      list of attachments and links for downloading
+
+DONE (BUT TO IMPROVE):
+- read e-mails
+- working version on ie (iframe issue)
 
 DONE:
 - add pages
@@ -32,6 +32,10 @@ DONE:
 - refactor e-mailslistcontroller
 - response client (mailbox list to select list above e-mails, hide date, 
                    hide checkbox, star)
+- add search functionality
+- finish search functionality (main input and button)
+- update emails list when moving mails
 
 WILL NOT BE DONE:
 - threads (imap extension)
+- add loger to ImapClient (save in database method calls and returned statuses)

@@ -58,6 +58,17 @@ EMailsManager.prototype.getPageSize = function() {
     return this.emailsPerPage;
 }
 
+EMailsManager.prototype.getCurrentPageInfo = function() {
+    var pageSize = this.getPageSize();
+    var page = this.getCurrentPage();
+    var total_emails = this.getEMailsCount()
+    return {
+        from: (page-1)*pageSize + 1,
+        to: Math.min(page*pageSize, total_emails),
+        total_emails: total_emails
+    };
+}
+
 EMailsManager.prototype.getCurrentMailbox = function() {
     return this.source.mailbox;
 }
@@ -86,21 +97,39 @@ EMailsManager.prototype.toCacheId = function(id) {
     return ("" + id);
 };
 
+EMailsManager.prototype.removeEMails = function(ids, from_cache) {
+    if (ids === undefined) {
+        throw("EMailsManager: Undefined ids.");
+    }
+    if (from_cache === undefined) from_cache = false;
+
+    for(var i = 0; i < ids.length; i++) {
+        this.source.remove(ids[i]);
+        if (from_cache) {
+            delete this.cache[this.toCacheId(ids[i])];
+        }
+    }
+}
+
 EMailsManager.prototype.loadEMails = function(page) {
     if (!this.requestInProgress) { 
         this.requestInProgress = true;
-        
         if (this.callbacks.onLoad !== undefined) {
             this.callbacks.onLoad();
         }
 
-        var ids = this.getIds(page);
-        var new_ids = ids;
+        console.log("######################################################################")
+
+        var pageSize = this.getPageSize();
+        var page_ids = this.source.getIds().slice((page-1)*pageSize, 
+                                                  page*pageSize);
+        var new_ids = page_ids;
+
         if (this.caching) { // load only new e-mails when caching is on
             new_ids = [];
-            for (var i = 0; i < ids.length; i++) {
-                if (!(this.toCacheId(ids[i]) in this.cache)) {
-                    new_ids.push(ids[i]);
+            for (var i = 0; i < page_ids.length; i++) {
+                if (!(this.toCacheId(page_ids[i]) in this.cache)) {
+                    new_ids.push(page_ids[i]);
                 }
             }
         } 
@@ -125,16 +154,19 @@ EMailsManager.prototype.loadEMails = function(page) {
                         if (response.status == "OK") {
                             // Update response which contains only new_ids.
                             // Append ids which were cached.
-                            if (this.catching) {
-                                for (var i = 0; i < ids.length; i++) {
-                                    if (!(self.toCacheId(ids[i]) in new_ids)) {
+                            if (self.caching) {
+                                for (var i = 0; i < page_ids.length; i++) {
+                                    if (new_ids.indexOf(page_ids[i]) < 0) {
                                         response.data.push(
-                                                self.cache[self.toCacheId(ids[i])]
+                                                self.cache[self.toCacheId(page_ids[i])]
                                             );
                                     }
                                 }
                             }
                         }
+
+                        console.log("response.ids: ", JSON.stringify(response.data));
+
                         self.callbacks.onLoaded(response);
                     }
                     self.requestInProgress = false;
@@ -148,8 +180,8 @@ EMailsManager.prototype.loadEMails = function(page) {
                 var response = {};
                 response.status = "OK";
                 response.data = [];
-                for (var i = 0; i < ids.length; i++) {
-                    response.data.push(this.cache[this.toCacheId(ids[i])]);
+                for (var i = 0; i < page_ids.length; i++) {
+                    response.data.push(this.cache[this.toCacheId(page_ids[i])]);
                 }
                 this.callbacks.onLoaded(response);
             }
@@ -183,24 +215,56 @@ EMailsManager.prototype.hasPrevPage = function() {
     return true;
 };
 
-EMailsManager.prototype.getIds = function(page) {
-    var ids = this.source.getIds();
-    if (ids === undefined) {
+EMailsManager.prototype.getIds = function() {
+    if (this.source === undefined) {
         return undefined;
     }
-    var pageSize = this.getPageSize();
-    return (ids.slice((page-1)*pageSize, page*pageSize));
+    return (this.source.getIds());
 };
 
 EMailsManager.prototype.getEMailsCount = function() {
-    var ids = this.source.getIds();
-    if (ids === undefined) {
-        return 0;
-    } else {
-        return ids.length;
+    if (this.source === undefined) {
+        return undefined;
     }
+    return (this.source.getEMailsCount());
 };
 
+
+/******************************************************************************
+ * AbstractSource
+ * - get emails ids from select
+ ******************************************************************************/
+
+function AbstractSource() {
+    this.ids = undefined;
+}
+
+AbstractSource.prototype.update = function(callback) {
+    throw("Not implmeneted.");
+}
+
+AbstractSource.prototype.remove = function(id) {
+    if (this.ids !== undefined) {
+        var index = this.ids.indexOf(id);
+        if (index > -1) {
+            this.ids.splice(index, 1);
+            return (true);
+        }
+    }
+    return (false);
+}
+
+AbstractSource.prototype.getIds = function() {
+    return (this.ids);
+}
+
+AbstractSource.prototype.getEMailsCount = function() {
+    if (this.ids === undefined) {
+        return 0;
+    } else {
+        return this.ids.length;
+    }
+};
 
 /******************************************************************************
  * SelectSource
@@ -218,6 +282,8 @@ function SelectSource(options) {
         this.is_uid = options.uid;
     }
 }
+SelectSource.prototype = Object.create(AbstractSource.prototype);
+SelectSource.prototype.constructor = SelectSource;
 
 SelectSource.prototype.update = function(callback) {
     var self = this;
@@ -235,10 +301,6 @@ SelectSource.prototype.update = function(callback) {
         }
     });
 };
-
-SelectSource.prototype.getIds = function() {
-    return (this.ids);
-}
 
 /******************************************************************************
  * SearchSource
@@ -267,6 +329,8 @@ function SearchSource(options) {
         this.is_uid = options.uid;
     }
 }
+SearchSource.prototype = Object.create(AbstractSource.prototype);
+SearchSource.prototype.constructor = SearchSource;
 
 SearchSource.prototype.update = function(callback) {
     var self = this;
@@ -285,7 +349,3 @@ SearchSource.prototype.update = function(callback) {
             }
         });
 };
-
-SearchSource.prototype.getIds = function() {
-    return (this.ids);
-}
