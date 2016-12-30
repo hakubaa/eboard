@@ -440,13 +440,8 @@ class ImapClient:
 
         try:
             if uid:
-                print(80*"$")
-                print("ids_bytes: ", ids_bytes)
-                print("msg_parts: ", msg_parts)
                 fetch_status, data = self.mail.uid("fetch", ids_bytes, 
                                                    msg_parts)
-                print("status: ", fetch_status)
-                print("data: ", data)
             else:
                 fetch_status, data = self.mail.fetch(ids_bytes, msg_parts)
         except imaplib.IMAP4.error as e:
@@ -478,10 +473,10 @@ class ImapClient:
             raise ImapClientError(str(e)) from None
         except Exception as e:
             raise e
-
-        data = data[0].decode("ascii")
-
+        
         if copy_status != "OK":
+            if data[0]:
+                data = data[0].decode("ascii")
             raise ImapClientError(data)
 
         return copy_status, data

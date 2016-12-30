@@ -4,7 +4,7 @@
 
 var settings = {
     default_mailbox: "INBOX",
-    emails_per_page: 50,
+    emails_per_page: 3,
     enable_uid: true,
     enable_caching: true
 };
@@ -25,9 +25,6 @@ function initClient() {
             uid: settings.enable_uid,
             caching: settings.enable_caching
     });
-    emanager.on("onInit", function() {
-        setInfo("Initializing source ...");
-    });
     emanager.on("onLoad", function() {
         setInfo("Loading e-mails ...");    
     });
@@ -45,11 +42,30 @@ function initClient() {
         }
         setInfo("");
     });
-    initSelectSource(settings.default_mailbox);
-    emanager.setSource(new SelectSource());
-
-    // emanager = createSelectManager(settings.default_mailbox);
+    emanager.on("onUpdate", function() {
+        setInfo("Updating source ...");
+    });
+    emanager.on("onUpdated", function(response) {
+        if (response.status === "OK") {
+            emanager.loadEMails(page=1);
+        } else {
+            alert("ERROR: " + JSON.stringify(response.data));
+        }
+    });
+    emanager.setSource(new SelectSource({
+            mailbox: settings.default_mailbox,
+            uid: settings.enable_uid
+        }));
+    emanager.updateSource();  
     getMailboxes({callback: updateMailboxesList});
+
+    $(document).mouseup(function (e) {
+        var $searchMenu = $("#extended-emails-search");
+        if (!$searchMenu.is(e.target) && $searchMenu.has(e.target).length === 0) {
+            $searchMenu.hide();
+        }
+    });
+
 
     $(document).on("click", ".email-open", function() {
         $(this).parent().removeClass("unseen");
@@ -58,7 +74,11 @@ function initClient() {
         $("#email-modal").modal("show");
     });
     $(document).on("click", "#mailbox-list li", function() {
-        initSelectSource(JSON.stringify(response.data));
+        emanager.setSource(new SelectSource({
+                mailbox: $(this).data("name"),
+                uid: settings.enable_uid
+            }));
+        emanager.updateSource();  
     });
     $("#prev-emails-btn").click(function() {
         emanager.prevPage();
@@ -167,8 +187,7 @@ function initClient() {
     });
 
     $("#refresh-btn").click(function() {
-        // emanager = createSelectManager(emanager.getCurrentMailbox());
-        emanager.refresh();
+        emanager.updateSource();
     });
 
     $(document).on("click", ".move-to-btn", function() {
@@ -190,7 +209,11 @@ function initClient() {
                 callback: function(response) {
                     if (response.status == "OK") {
                         getMailboxes({callback: updateMailboxesList});
-                        initSelectSource(settings.default_mailbox);
+                        emanager.setSource(new SelectSource({
+                                mailbox: settings.default_mailbox,
+                                uid: settings.enable_uid
+                            }));
+                        emanager.updateSource();  
                         alert("Mailbox '" + mailbox + "' has been " +
                               "successfully deleted.");
                     } else {
@@ -279,13 +302,41 @@ function initClient() {
     //     format:'Y-m-d',
     //     theme: "dark"
     // });
-    
+
     $("#email-search-btn").click(function() {
+        var text_val = $("#email-search-text").val();
+        if (text_val !== "") {
+            var source = new SearchSource({
+                mailbox: $("#email-search-mailbox option:selected").data("name"),
+                criteria: [
+                    {key: "TEXT", value: text_val, decode: true}
+                ],
+                uid: settings.enable_uid
+            });
+            setInfo("Searching e-mails ...");  
+            source.update(function(response) {
+                setInfo("");
+                if (response.status === "OK") {
+                    var data = response.data;
+                    if (data.length > 0) {
+                        emanager.setSource(source);
+                        emanager.loadEMails(page=1);
+                    } else {
+                        alert("No emails found.");
+                    }
+                } else {
+                    alert("ERROR: " + JSON.stringify(response.data));  
+                }
+            });
+        } 
+    });
+    
+    $("#email-ext-search-btn").click(function() {
         var inputs = [
             { key: "FROM", dom: "#email-search-from", decode: true },
             { key: "TO", dom: "#email-search-to", decode: true },
             { key: "SUBJECT", dom: "#email-search-subject", decode: true },
-            { key: "TEXT", dom: "#email-search-text", decode: true }
+            { key: "BODY", dom: "#email-search-body", decode: true }
         ];
 
         var criteria = inputs.map(function(item) {
@@ -328,50 +379,26 @@ function initClient() {
         var mailbox = $("#email-search-mailbox option:selected").data("name");
 
         if (criteria.length > 0) {
-            emanager.setSource(new SearchSource());
-            // var smanager = new SearchManager({
-                                // emailsPerPage: settings.emails_per_page,
-                                // uid: settings.enable_uid
-                            // });
-            setInfo("Searching e-mails ...");
-            emanager.init({
-                mailbox: mailbox, 
+            var source = new SearchSource({
+                mailbox: mailbox,
                 criteria: criteria,
-                uid: settings.enable_uid,
-                callback: function(response) {
-                    setInfo("");
-                    if (response.status === "OK") {
-                        // Response ok. Check number of found emails. When more
-                        // than zero switch emanager with smanager, but save
-                        // callbacks. Load first page.
-                        if (emanager.getEMailsCount() > 0) {
-                            
-                            emanager.on("onLoad", function() {
-                                setInfo("Loading e-mails ...");    
-                            });
-                            emanager.on("onLoaded", function(response) {
-                                if (response.status == "OK") {
-                                    updateEMailsList(response);
-                                    toggleActiveMailbox(emanager.getCurrentMailbox());
-                                    updatePageInfo({
-                                        from: 0,
-                                        to: 0,
-                                        total_emails: emanager.getEMailsCount()
-                                    });
-                                } else {
-                                    alert("ERROR: " + JSON.stringify(response.data));
-                                }
-                                setInfo("");
-                            });
-                            
-                            // emanager = smanager;
-                            emanager.loadEMails(page=1);
-                        }  
+                uid: settings.enable_uid
+            });
+            setInfo("Searching e-mails ...");  
+            source.update(function(response) {
+                setInfo("");
+                if (response.status === "OK") {
+                    var data = response.data;
+                    if (data.length > 0) {
+                        emanager.setSource(source);
+                        emanager.loadEMails(page=1);
                     } else {
-                        alert("ERROR: " + JSON.stringify(response.data));
+                        alert("No emails found.");
                     }
-                }});  
-
+                } else {
+                    alert("ERROR: " + JSON.stringify(response.data));  
+                }
+            });
         } else {
             alert("You have not specified any criteria.");
         }
@@ -382,17 +409,22 @@ function initClient() {
     Functions
 *******************************************************************************/
 
-function initSelectSource(mailbox) {
-    emanager.setSource(new SelectSource());
-    emanager.init({
-        mailbox: mailbox, 
+function initSearchSource(mailbox, criteria) {
+    var source = new SearchSource();
+    setInfo("Searching e-mails ...");
+    source.load({
+        mailbox: mailbox,
+        criteria: criteria,
+        uid: settings.enable_uid,
         callback: function(response) {
+            setInfo("");
             if (response.status === "OK") {
                 emanager.loadEMails(page=1);
             } else {
                 alert("ERROR: " + JSON.stringify(response.data));
             }
-        }});  
+        }
+    });   
 }
 
 function setInfo(text) {

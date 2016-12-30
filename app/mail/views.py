@@ -212,12 +212,6 @@ def imap_get_email(imap_client):
     try:
         email_id = args.get("id", None)
         if email_id:
-
-            print(80*"#")
-            print("uid: ", is_uid)
-            print("email_id: ", email_id)
-            print("mailbox: ", args.get("mailbox", "INBOX"))
-
             imap_client.select(adjust_mailbox(args.get("mailbox", "INBOX")))
             stuats, data = imap_client.get_emails(email_id, uid=is_uid)
 
