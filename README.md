@@ -7,3 +7,4 @@ Functionalities:
 - notes
 - tasks
 - projects management
+- email client (implementing functionalities provided by imap protocol)
