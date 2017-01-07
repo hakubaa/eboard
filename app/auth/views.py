@@ -6,6 +6,8 @@ from .forms import SignInForm
 from ..models import User
 from . import auth
 
+from app import login_manager
+
 import app.mail.views as mail
 
 
@@ -27,4 +29,12 @@ def logout():
     mail.logout_from_imap()
     logout_user()
     flash("You have been logged out.")
+    return redirect(url_for("auth.login"))
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
+@login_manager.unauthorized_handler
+def unauthorized():
     return redirect(url_for("auth.login"))

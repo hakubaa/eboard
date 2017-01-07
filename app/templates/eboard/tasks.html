@@ -1,311 +1,39 @@
 {% extends "base.html" %}
 {% import "bootstrap/wtf.html" as wtf %}
+{% import "_macros.html" as macros %}
 
 {% block title %}JAGO - e-Board{% endblock %}
 
 {% block styles %}
 {{ super() }}
-
-<link rel="stylesheet" type="text/css" href="//cdn.jsdelivr.net/bootstrap.daterangepicker/2/daterangepicker.css" />
-<style>
-    table#taskTable {
-        border-collapse: collapse;  
-        margin: 0px 0px 10px 0px;
-        width: 100%; 
-    }
-
-    table#taskTable tbody td {
-        border: 1px solid black;
-        padding: 10px;
-    }
-
-    table#taskTable tbody td.buttonImg {
-        padding: 1px;
-        margin: 0px;
-        text-align: center;
-    }
-
-    table#taskTable thead th {
-        padding: 10px;
-    }
-
-    table#taskTable thead tr th.header {
-        background-size: 15px 15px;
-        background-repeat: no-repeat;
-        background-position: center right;
-        border: 1px solid black;
-    }
-
-    .task-record {
-        cursor: pointer;
-    }
-
-    table#taskTable thead tr th.headerSortInit {
-        background-image: url("{{ url_for('static', filename='images/sort_init.png')}}");
-        cursor: pointer;
-    }
-    table#taskTable thead tr th.headerSortUp {
-        background-image: url("{{ url_for('static', filename='images/sort_up.png')}}");
-        cursor: pointer;
-    }
-    table#taskTable thead tr th.headerSortDown {
-        background-image: url("{{ url_for('static', filename='images/sort_down.png')}}");
-        cursor: pointer;
-    }
-
-    table#taskTable tr.active {
-        background-color: #80bfff;
-    }
-
-    table#taskTable tr.active:hover {
-        background-color: #b3d9ff;
-    }
-
-    table#taskTable tr.cancelled {
-        background-color: #ffff80;
-    }
-
-    table#taskTable tr.cancelled:hover {
-        background-color: #ffffb3;
-    }
-
-    table#taskTable tr.complete {
-        background-color: #80ff80;
-    }
-
-    table#taskTable tr.complete:hover {
-        background-color: #b3ffb3;
-    }
-
-    table#taskTable tr.delayed {
-        background-color:  #ff8080;
-    }
-
-    table#taskTable tr.delayed:hover {
-        background-color: #ffb3b3;
-    }
-
-    #filter-tags, #filter-projects {
-        width:auto !important;
-    }
-
-    .task-editor-header {
-        margin-top: 0px;
-        padding-top: 0px;
-    }
-</style>
-
-{% endblock %}
-
-{% block scripts %}
-{{ super() }}
-
-<script src="{{url_for('static', filename='scripts/util.js')}}"></script>
-<script src="{{url_for('static', filename='scripts/taskmanager.js')}}"></script>
-<script>
-
-    // TaskManager
-    var taskManager = new TaskManager(
-        {{ tasksJSON | tojson | safe }}, 
-        document.getElementById("taskTableBody"), 
-        {
-            "taskStatuses": { 
-                "active": "Active",
-                "complete": "Complete",
-                "cancelled": "Cancelled",
-                "archive": "To Archive"
-            },
-            "editImg": "{{url_for('static', filename='images/edit-button.png')}}",
-            "removeImg": "{{url_for('static', filename='images/remove-button.png')}}"
-        });
-
-    taskManager.sort({ "status.name": 1, "deadline": 1});
-    taskManager.refreshDOM();
-
-
-    function filterTasks() {
-        var filter = {};
-        // filter-tags
-        var $filterTags = $("#filter-tags");
-        if ($filterTags.val() != "all") {
-            var tagId = parseInt($filterTags.val().match(/\d+$/));
-            filter.tags = {"id": tagId};         
-        }
-        var $filterProjects = $("#filter-projects");
-        if ($filterProjects.val() == "unbound_tasks") { // Select unbound tasks
-            filter.project = null;
-        } else if ($filterProjects.val() != "all") { // Select project's tasks
-            var projectId = parseInt($filterProjects.val().match(/\d+$/));
-            filter.project = {"id": projectId};
-        } 
-        taskManager.refreshDOM(filter);
-        updateRowStatus();        
-    }
-
-    $(".tasks-select-filter").change(function() {
-        filterTasks();
-    });
-
-    $(".tasks-status-filter").change(function() {
-        updateRowStatus();
-    });
-
-    function updateRowStatus() {
-        $(".tasks-status-filter").each(function() {
-            if ($(this).is(':checked')) {
-                $("tr." + this.value).show();
-            } else {
-                $("tr." + this.value).hide();
-            }          
-        });
-    }
-
-    // Tablesort icons in header
-    $("table#taskTable thead tr th.header").click(function() {
-
-        var sortSpec = {};
-        if ($(this).hasClass("headerSortInit")) {
-            $(this).removeClass("headerSortInit");
-            $(this).addClass("headerSortUp");
-            sortSpec[$(this).data("field")] = 1; 
-        } else if ($(this).hasClass("headerSortUp")) {
-            $(this).removeClass("headerSortUp");
-            $(this).addClass("headerSortDown");
-            sortSpec[$(this).data("field")] = -1;
-        } else if ($(this).hasClass("headerSortDown")) {
-            $(this).removeClass("headerSortDown");
-            $(this).addClass("headerSortUp");
-            sortSpec[$(this).data("field")] = 1; 
-        }
-
-        taskManager.sort(sortSpec);
-        filterTasks();
-    });
-
-    $(document).on("click", ".task-record", function() {
-        var taskId = $(this).data("task-id");
-        $.ajax({
-            url: 'project/task/get',
-            type: 'POST',
-            contentType: 'application/json; charset=utf-8',
-            data: JSON.stringify({ taskid: taskId }),
-            cache: false,
-            dataType: "json",
-            success: function(response) {
-                if (response.status == "success") {
-                    $("#task-info-title").html(
-                        response.data.title + " (" + response.data.status.label + ")"
-                    );
-                    $("#task-info-deadline").html(
-                        moment(response.data.deadline).format("LLL") + " (" +
-                            moment().to(moment(response.data.deadline)) + ")"
-                    );
-                    $("#task-info-notes").html(response.data.notes);
-                } 
-            }
-        });   
-    })
-
-</script>
 {% endblock %}
 
 {% block page_content %}
 {% if tasks %}
-<div class="row">
-    <form class="form-horizontal">
-        <div class="form-group">
-            <label class="col-sm-1 control-label">Status</label>
-            <div class="col-sm-11">
-                <label class="checkbox-inline">
-                    <input class="tasks-status-filter" type="checkbox" value="active" checked> Active
-                </label>
-                <label class="checkbox-inline">
-                    <input class="tasks-status-filter" type="checkbox" value="complete" checked> Complete
-                </label>
-                <label class="checkbox-inline">
-                    <input class="tasks-status-filter" type="checkbox" value="cancelled" checked> Cancelled
-                </label>
-            </div>
-        </div>
-        <div class="form-group">
-            <label for="filter-tags" class="col-sm-1 control-label">Tags</label>
-            <div class="col-sm-11">
-                <select id="filter-tags" class="tasks-select-filter form-control">
-                    <option value="all" selected>-- All Tasks --</option>
-                    {% for tag in tags %}
-                        <option value="{{tag.id}}">{{tag.name}}</option>
-                    {% endfor %}
-                </select>
-            </div>
-        </div>
-
-        <div class="form-group">
-            <label for="filter-projects" class="col-sm-1 control-label">Projects</label>
-            <div class="col-sm-11">
-                <select id="filter-projects" class="tasks-select-filter form-control">
-                    <option value="all" selected>-- All Tasks --</option>
-                    <option value="unbound_tasks">-- Unbound Tasks --</option>
-                    {% for project in projects %}
-                        <option value="{{project.id}}">{{project.name}}</option>
-                    {% endfor %}
-                </select>
-            </div>
-        </div>
-    </form>
+<div class="container">
+    <ul class="tasks">
+        {% for task in tasks %}
+            <li class="note">
+                <div class="note-content">
+                    <div class="note-date">{{moment(task.deadline).format("LLL")}} 
+                        ({{moment(task.deadline).fromNow()}})</div>
+                    <div class="note-title">
+                        {{task.title}}
+                    </div>
+                    <div class="note-tags">{{task.tags | join(' ', attribute='name')}}</div>
+                    <div class="note-body">{{task.body}}</div>
+                </div>
+            </li>
+        {% endfor %}
+    </ul>
 </div>
-<div class="row">
-    <div class="col-md-7">    
-        <div>
-            <table id="taskTable">
-                <thead>
-                    <tr>
-                        <th class="header headerSortInit" data-field="title">Title</th>
-                        <th class="header headerSortInit" data-field="deadline">Deadline</th>
-                        <!-- <th class="header" data-field="notes">Notes</th> -->
-                        <th class="header" data-field="tags">Tags</th>
-                        <th class="header" data-field="project">Project</th>
-                        <th class="header headerSortInit" data-field="status.name">Status</th>
-                        <th></th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody id="taskTableBody"> </tbody>
-            </table>
-        </div>
-    </div>
-    <div class="col-md-5">
-        <div class="task-editor">
-            <div class="panel panel-primary">
-                <div class="panel-heading">
-                    <h3 class="panel-title">Task Info</h3>
-                </div>
-                <div class="panel-body task-editor-action" id="task-info">
-                    <dl class="dl">
-                        <dt>Title</dt>
-                        <dd id="task-info-title"></dd>
-                        <dt>Deadline</dt>
-                        <dd id="task-info-deadline"></dd>
-                        <dt>Notes</dt>
-                        <dd id="task-info-notes"></dd>
-                    </dl>
-                </div>
-            </div>
-            <!-- Task Info -->
-
-        </div>
-    </div>
+<div class="pagination">
+{{ macros.pagination_widget(pagination, 'eboard.user_tasks', username=user.username) }}
 </div>
 {% else %}
-    <p>Add your first task.</p>
+<div class="container">
+    <p>Create your fist task.</p>
+</div>
 {% endif %}
-{% endblock %} 
 
-{% block extra_navbar %}
-    <div class="navbar subnavbar" role="navigation">
-        <p class="navbar-text subnavbar-text">Tasks /</p>
-        <ul class="nav navbar-nav subnavbar-nav">
-            <li><a href="{{ url_for('eboard.edit_task') }}" id="tasks-addTask">New Task</a></li>
-            <li><a href="#" id="tasks-archive">Archive</a></li>
-        </ul>
-    </div>
 {% endblock %}

@@ -1,21 +1,69 @@
+import os
+import json
+from datetime import datetime
+import sqlalchemy
+import functools
+
 from flask import render_template, flash, current_app, \
                     redirect, url_for, send_from_directory, send_file, \
                     request
-from flask_login import login_required
+from flask_login import login_required, current_user
 from werkzeug import secure_filename
 from sqlalchemy import func
 from sqlalchemy.orm import contains_eager, subqueryload, joinedload
-import os
-import json
-import datetime
 
 from app.eboard import eboard 
 from app.eboard.forms import UploadBookForm, NoteForm, TaskForm,\
         ProjectForm, MilestoneForm, NoteFilterForm
 from app.models import Book, Task, Tag, Status, Note, Project,\
-    Milestone, Event
+    Milestone, Event, User
 from app import db
 from app.utils import merge_dicts
+
+
+def access_required(owner_only=False):
+    '''
+    Decorator for restricting access to anonymouse users and logged in users
+    visiting private profiles.
+    '''
+    def wrapper(func):
+        @login_required
+        @functools.wraps(func)
+        def access(username, *args, **kwargs):
+            try:
+                user = db.session.query(User).filter_by(username=username).one()
+            except sqlalchemy.orm.exc.NoResultFound:
+                return render_template("404.html"), 404
+            if not owner_only and not user.public and current_user.username != username:
+                return render_template("404.html"), 404 
+            return func(user, *args, **kwargs)
+        return access
+    return wrapper
+
+
+@eboard.route("/<username>/", methods=["GET"])
+@access_required()
+def user_index(user):
+    return render_template("eboard/index.html")
+
+
+@eboard.route("/<username>/tasks", methods=["GET"])
+@access_required()
+def user_tasks(user):
+    page = int(request.args.get("page", 1))
+    pagination = user.tasks.order_by(Task.deadline.desc()).paginate(\
+        page, per_page = 1, error_out=False)
+    return render_template("eboard/tasks.html", tasks=pagination.items, 
+                           pagination=pagination, user=user)
+
+
+@eboard.route("/<username>/tasks", methods=["POST"])
+@access_required(owner_only=True)
+def user_tasks_create(user):
+    deadline = datetime.strptime(request.form["deadline"], "%Y-%m-%d %H:%M:%S")
+    user.add_task(title=request.form["title"], deadline=deadline)
+    return redirect(url_for("eboard.user_tasks", username=user.username))
+
 
 @eboard.route("/")
 @login_required

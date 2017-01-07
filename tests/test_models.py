@@ -29,6 +29,12 @@ class TestUser(TestCase):
         user = self.create_user()
         self.assertEqual(user.tasks.count(), 0)
 
+    def test_creates_private_profile_by_default(self):
+        user = User(username="Test", password="test")
+        db.session.add(user)
+        db.session.commit()
+        self.assertEqual(user.public, False)
+
     def test_adds_task_for_user(self):
         user = self.create_user()
         user.add_task(title="Test Task")

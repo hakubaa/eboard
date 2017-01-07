@@ -2,7 +2,6 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
 from flask import redirect, url_for
 from . import db
-from . import login_manager
 from app.utils import merge_dicts
 import datetime
 
@@ -26,7 +25,8 @@ class Task(db.Model):
     title = db.Column(db.String(256))
     created = db.Column(db.DateTime, default=datetime.datetime.utcnow)
     deadline = db.Column(db.DateTime)
-    notes = db.Column(db.String())
+    notes = db.Column(db.String()) #remove
+    body =db.Column(db.String())
     importance = db.Column(db.Integer)
     urgency = db.Column(db.Integer)
 
@@ -111,9 +111,8 @@ class User(UserMixin, db.Model):
     email = db.Column(db.String(64), unique=True, index=True)
     username = db.Column(db.String(64), unique=True, index=True)
     password_hash = db.Column(db.String(128))
-
+    public = db.Column(db.Boolean(), unique=False, default=False)
     role_id = db.Column(db.Integer, db.ForeignKey('roles.id'))
-
     tasks = db.relationship("Task", back_populates="user",
         cascade = "all, delete, delete-orphan", lazy="dynamic")
 
@@ -264,12 +263,3 @@ class Event(db.Model):
             "textColor": self.textColor, 
             "backgroundColor": self.backgroundColor,
             "bordercolor": self.borderColor }
-
-
-@login_manager.user_loader
-def load_user(user_id):
-    return User.query.get(int(user_id))
-
-@login_manager.unauthorized_handler
-def unauthorized():
-    return redirect(url_for("auth.login"))
