@@ -32,6 +32,9 @@ class Task(db.Model):
 
     tags = db.relationship("Tag", secondary = taskstags)
 
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    user = db.relationship("User", back_populates = "tasks")
+
     milestone_id = db.Column(db.Integer, db.ForeignKey("milestones.id"))
     milestone = db.relationship("Milestone", back_populates = "tasks")
 
@@ -111,6 +114,9 @@ class User(UserMixin, db.Model):
 
     role_id = db.Column(db.Integer, db.ForeignKey('roles.id'))
 
+    tasks = db.relationship("Task", back_populates="user",
+        cascade = "all, delete, delete-orphan")
+
     @property
     def password(self):
         raise AttributeError('password is not a readable attribute')
@@ -121,6 +127,14 @@ class User(UserMixin, db.Model):
 
     def verify_password(self, password):
         return check_password_hash(self.password_hash, password)
+
+    def add_task(self, *args, commit=True, **kwargs):
+        task = Task(*args, **kwargs)
+        self.tasks.append(task)
+        db.session.add(task)
+        if commit:
+            db.session.commit()
+        return task
 
     def __repr__(self):
         return '<User %r>' % self.username

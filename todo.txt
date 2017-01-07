@@ -1,7 +1,9 @@
 E-Mail Client:
 - sending e-mails
 - delete email forever
-- database issue in deployment
+- add info what is going on as message in top of the screen
+- hide mailbox list (when user select one)
+- improve tesks (responsive list, info when click)
 
 NEXT TO DO:
 - attachments
@@ -35,6 +37,9 @@ DONE:
 - add search functionality
 - finish search functionality (main input and button)
 - update emails list when moving mails
+- database issue in deployment:
+    - use environment variable OPENSHIFT_DATA_DIR to change directory where
+      db is created
 
 WILL NOT BE DONE:
 - threads (imap extension)

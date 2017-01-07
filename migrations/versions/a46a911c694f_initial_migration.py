@@ -1,13 +1,13 @@
 """initial migration
 
-Revision ID: efa7df5a67f2
+Revision ID: a46a911c694f
 Revises: None
-Create Date: 2016-12-12 21:51:33.846941
+Create Date: 2017-01-07 00:16:18.270668
 
 """
 
 # revision identifiers, used by Alembic.
-revision = 'efa7df5a67f2'
+revision = 'a46a911c694f'
 down_revision = None
 
 from alembic import op
@@ -116,12 +116,14 @@ def upgrade():
     sa.Column('notes', sa.String(), nullable=True),
     sa.Column('importance', sa.Integer(), nullable=True),
     sa.Column('urgency', sa.Integer(), nullable=True),
+    sa.Column('user_id', sa.Integer(), nullable=True),
     sa.Column('milestone_id', sa.Integer(), nullable=True),
     sa.Column('status_id', sa.Integer(), nullable=True),
     sa.Column('deadline_event_id', sa.Integer(), nullable=True),
     sa.ForeignKeyConstraint(['deadline_event_id'], ['events.id'], ),
     sa.ForeignKeyConstraint(['milestone_id'], ['milestones.id'], ),
     sa.ForeignKeyConstraint(['status_id'], ['statuses.id'], ),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('taskstags',

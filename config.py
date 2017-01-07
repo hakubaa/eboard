@@ -14,13 +14,13 @@ class Config:
 
 class DevelopmentConfig(Config):
     DEBUG = True
-    # SQLALCHEMY_DATABASE_URI = "sqlite:///" + os.path.join(basedir, "data-dev.sqlite")
-    UPLOAD_FOLDER = "files/books"
     SERVER = "http://localhost:5000"
 
 class ProductionConfig(Config):
     SERVER = "http://eboard-jago.rhcloud.com"
-
+    SQLALCHEMY_DATABASE_URI = "sqlite:///" + os.path.join(
+        os.environ.get("OPENSHIFT_DATA_DIR", ""), "data-dev.sqlite")
+    
 class TestingConfig(Config):
     TESTING = True
     SQLALCHEMY_TRACK_MODIFICATIONS = True
@@ -34,7 +34,7 @@ class TestingConfig(Config):
 config = {
         "development": DevelopmentConfig,
         "production": ProductionConfig,
-        "default": ProductionConfig,
+        "default": DevelopmentConfig,
         "testing": TestingConfig
         }
 
