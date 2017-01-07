@@ -115,7 +115,7 @@ class User(UserMixin, db.Model):
     role_id = db.Column(db.Integer, db.ForeignKey('roles.id'))
 
     tasks = db.relationship("Task", back_populates="user",
-        cascade = "all, delete, delete-orphan")
+        cascade = "all, delete, delete-orphan", lazy="dynamic")
 
     @property
     def password(self):
@@ -129,12 +129,31 @@ class User(UserMixin, db.Model):
         return check_password_hash(self.password_hash, password)
 
     def add_task(self, *args, commit=True, **kwargs):
-        task = Task(*args, **kwargs)
+        '''
+        Adds task to user's task list. Checks whether the first position
+        argument is Task object.
+        '''
+        if len(args) > 0 and isinstance(args[0], Task):
+            task = args[0]
+        else:
+            task = Task(*args, **kwargs)
+            db.session.add(task)
+
         self.tasks.append(task)
-        db.session.add(task)
         if commit:
             db.session.commit()
         return task
+
+    def remove_task(self, task):
+        '''
+        Removes task from user's task list. Check whether the first position
+        is instance of Task or id.
+        '''
+        if not isinstance(task, Task):
+            task = Task.query.get(task)
+        if task:
+            self.tasks.remove(task)
+
 
     def __repr__(self):
         return '<User %r>' % self.username
