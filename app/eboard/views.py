@@ -46,6 +46,8 @@ def access_required(owner_only=False):
 def index(user):
     return render_template("eboard/index.html")
 
+################################################################################
+# Tasks
 
 @eboard.route("/<username>/tasks", methods=["GET"])
 @access_required()
@@ -90,7 +92,7 @@ def task_edit(user, task_id):
     return render_template("eboard/edittask.html", form=form)
 
 
-@eboard.route("/<username>/tasks/<task_id>/delete", methods=["DELETE"])
+@eboard.route("/<username>/tasks/<task_id>/delete", methods=["DELETE", "GET"])
 @access_required(owner_only=True)
 def task_delete(user, task_id):
     task = db.session.query(Task).get(task_id)
@@ -100,10 +102,16 @@ def task_delete(user, task_id):
     db.session.commit()
     return redirect(url_for("eboard.tasks", username=user.username))
 
+# Tasks
 ################################################################################
 
+################################################################################
+# Projects
 
 
+
+# Projects
+################################################################################
 
 @eboard.route("/")
 @login_required

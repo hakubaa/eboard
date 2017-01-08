@@ -1,13 +1,13 @@
 """empty message
 
-Revision ID: 17eb75ed0719
+Revision ID: 868d43888af5
 Revises: None
-Create Date: 2017-01-08 17:40:58.792836
+Create Date: 2017-01-08 21:52:02.977016
 
 """
 
 # revision identifiers, used by Alembic.
-revision = '17eb75ed0719'
+revision = '868d43888af5'
 down_revision = None
 
 from alembic import op
@@ -40,12 +40,6 @@ def upgrade():
     sa.Column('description', sa.String(), nullable=True),
     sa.PrimaryKeyConstraint('id')
     )
-    op.create_table('roles',
-    sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('name', sa.String(length=64), nullable=True),
-    sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('name')
-    )
     op.create_table('statuses',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('name', sa.String(length=32), nullable=True),
@@ -59,6 +53,16 @@ def upgrade():
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('name')
     )
+    op.create_table('users',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('email', sa.String(length=64), nullable=True),
+    sa.Column('username', sa.String(length=64), nullable=True),
+    sa.Column('password_hash', sa.String(length=128), nullable=True),
+    sa.Column('public', sa.Boolean(), nullable=True),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index(op.f('ix_users_email'), 'users', ['email'], unique=True)
+    op.create_index(op.f('ix_users_username'), 'users', ['username'], unique=True)
     op.create_table('projects',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('name', sa.String(length=32), nullable=True),
@@ -66,24 +70,14 @@ def upgrade():
     sa.Column('deadline', sa.DateTime(), nullable=True),
     sa.Column('created', sa.DateTime(), nullable=True),
     sa.Column('modified', sa.DateTime(), nullable=True),
-    sa.Column('status_id', sa.Integer(), nullable=True),
+    sa.Column('active', sa.Boolean(), nullable=True),
+    sa.Column('complete', sa.Boolean(), nullable=True),
+    sa.Column('user_id', sa.Integer(), nullable=True),
     sa.Column('deadline_event_id', sa.Integer(), nullable=True),
     sa.ForeignKeyConstraint(['deadline_event_id'], ['events.id'], ),
-    sa.ForeignKeyConstraint(['status_id'], ['statuses.id'], ),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
-    op.create_table('users',
-    sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('email', sa.String(length=64), nullable=True),
-    sa.Column('username', sa.String(length=64), nullable=True),
-    sa.Column('password_hash', sa.String(length=128), nullable=True),
-    sa.Column('public', sa.Boolean(), nullable=True),
-    sa.Column('role_id', sa.Integer(), nullable=True),
-    sa.ForeignKeyConstraint(['role_id'], ['roles.id'], ),
-    sa.PrimaryKeyConstraint('id')
-    )
-    op.create_index(op.f('ix_users_email'), 'users', ['email'], unique=True)
-    op.create_index(op.f('ix_users_username'), 'users', ['username'], unique=True)
     op.create_table('milestones',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('title', sa.String(length=64), nullable=True),
@@ -145,13 +139,12 @@ def downgrade():
     op.drop_index(op.f('ix_notes_timestamp'), table_name='notes')
     op.drop_table('notes')
     op.drop_table('milestones')
+    op.drop_table('projects')
     op.drop_index(op.f('ix_users_username'), table_name='users')
     op.drop_index(op.f('ix_users_email'), table_name='users')
     op.drop_table('users')
-    op.drop_table('projects')
     op.drop_table('tags')
     op.drop_table('statuses')
-    op.drop_table('roles')
     op.drop_table('events')
     op.drop_table('books')
     ### end Alembic commands ###

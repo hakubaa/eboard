@@ -43,15 +43,44 @@ class Task(db.Model):
     deadline_event = db.relationship("Event", back_populates = "task",
         cascade = "all, delete, delete-orphan", single_parent = True)
 
+    def __init__(self, *args, deadline_event=True, **kwargs):
+        super().__init__(*args, **kwargs)
+        if deadline_event:
+            self.deadline_event = Event(
+                    title = "Task '" + self.title + "'", 
+                    start = self.deadline - datetime.timedelta(minutes=30),
+                    end = self.deadline, className = "fc-task-deadline",
+                    description = "Deadline of the task is on " 
+                    + self.deadline.strftime("%Y-%m-%d %H:%M:%S") + ".",
+                    editable = False
+                )
 
     def update(self, data=None, commit=True, **kwargs):
-        update_possible = {"title", "deadline", "body", "importance", 
-                           "urgency", "active", "complete"}
+        '''
+        Update task on the base of dict or **kwargs.
+        '''
         if not data:
             data = kwargs
+
+        # Update fields which can be update (not read-only fields)
+        update_possible = {"title", "deadline", "body", "importance", 
+                           "urgency", "active", "complete"}
         fields_to_update = update_possible & set(data.keys())
         for field in fields_to_update:
             setattr(self, field, data[field])
+
+        # Update deadline event connected with task
+        if self.deadline_event:
+            if "title" in data:
+                self.deadline_event.title = "Task '" + self.title + "'"
+            if "deadline" in data:
+                self.deadline_event.start = self.deadline - \
+                                            datetime.timedelta(minutes=30)
+                self.deadline_event.end = self.deadline
+                self.deadline_event.description = \
+                            "Deadline of the task is on " + \
+                            self.deadline.strftime("%Y-%m-%d %H:%M:%S") + "."
+
         if commit:
             db.session.commit()
 
@@ -90,8 +119,6 @@ class Status(db.Model):
     name = db.Column(db.String(32), unique=True)
     label = db.Column(db.String(32))
 
-    projects = db.relationship("Project", back_populates = "status")
-        
 
 class Book(db.Model):
     __tablename__ = 'books'
@@ -105,16 +132,6 @@ class Book(db.Model):
         return "<Book '%r'>" % self.title
 
 
-class Role(db.Model):
-    __tablename__ = 'roles'
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(64), unique=True)
-    users = db.relationship('User', backref='role', lazy='dynamic')
-
-    def __repr__(self):
-        return '<Role %r>' % self.name
-
-
 class User(UserMixin, db.Model):
     __tablename__ = 'users'
     id = db.Column(db.Integer, primary_key=True)
@@ -122,8 +139,9 @@ class User(UserMixin, db.Model):
     username = db.Column(db.String(64), unique=True, index=True)
     password_hash = db.Column(db.String(128))
     public = db.Column(db.Boolean(), unique=False, default=False)
-    role_id = db.Column(db.Integer, db.ForeignKey('roles.id'))
     tasks = db.relationship("Task", back_populates="user",
+        cascade = "all, delete, delete-orphan", lazy="dynamic")
+    projects = db.relationship("Project", back_populates="user",
         cascade = "all, delete, delete-orphan", lazy="dynamic")
 
     @property
@@ -163,6 +181,31 @@ class User(UserMixin, db.Model):
         if task:
             self.tasks.remove(task)
 
+    def add_project(self, *args, commit=True, **kwargs):
+        '''
+        Creates new project for the user. Checks whether the first position
+        argument is Project object.
+        '''
+        if len(args) > 0 and isinstance(args[0], Project):
+            project = args[0]
+        else:
+            project = Project(*args, **kwargs)
+            db.session.add(project)
+
+        self.projects.append(project)
+        if commit:
+            db.session.commit()
+        return project
+
+    def remove_project(self, project):
+        '''
+        Removes project. Checks whether the first position is instance of 
+        Project or id.
+        '''
+        if not isinstance(project, Project):
+            project = Project.query.get(project)
+        if project:
+            self.projects.remove(project)
 
     def __repr__(self):
         return '<User %r>' % self.username
@@ -196,18 +239,63 @@ class Project(db.Model):
     deadline = db.Column(db.DateTime)
     created = db.Column(db.DateTime, default=datetime.datetime.utcnow)
     modified = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    active = db.Column(db.Boolean(), default=True)
+    complete = db.Column(db.Boolean(), default=False)
 
     milestones = db.relationship("Milestone", back_populates="project",
         cascade = "all, delete, delete-orphan")
     notes = db.relationship("Note", back_populates="project",
         cascade = "all, delete, delete-orphan")
 
-    status_id = db.Column(db.Integer, db.ForeignKey('statuses.id'))
-    status = db.relationship("Status", back_populates = "projects")
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    user = db.relationship("User", back_populates = "projects")
 
     deadline_event_id = db.Column(db.Integer, db.ForeignKey("events.id"))
     deadline_event = db.relationship("Event", back_populates = "project",
         cascade = "all, delete, delete-orphan", single_parent = True)
+
+    def __init__(self, *args, deadline_event=True, **kwargs):
+        super().__init__(*args, **kwargs)
+        if deadline_event:
+            self.deadline_event = Event(
+                title = "Project '" + self.name + ",", 
+                start = self.deadline - datetime.timedelta(minutes=30),
+                end = self.deadline,
+                className = "fc-project-deadline",
+                description = "Deadline of the project is set on " + 
+                    self.deadline.strftime("%Y-%m-%d %H:%M:%S") + ".",
+                editable = False)
+
+
+    def update(self, data=None, commit=True, **kwargs):
+        '''
+        Update project on the base of dict or **kwargs.
+        '''
+        if not data:
+            data = kwargs
+
+        # Update fields which can be update (not read-only fields)
+        update_possible = {"name", "description", "deadline", 
+                           "active", "complete"}
+        fields_to_update = update_possible & set(data.keys())
+        for field in fields_to_update:
+            setattr(self, field, data[field])
+
+        # Update deadline event connected with task
+        if self.deadline_event:
+            if "name" in data:
+                self.deadline_event.title = "Project '" + self.name + "'"
+            if "deadline" in data:
+                self.deadline_event.start = self.deadline - \
+                                            datetime.timedelta(minutes=30)
+                self.deadline_event.end = self.deadline
+                self.deadline_event.description = \
+                            "Deadline of the project is on " + \
+                            self.deadline.strftime("%Y-%m-%d %H:%M:%S") + "."
+
+        if commit:
+            db.session.commit()
+
 
     def move2dict(self):
         return {"id": self.id, "name": self.name, 
