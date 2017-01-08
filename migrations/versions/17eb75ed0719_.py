@@ -1,13 +1,13 @@
-"""initial migration
+"""empty message
 
-Revision ID: a46a911c694f
+Revision ID: 17eb75ed0719
 Revises: None
-Create Date: 2017-01-07 00:16:18.270668
+Create Date: 2017-01-08 17:40:58.792836
 
 """
 
 # revision identifiers, used by Alembic.
-revision = 'a46a911c694f'
+revision = '17eb75ed0719'
 down_revision = None
 
 from alembic import op
@@ -77,6 +77,7 @@ def upgrade():
     sa.Column('email', sa.String(length=64), nullable=True),
     sa.Column('username', sa.String(length=64), nullable=True),
     sa.Column('password_hash', sa.String(length=128), nullable=True),
+    sa.Column('public', sa.Boolean(), nullable=True),
     sa.Column('role_id', sa.Integer(), nullable=True),
     sa.ForeignKeyConstraint(['role_id'], ['roles.id'], ),
     sa.PrimaryKeyConstraint('id')
@@ -114,15 +115,16 @@ def upgrade():
     sa.Column('created', sa.DateTime(), nullable=True),
     sa.Column('deadline', sa.DateTime(), nullable=True),
     sa.Column('notes', sa.String(), nullable=True),
+    sa.Column('body', sa.String(), nullable=True),
     sa.Column('importance', sa.Integer(), nullable=True),
     sa.Column('urgency', sa.Integer(), nullable=True),
+    sa.Column('active', sa.Boolean(), nullable=True),
+    sa.Column('complete', sa.Boolean(), nullable=True),
     sa.Column('user_id', sa.Integer(), nullable=True),
     sa.Column('milestone_id', sa.Integer(), nullable=True),
-    sa.Column('status_id', sa.Integer(), nullable=True),
     sa.Column('deadline_event_id', sa.Integer(), nullable=True),
     sa.ForeignKeyConstraint(['deadline_event_id'], ['events.id'], ),
     sa.ForeignKeyConstraint(['milestone_id'], ['milestones.id'], ),
-    sa.ForeignKeyConstraint(['status_id'], ['statuses.id'], ),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
     sa.PrimaryKeyConstraint('id')
     )

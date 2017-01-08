@@ -1,4 +1,6 @@
 import sys
+from datetime import datetime
+import unittest
 
 from flask_testing import TestCase #http://pythonhosted.org/Flask-Testing/
 
@@ -99,4 +101,53 @@ class TestUser(TestCase):
         user.remove_task(345)
         self.assertEqual(user.tasks.count(), 1)
 
-        
+
+class TestTask(TestCase):
+
+    def create_app(self):
+        return create_app("testing")
+
+    def setUp(self):
+        db.create_all()
+        db.session.commit()
+
+    def tearDown(self):
+        db.session.remove()
+        db.drop_all()
+
+    def test_for_updating_task_with_dict(self):
+        task = Task(title="Task Title", deadline=datetime(2015, 1, 1, 0, 0))
+        db.session.add(task)
+        db.session.commit()
+        task = db.session.query(Task).one()
+        data = { "title": "New Task Title", "body": "Very Important" }
+        task.update(data)
+        db.session.rollback()
+        task = db.session.query(Task).one()
+        self.assertEqual(task.title, data["title"])
+        self.assertEqual(task.body, data["body"])
+        self.assertEqual(task.deadline, datetime(2015, 1, 1, 0, 0))
+
+    def test_for_updating_task_with_kwargs(self):
+        task = Task(title="Task Title", deadline=datetime(2015, 1, 1, 0, 0))
+        db.session.add(task)
+        db.session.commit()
+        task = db.session.query(Task).one()
+        task.update(title="New Task Title", body="Very Important")
+        db.session.rollback()
+        task = db.session.query(Task).one()
+        self.assertEqual(task.title, "New Task Title")
+        self.assertEqual(task.body, "Very Important")
+        self.assertEqual(task.deadline, datetime(2015, 1, 1, 0, 0))
+
+    def test_for_preventing_commit(self):
+        task = Task(title="Task Title", deadline=datetime(2015, 1, 1, 0, 0))
+        db.session.add(task)
+        db.session.commit()
+        task = db.session.query(Task).one()
+        data = { "title": "New Task Title", "body": "Very Important" }
+        task.update(data, commit=False)
+        db.session.rollback()
+        task = db.session.query(Task).one()
+        self.assertEqual(task.title, "Task Title")
+        self.assertIsNone(task.body)

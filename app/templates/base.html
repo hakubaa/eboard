@@ -51,14 +51,14 @@
                     <span class="icon-bar"></span>
                     <span class="icon-bar"></span>
                 </button>
-                <a class="navbar-brand" href="{{ url_for('eboard.index') }}">e-Board</a>
+                <a class="navbar-brand" href="{{ url_for('eboard.index', username=current_user.username) }}">e-Board</a>
             </div>
 
             <div class="navbar-collapse collapse">
                 <ul class="nav navbar-nav" id="mainNavbar">
                     <li><a href="{{ url_for('eboard.calendar') }}">Calendar</a></li>
                     <li><a href="{{ url_for('eboard.projects') }}">Projects</a></li>
-                    <li><a href="{{ url_for('eboard.tasks') }}">Tasks</a></li>
+                    <li><a href="{{ url_for('eboard.tasks', username=current_user.username) }}">Tasks</a></li>
                     <li><a href="{{ url_for('eboard.notes') }}">Notes</a></li>
                     <li><a href="{{ url_for('mail.client') }}">E-Mail</a></li>
                     <li><a href="#">Links</a></li>

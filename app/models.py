@@ -26,10 +26,11 @@ class Task(db.Model):
     created = db.Column(db.DateTime, default=datetime.datetime.utcnow)
     deadline = db.Column(db.DateTime)
     notes = db.Column(db.String()) #remove
-    body =db.Column(db.String())
+    body = db.Column(db.String())
     importance = db.Column(db.Integer)
     urgency = db.Column(db.Integer)
-
+    active = db.Column(db.Boolean(), default=True)
+    complete = db.Column(db.Boolean(), default=False)
     tags = db.relationship("Tag", secondary = taskstags)
 
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
@@ -38,12 +39,22 @@ class Task(db.Model):
     milestone_id = db.Column(db.Integer, db.ForeignKey("milestones.id"))
     milestone = db.relationship("Milestone", back_populates = "tasks")
 
-    status_id = db.Column(db.Integer, db.ForeignKey('statuses.id'))
-    status = db.relationship("Status", back_populates = "tasks")
-
     deadline_event_id = db.Column(db.Integer, db.ForeignKey("events.id"))
     deadline_event = db.relationship("Event", back_populates = "task",
         cascade = "all, delete, delete-orphan", single_parent = True)
+
+
+    def update(self, data=None, commit=True, **kwargs):
+        update_possible = {"title", "deadline", "body", "importance", 
+                           "urgency", "active", "complete"}
+        if not data:
+            data = kwargs
+        fields_to_update = update_possible & set(data.keys())
+        for field in fields_to_update:
+            setattr(self, field, data[field])
+        if commit:
+            db.session.commit()
+
 
     def move2dict(self, extradict = {}):
         return merge_dicts({"title": self.title, 
@@ -79,7 +90,6 @@ class Status(db.Model):
     name = db.Column(db.String(32), unique=True)
     label = db.Column(db.String(32))
 
-    tasks = db.relationship("Task", back_populates = "status")
     projects = db.relationship("Project", back_populates = "status")
         
 

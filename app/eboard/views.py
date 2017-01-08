@@ -43,31 +43,71 @@ def access_required(owner_only=False):
 
 @eboard.route("/<username>/", methods=["GET"])
 @access_required()
-def user_index(user):
+def index(user):
     return render_template("eboard/index.html")
 
 
 @eboard.route("/<username>/tasks", methods=["GET"])
 @access_required()
-def user_tasks(user):
+def tasks(user):
     page = int(request.args.get("page", 1))
     pagination = user.tasks.order_by(Task.deadline.desc()).paginate(\
-        page, per_page = 1, error_out=False)
+        page, per_page = 10, error_out=False)
     return render_template("eboard/tasks.html", tasks=pagination.items, 
                            pagination=pagination, user=user)
 
 
-@eboard.route("/<username>/tasks", methods=["POST"])
+@eboard.route("/<username>/tasks/<task_id>", methods=["GET"])
+@access_required()
+def task_show(user, task_id):
+    task = db.session.query(Task).get(task_id)
+    if not task:
+        return render_template("404.html"), 404
+    return render_template("eboard/task.html", task=task)
+
+
+@eboard.route("/<username>/tasks/new", methods=["GET", "POST"])
 @access_required(owner_only=True)
-def user_tasks_create(user):
-    deadline = datetime.strptime(request.form["deadline"], "%Y-%m-%d %H:%M:%S")
-    user.add_task(title=request.form["title"], deadline=deadline)
-    return redirect(url_for("eboard.user_tasks", username=user.username))
+def task_create(user):
+    form = TaskForm(request.form)
+    if form.validate_on_submit():
+        user.add_task(title=form.title.data, deadline=form.deadline.data,
+                      body=form.body.data)
+        return redirect(url_for("eboard.tasks", username=user.username))       
+    return render_template("eboard/edittask.html", form=form)
+
+
+@eboard.route("/<username>/tasks/<task_id>/edit", methods=["GET", "POST"])
+@access_required(owner_only=True)
+def task_edit(user, task_id):
+    task = db.session.query(Task).get(task_id)
+    if not task:
+        return render_template("404.html"), 404       
+    form = TaskForm(request.form, obj=task)
+    if form.validate_on_submit():
+        task.update(form.data)
+        return redirect(url_for("eboard.tasks", username=user.username))
+    return render_template("eboard/edittask.html", form=form)
+
+
+@eboard.route("/<username>/tasks/<task_id>/delete", methods=["DELETE"])
+@access_required(owner_only=True)
+def task_delete(user, task_id):
+    task = db.session.query(Task).get(task_id)
+    if not task:
+        return render_template("404.html"), 404
+    db.session.delete(task)
+    db.session.commit()
+    return redirect(url_for("eboard.tasks", username=user.username))
+
+################################################################################
+
+
 
 
 @eboard.route("/")
 @login_required
-def index():
+def index_old():
 
     projects = db.session.query(Project).join(Project.status).\
         filter(Status.name == "active").options(contains_eager(Project.status)).\
@@ -96,7 +136,7 @@ def index():
 
 @eboard.route("/tasks", methods = ["GET", "POST"])
 @login_required
-def tasks():
+def tasks_old():
     tasks = db.session.query(Task).outerjoin(Task.status).\
         order_by(Status.name.asc()).order_by(Task.deadline.asc()).all()
     tags = db.session.query(Tag).all()
@@ -536,7 +576,7 @@ def milestone_list4task():
 
 @eboard.route("/project/task/edit", methods=["POST", "GET"])
 @login_required
-def task_edit():
+def task_edit_old():
     task_id = request.json.get("id")
     tags = [ int(tag) for tag in json.loads(request.json.get("tags")) if tag.isdigit() ]
     if task_id: #update

@@ -18,7 +18,7 @@ class TaskForm(Form):
     title = StringField("Title", validators = [DataRequired()])
     deadline = DateTimeField("Deadline", format='%Y-%m-%d %H:%M', \
         validators = [DataRequired()])
-    notes = TextAreaField("Notes")
+    body = TextAreaField("Body")
     submit = SubmitField("Submit")
     tags = StringField("Tags")
 

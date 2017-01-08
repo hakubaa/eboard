@@ -2,7 +2,7 @@
 {% import "bootstrap/wtf.html" as wtf %}
 {% import "_macros.html" as macros %}
 
-{% block title %}JAGO - e-Board{% endblock %}
+{% block title %}JAGO - e-Board - Tasks{% endblock %}
 
 {% block styles %}
 {{ super() }}
@@ -28,7 +28,7 @@
     </ul>
 </div>
 <div class="pagination">
-{{ macros.pagination_widget(pagination, 'eboard.user_tasks', username=user.username) }}
+{{ macros.pagination_widget(pagination, 'eboard.tasks', username=user.username) }}
 </div>
 {% else %}
 <div class="container">
