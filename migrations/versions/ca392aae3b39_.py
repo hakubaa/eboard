@@ -1,13 +1,13 @@
 """empty message
 
-Revision ID: 868d43888af5
+Revision ID: ca392aae3b39
 Revises: None
-Create Date: 2017-01-08 21:52:02.977016
+Create Date: 2017-01-08 23:14:30.591535
 
 """
 
 # revision identifiers, used by Alembic.
-revision = '868d43888af5'
+revision = 'ca392aae3b39'
 down_revision = None
 
 from alembic import op
@@ -21,7 +21,7 @@ def upgrade():
     sa.Column('title', sa.String(length=256), nullable=True),
     sa.Column('author', sa.String(length=256), nullable=True),
     sa.Column('file_path', sa.String(length=256), nullable=True),
-    sa.Column('description', sa.String(), nullable=True),
+    sa.Column('desc', sa.String(), nullable=True),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('events',
@@ -37,7 +37,7 @@ def upgrade():
     sa.Column('textColor', sa.String(), nullable=True),
     sa.Column('backgroundColor', sa.String(), nullable=True),
     sa.Column('borderColor', sa.String(), nullable=True),
-    sa.Column('description', sa.String(), nullable=True),
+    sa.Column('desc', sa.String(), nullable=True),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('statuses',
@@ -66,7 +66,7 @@ def upgrade():
     op.create_table('projects',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('name', sa.String(length=32), nullable=True),
-    sa.Column('description', sa.Text(), nullable=True),
+    sa.Column('desc', sa.Text(), nullable=True),
     sa.Column('deadline', sa.DateTime(), nullable=True),
     sa.Column('created', sa.DateTime(), nullable=True),
     sa.Column('modified', sa.DateTime(), nullable=True),
@@ -81,7 +81,7 @@ def upgrade():
     op.create_table('milestones',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('title', sa.String(length=64), nullable=True),
-    sa.Column('description', sa.Text(), nullable=True),
+    sa.Column('desc', sa.Text(), nullable=True),
     sa.Column('position', sa.Integer(), nullable=True),
     sa.Column('project_id', sa.Integer(), nullable=True),
     sa.ForeignKeyConstraint(['project_id'], ['projects.id'], ),

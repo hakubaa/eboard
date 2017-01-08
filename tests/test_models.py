@@ -5,7 +5,7 @@ import unittest
 from flask_testing import TestCase #http://pythonhosted.org/Flask-Testing/
 
 from app import create_app, db
-from app.models import User, Task, Event, Project
+from app.models import User, Task, Event, Project, Milestone
 
 
 class TestUser(TestCase):
@@ -148,7 +148,7 @@ class TestUser(TestCase):
         user.remove_project(project.id)
         self.assertEqual(user.projects.count(), 0)
 
-    def test_remove_task_by_object_from_user_tasks_list(self):
+    def test_remove_project_by_object_from_user_tasks_list(self):
         user = self.create_user()
         project = user.add_project(name="Project to remove", 
                                    deadline=datetime(2015, 1, 1, 0, 0))
@@ -156,7 +156,7 @@ class TestUser(TestCase):
         user.remove_project(project)
         self.assertEqual(user.projects.count(), 0)
 
-    def test_remove_task_does_not_raise_exception_when_invalid_id(self):
+    def test_remove_project_does_not_raise_exception_when_invalid_id(self):
         user = self.create_user()
         project = user.add_project(name="Project to remove", 
                                    deadline=datetime(2015, 1, 1, 0, 0))
@@ -230,7 +230,7 @@ class TestTask(TestCase):
         event = db.session.query(Task).one().deadline_event
         self.assertEqual(event.end, datetime(2018, 1, 1, 0, 0))
         self.assertEqual(event.title, "Task 'New Task Title'")
-        self.assertEqual(event.description, "Deadline of the task is on " 
+        self.assertEqual(event.desc, "Deadline of the task is on " 
                 + datetime(2018, 1, 1, 0, 0).strftime("%Y-%m-%d %H:%M:%S") 
                 + ".",)
         self.assertEqual(event.start, datetime(2018, 1, 1, 0, 0)  - timedelta(minutes=30))
@@ -286,11 +286,11 @@ class TestProject(TestCase):
         db.session.add(project)
         db.session.commit()
         project = db.session.query(Project).one()
-        data = { "name": "Revolution", "description": "Very Important" }
+        data = { "name": "Revolution", "desc": "Very Important" }
         project.update(data)
         db.session.rollback()
         project = db.session.query(Project).one()
-        self.assertEqual(project.description, data["description"])
+        self.assertEqual(project.desc, data["desc"])
         self.assertEqual(project.deadline, datetime(2015, 1, 1, 0, 0))
 
     def test_for_updating_project_with_kwargs(self):
@@ -299,12 +299,12 @@ class TestProject(TestCase):
         db.session.add(project)
         db.session.commit()
         project = db.session.query(Project).one()
-        project.update(name="Revolution", description="Very Important",
+        project.update(name="Revolution", desc="Very Important",
                        complete=True)
         db.session.rollback()
         project = db.session.query(Project).one()
         self.assertEqual(project.name, "Revolution")
-        self.assertEqual(project.description, "Very Important")
+        self.assertEqual(project.desc, "Very Important")
         self.assertEqual(project.deadline, datetime(2015, 1, 1, 0, 0))
         self.assertEqual(project.complete, True)
 
@@ -319,7 +319,7 @@ class TestProject(TestCase):
         event = db.session.query(Project).one().deadline_event
         self.assertEqual(event.end, datetime(2018, 1, 1, 0, 0))
         self.assertEqual(event.title, "Project 'New Project Title'")
-        self.assertEqual(event.description, "Deadline of the project is on " 
+        self.assertEqual(event.desc, "Deadline of the project is on " 
                 + datetime(2018, 1, 1, 0, 0).strftime("%Y-%m-%d %H:%M:%S") 
                 + ".",)
         self.assertEqual(event.start, datetime(2018, 1, 1, 0, 0)  - timedelta(minutes=30))
@@ -330,9 +330,143 @@ class TestProject(TestCase):
         db.session.add(project)
         db.session.commit()
         project = db.session.query(Project).one()
-        data = { "name": "New Title", "description": "Very Important" }
+        data = { "name": "New Title", "desc": "Very Important" }
         project.update(data, commit=False)
         db.session.rollback()
         project = db.session.query(Project).one()
         self.assertEqual(project.name, "Sample Project")
-        self.assertIsNone(project.description)
+        self.assertIsNone(project.desc)
+
+    def test_add_milestone_creates_new_milestone(self):
+        project = Project(name="Sample Project", 
+                          deadline=datetime(2015, 1, 1, 0, 0))
+        db.session.add(project)
+        db.session.commit()
+        milestone = project.add_milestone(title="First Milestone")
+        db.session.rollback()
+        self.assertEqual(db.session.query(Milestone).count(), 1)
+        self.assertEqual(project.milestones.count(), 1)
+        self.assertEqual(milestone.title, "First Milestone")
+
+    def test_add_milestone_accepts_milestone_object_as_first_argument(self):
+        project = Project(name="Sample Project", 
+                          deadline=datetime(2015, 1, 1, 0, 0))
+        milestone = Milestone(title="Init Milestone")
+        db.session.add(project)
+        db.session.add(milestone)
+        db.session.commit()
+        project.add_milestone(milestone)
+        self.assertEqual(db.session.query(Milestone).count(), 1)
+        self.assertEqual(project.milestones.count(), 1)
+        self.assertEqual(project.milestones[0], milestone)
+
+    def test_add_milestone_sets_proper_position_of_milestone(self):
+        project = Project(name="Sample Project", 
+                          deadline=datetime(2015, 1, 1, 0, 0))
+        db.session.add(project)
+        db.session.commit()        
+        milestone1 = project.add_milestone(title="First Milestone")
+        self.assertEqual(milestone1.position, 0)
+        milestone2 = project.add_milestone(title="Second Milestone")
+        self.assertEqual(milestone2.position, 1)
+        milestone3 = Milestone(title="Third Milestone")
+        project.add_milestone(milestone3)
+        self.assertEqual(milestone3.position, 2)
+        project.remove_milestone(milestone1)
+        milestone4 = project.add_milestone(title="New Milestone")
+        self.assertEqual(milestone4.position, 3)
+
+    def test_remove_milestone_by_id_from_project_milestones_list(self):
+        project = Project(name="Sample Project", 
+                          deadline=datetime(2015, 1, 1, 0, 0))
+        db.session.add(project)
+        db.session.commit()
+        milestone = project.add_milestone(title="First Milestone")
+        self.assertEqual(project.milestones.count(), 1)
+        project.remove_milestone(milestone.id)
+        self.assertEqual(project.milestones.count(), 0)
+
+    def test_remove_milestone_by_object_from_project_milestones_list(self):
+        project = Project(name="Sample Project", 
+                          deadline=datetime(2015, 1, 1, 0, 0))
+        db.session.add(project)
+        db.session.commit()
+        milestone = project.add_milestone(title="First Milestone")
+        self.assertEqual(project.milestones.count(), 1)
+        project.remove_milestone(milestone)
+        self.assertEqual(project.milestones.count(), 0)
+
+    def test_remove_milestone_does_not_raise_exception_when_invalid_id(self):
+        project = Project(name="Sample Project", 
+                          deadline=datetime(2015, 1, 1, 0, 0))
+        db.session.add(project)
+        db.session.commit()
+        milestone = project.add_milestone(title="First Milestone")
+        self.assertEqual(project.milestones.count(), 1)
+        project.remove_milestone(345)
+        self.assertEqual(project.milestones.count(), 1)
+
+
+class TestMilestone(TestCase):
+
+    def create_app(self):
+        return create_app("testing")
+
+    def setUp(self):
+        db.create_all()
+        db.session.commit()
+
+    def tearDown(self):
+        db.session.remove()
+        db.drop_all()
+
+    def test_add_task_creates_new_task(self):
+        milestone = Milestone(title="Sample Milestone")
+        db.session.add(milestone)
+        db.session.commit()
+        task = milestone.add_task(title="First Task", 
+                                  deadline=datetime(2015, 1, 1, 0, 0))
+        db.session.rollback()
+        self.assertEqual(db.session.query(Task).count(), 1)
+        self.assertEqual(milestone.tasks.count(), 1)
+        self.assertEqual(task.title, "First Task")
+
+    def test_add_task_accepts_task_object_as_first_argument(self):
+        milestone = Milestone(title="Sample Milestone")
+        task = Task(title="First Task", deadline=datetime(2015, 1, 1, 0, 0))
+        db.session.add(milestone)
+        db.session.add(task)
+        db.session.commit()
+        milestone.add_task(task)
+        self.assertEqual(milestone.tasks.count(), 1)
+        self.assertEqual(milestone.tasks.one().title, "First Task")
+
+    def test_remove_task_by_id_from_milestone_tasks_list(self):
+        milestone = Milestone(title="Sample Milestone")
+        db.session.add(milestone)
+        db.session.commit()
+        task = milestone.add_task(title="First Task", 
+                                  deadline=datetime(2015, 1, 1, 0, 0))
+        self.assertEqual(milestone.tasks.count(), 1)
+        milestone.remove_task(task.id)
+        self.assertEqual(milestone.tasks.count(), 0)
+
+    def test_remove_milestone_by_object_from_project_milestones_list(self):
+        milestone = Milestone(title="Sample Milestone")
+        db.session.add(milestone)
+        db.session.commit()
+        task = milestone.add_task(title="First Task", 
+                                  deadline=datetime(2015, 1, 1, 0, 0))
+        self.assertEqual(milestone.tasks.count(), 1)
+        milestone.remove_task(task)
+        self.assertEqual(milestone.tasks.count(), 0)
+
+    def test_remove_milestone_does_not_raise_exception_when_invalid_id(self):
+        milestone = Milestone(title="Sample Milestone")
+        db.session.add(milestone)
+        db.session.commit()
+        task = milestone.add_task(title="First Task", 
+                                  deadline=datetime(2015, 1, 1, 0, 0))
+        self.assertEqual(milestone.tasks.count(), 1)
+        milestone.remove_task(34534)
+        self.assertEqual(milestone.tasks.count(), 1)

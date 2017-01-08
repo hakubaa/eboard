@@ -1,9 +1,13 @@
+import datetime
+
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
 from flask import redirect, url_for
-from . import db
+from sqlalchemy import func
+
+from app import db
 from app.utils import merge_dicts
-import datetime
+
 
 # Association table for notes & tags
 taskstags = db.Table("taskstags",
@@ -50,7 +54,7 @@ class Task(db.Model):
                     title = "Task '" + self.title + "'", 
                     start = self.deadline - datetime.timedelta(minutes=30),
                     end = self.deadline, className = "fc-task-deadline",
-                    description = "Deadline of the task is on " 
+                    desc = "Deadline of the task is on " 
                     + self.deadline.strftime("%Y-%m-%d %H:%M:%S") + ".",
                     editable = False
                 )
@@ -77,7 +81,7 @@ class Task(db.Model):
                 self.deadline_event.start = self.deadline - \
                                             datetime.timedelta(minutes=30)
                 self.deadline_event.end = self.deadline
-                self.deadline_event.description = \
+                self.deadline_event.desc = \
                             "Deadline of the task is on " + \
                             self.deadline.strftime("%Y-%m-%d %H:%M:%S") + "."
 
@@ -126,7 +130,7 @@ class Book(db.Model):
     title = db.Column(db.String(256), unique=False)
     author = db.Column(db.String(256), unique=False)
     file_path = db.Column(db.String(256))
-    description = db.Column(db.String())
+    desc = db.Column(db.String())
 
     def __repr__(self):
         return "<Book '%r'>" % self.title
@@ -235,7 +239,7 @@ class Project(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(32))
-    description = db.Column(db.Text)
+    desc = db.Column(db.Text)
     deadline = db.Column(db.DateTime)
     created = db.Column(db.DateTime, default=datetime.datetime.utcnow)
     modified = db.Column(db.DateTime, default=datetime.datetime.utcnow)
@@ -243,9 +247,9 @@ class Project(db.Model):
     complete = db.Column(db.Boolean(), default=False)
 
     milestones = db.relationship("Milestone", back_populates="project",
-        cascade = "all, delete, delete-orphan")
+        cascade = "all, delete, delete-orphan", lazy="dynamic")
     notes = db.relationship("Note", back_populates="project",
-        cascade = "all, delete, delete-orphan")
+        cascade = "all, delete, delete-orphan", lazy="dynamic")
 
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
     user = db.relationship("User", back_populates = "projects")
@@ -262,7 +266,7 @@ class Project(db.Model):
                 start = self.deadline - datetime.timedelta(minutes=30),
                 end = self.deadline,
                 className = "fc-project-deadline",
-                description = "Deadline of the project is set on " + 
+                desc = "Deadline of the project is set on " + 
                     self.deadline.strftime("%Y-%m-%d %H:%M:%S") + ".",
                 editable = False)
 
@@ -275,7 +279,7 @@ class Project(db.Model):
             data = kwargs
 
         # Update fields which can be update (not read-only fields)
-        update_possible = {"name", "description", "deadline", 
+        update_possible = {"name", "desc", "deadline", 
                            "active", "complete"}
         fields_to_update = update_possible & set(data.keys())
         for field in fields_to_update:
@@ -289,17 +293,49 @@ class Project(db.Model):
                 self.deadline_event.start = self.deadline - \
                                             datetime.timedelta(minutes=30)
                 self.deadline_event.end = self.deadline
-                self.deadline_event.description = \
+                self.deadline_event.desc = \
                             "Deadline of the project is on " + \
                             self.deadline.strftime("%Y-%m-%d %H:%M:%S") + "."
 
         if commit:
             db.session.commit()
 
+    def add_milestone(self, *args, commit=True, **kwargs):
+        '''
+        Adds new milestone to the project and sets it position after
+        last milestone.
+        '''
+        if len(args) > 0 and isinstance(args[0], Milestone):
+            milestone = args[0]
+        else:
+            milestone = Milestone(*args, **kwargs)
+        db.session.add(milestone)
+
+        # Update mileston position
+        if self.milestones.count() > 0:
+            last_position = db.session.query(func.max(Milestone.position)) \
+                                      .filter(Milestone.project_id == self.id) \
+                                      .one()
+            milestone.position = last_position[0] + 1
+
+        self.milestones.append(milestone)
+        if commit:
+            db.session.commit()
+        return milestone
+
+    def remove_milestone(self, milestone):
+        '''
+        Removes milestone from the project. Check whether the first position
+        is instance of Milestone or id.
+        '''
+        if not isinstance(milestone, Milestone):
+            milestone = Milestone.query.get(milestone)
+        if milestone:
+            self.milestones.remove(milestone)
 
     def move2dict(self):
         return {"id": self.id, "name": self.name, 
-            "description": self.description,
+            "desc": self.desc,
             "deadline": self.deadline.strftime("%Y-%m-%d %H:%M"),
             "created": self.created.strftime("%Y-%m-%d %H:%M"),
             "modified": self.modified.strftime("%Y-%m-%d %H:%M")}
@@ -309,18 +345,44 @@ class Milestone(db.Model):
     __tablename__ = "milestones"
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(64))
-    description = db.Column(db.Text)
+    desc = db.Column(db.Text)
     position = db.Column(db.Integer, default=0)
 
     project_id = db.Column(db.Integer, db.ForeignKey("projects.id"))
     project = db.relationship("Project", back_populates="milestones")
 
     tasks = db.relationship("Task", back_populates="milestone",
-        cascade = "all, delete, delete-orphan")
+        cascade = "all, delete, delete-orphan", lazy="dynamic")
+
+    def add_task(self, *args, commit=True, **kwargs):
+        '''
+        Adds task to the milestone. Checks whether the first position
+        argument is Task object.
+        '''
+        if len(args) > 0 and isinstance(args[0], Task):
+            task = args[0]
+        else:
+            task = Task(*args, **kwargs)
+            db.session.add(task)
+
+        self.tasks.append(task)
+        if commit:
+            db.session.commit()
+        return task
+
+    def remove_task(self, task):
+        '''
+        Removes taks from the milestone. Check whether the first position
+        is instance of Task or id.
+        '''
+        if not isinstance(task, Task):
+            task = Task.query.get(task)
+        if task:
+            self.tasks.remove(task)
 
     def move2dict(self):
         return { "id": self.id, "title": self.title, 
-            "description": self.description,
+            "desc": self.desc,
             "project_id": self.project_id, 
             "tasks": [ task.move2dict() for task in self.tasks ]}
 
@@ -343,7 +405,7 @@ class Event(db.Model):
     borderColor = db.Column(db.String)
 
     # Extra fields
-    description = db.Column(db.String)
+    desc = db.Column(db.String)
 
     # Relationships
     task = db.relationship("Task", back_populates = "deadline_event", 
@@ -355,7 +417,7 @@ class Event(db.Model):
         return {"id": self.id, "title": self.title, "allDay": self.allDay,
             "start": self.start.strftime("%Y-%m-%d %H:%M:%S"),
             "end": self.end.strftime("%Y-%m-%d %H:%M:%S"),
-            "url": self.url, "description": self.description,
+            "url": self.url, "desc": self.desc,
             "className": self.className, "color": self.color,
             "editable": self.editable,
             "textColor": self.textColor, 
