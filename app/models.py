@@ -4,6 +4,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
 from flask import redirect, url_for
 from sqlalchemy import func
+from sqlalchemy.orm.exc import NoResultFound
 
 from app import db
 from app.utils import merge_dicts
@@ -35,7 +36,8 @@ class Task(db.Model):
     urgency = db.Column(db.Integer)
     active = db.Column(db.Boolean(), default=True)
     complete = db.Column(db.Boolean(), default=False)
-    tags = db.relationship("Tag", secondary = taskstags)
+
+    tags = db.relationship("Tag", secondary=taskstags, lazy="immediate")
 
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
     user = db.relationship("User", back_populates = "tasks")
@@ -68,7 +70,7 @@ class Task(db.Model):
 
         # Update fields which can be update (not read-only fields)
         update_possible = {"title", "deadline", "body", "importance", 
-                           "urgency", "active", "complete"}
+                           "urgency", "active", "complete", "tags"}
         fields_to_update = update_possible & set(data.keys())
         for field in fields_to_update:
             setattr(self, field, data[field])
@@ -88,6 +90,33 @@ class Task(db.Model):
         if commit:
             db.session.commit()
 
+    def add_tag(self, tag, commit=True, create_new_tag=True):
+        '''
+        Adds tag to task. Creates new tag if does not exist.
+        '''
+        if isinstance(tag, Tag):
+            tag_obj = tag
+        else:
+            tag_obj = Tag.find_or_create(name=tag, commit=commit, 
+                                         create_new_tag=create_new_tag)
+        if not tag_obj:
+            raise NoResultFound("Tag '%s' does not exist." % tag)
+        self.tags.append(tag_obj)
+        if commit:
+            db.session.commit()
+        return tag_obj
+
+    def remove_tag(self, tag, commit=True):
+        '''
+        Removes tag from task. 
+        '''
+        if isinstance(tag, Tag):
+            tag_obj = [item for item in self.tags if item == tag]
+        else:
+            tag_obj = [item for item in self.tags 
+                            if item.name.lower() == tag.lower()]
+        if tag_obj:
+            self.tags.remove(tag_obj[0])
 
     def move2dict(self, extradict = {}):
         return merge_dicts({"title": self.title, 
@@ -112,6 +141,17 @@ class Tag(db.Model):
     name = db.Column(db.String(64), unique=True)
     tasks = db.relationship("Task", secondary = taskstags)
     notes = db.relationship("Note", secondary = notestags)
+
+    @staticmethod
+    def find_or_create(name, commit=True, create_new_tag=True):
+        tag = db.session.query(Tag).filter(
+                func.lower(Tag.name) == func.lower(name)).first()
+        if not tag and create_new_tag:
+            tag = Tag(name=name)
+            db.session.add(tag)
+            if commit:
+                db.session.commit()
+        return tag
 
     def move2dict(self): 
         return { "id": self.id, "name": self.name }
@@ -143,9 +183,12 @@ class User(UserMixin, db.Model):
     username = db.Column(db.String(64), unique=True, index=True)
     password_hash = db.Column(db.String(128))
     public = db.Column(db.Boolean(), unique=False, default=False)
+
     tasks = db.relationship("Task", back_populates="user",
         cascade = "all, delete, delete-orphan", lazy="dynamic")
     projects = db.relationship("Project", back_populates="user",
+        cascade = "all, delete, delete-orphan", lazy="dynamic")
+    notes = db.relationship("Note", back_populates="user",
         cascade = "all, delete, delete-orphan", lazy="dynamic")
 
     @property
@@ -211,6 +254,32 @@ class User(UserMixin, db.Model):
         if project:
             self.projects.remove(project)
 
+    def add_note(self, *args, commit=True, **kwargs):
+        '''
+        Adds note to user's notes list. Checks whether the first position
+        argument is Note object.
+        '''
+        if len(args) > 0 and isinstance(args[0], Note):
+            note = args[0]
+        else:
+            note = Note(*args, **kwargs)
+            db.session.add(note)
+
+        self.notes.append(note)
+        if commit:
+            db.session.commit()
+        return note
+
+    def remove_note(self, note):
+        '''
+        Removes note. Checks whether the first position is instance of 
+        Note or id.
+        '''
+        if not isinstance(note, Note):
+            note = Note.query.get(note)
+        if note:
+            self.notes.remove(note)
+
     def __repr__(self):
         return '<User %r>' % self.username
 
@@ -218,15 +287,61 @@ class User(UserMixin, db.Model):
 class Note(db.Model):
     __tablename__ = "notes"
     id = db.Column(db.Integer, primary_key=True)
-    body = db.Column(db.Text)
     title = db.Column(db.Text)
+    body = db.Column(db.Text)
     timestamp = db.Column(db.DateTime, index=True, 
-        default=datetime.datetime.utcnow)
-
-    tags = db.relationship("Tag", secondary = notestags)
-
+                          default=datetime.datetime.utcnow)
+    tags = db.relationship("Tag", secondary=notestags, lazy="immediate")
+    
     project_id = db.Column(db.Integer, db.ForeignKey("projects.id"));
     project = db.relationship("Project", back_populates="notes")
+
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    user = db.relationship("User", back_populates = "notes")
+
+    def update(self, data=None, commit=True, **kwargs):
+        '''
+        Update note on the base of dict or **kwargs.
+        '''
+        if not data:
+            data = kwargs
+
+        # Update fields which can be update (not read-only fields)
+        update_possible = {"title", "body", "tags"}
+        fields_to_update = update_possible & set(data.keys())
+        for field in fields_to_update:
+            setattr(self, field, data[field])
+
+        if commit:
+            db.session.commit()
+
+    def add_tag(self, tag, commit=True, create_new_tag=True):
+        '''
+        Adds tag to note. Creates new tag if does not exist.
+        '''
+        if isinstance(tag, Tag):
+            tag_obj = tag
+        else:
+            tag_obj = Tag.find_or_create(name=tag, commit=commit, 
+                                         create_new_tag=create_new_tag)
+        if not tag_obj:
+            raise NoResultFound("Tag '%s' does not exist." % tag)
+        self.tags.append(tag_obj)
+        if commit:
+            db.session.commit()
+        return tag_obj
+
+    def remove_tag(self, tag, commit=True):
+        '''
+        Removes tag from note. 
+        '''
+        if isinstance(tag, Tag):
+            tag_obj = [item for item in self.tags if item == tag]
+        else:
+            tag_obj = [item for item in self.tags 
+                            if item.name.lower() == tag.lower()]
+        if tag_obj:
+            self.tags.remove(tag_obj[0])
 
     def move2dict(self):
         return { "id": self.id, "title": self.title, "body": self.body,
@@ -333,6 +448,32 @@ class Project(db.Model):
         if milestone:
             self.milestones.remove(milestone)
 
+    def add_note(self, *args, commit=True, **kwargs):
+        '''
+        Adds note to project's notes list. Checks whether the first position
+        argument is Note object.
+        '''
+        if len(args) > 0 and isinstance(args[0], Note):
+            note = args[0]
+        else:
+            note = Note(*args, **kwargs)
+            db.session.add(note)
+
+        self.notes.append(note)
+        if commit:
+            db.session.commit()
+        return note
+
+    def remove_note(self, note):
+        '''
+        Removes note. Checks whether the first position is instance of 
+        Note or id.
+        '''
+        if not isinstance(note, Note):
+            note = Note.query.get(note)
+        if note:
+            self.notes.remove(note)
+
     def move2dict(self):
         return {"id": self.id, "name": self.name, 
             "desc": self.desc,
@@ -379,6 +520,22 @@ class Milestone(db.Model):
             task = Task.query.get(task)
         if task:
             self.tasks.remove(task)
+
+    def update(self, data=None, commit=True, **kwargs):
+        '''
+        Update milestone on the base of dict or **kwargs.
+        '''
+        if not data:
+            data = kwargs
+
+        # Update fields which can be update (not read-only fields)
+        update_possible = {"title", "position", "desc"}
+        fields_to_update = update_possible & set(data.keys())
+        for field in fields_to_update:
+            setattr(self, field, data[field])
+
+        if commit:
+            db.session.commit()
 
     def move2dict(self):
         return { "id": self.id, "title": self.title, 

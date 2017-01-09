@@ -1,13 +1,13 @@
 """empty message
 
-Revision ID: ca392aae3b39
+Revision ID: 081397d9ea29
 Revises: None
-Create Date: 2017-01-08 23:14:30.591535
+Create Date: 2017-01-09 22:37:33.627633
 
 """
 
 # revision identifiers, used by Alembic.
-revision = 'ca392aae3b39'
+revision = '081397d9ea29'
 down_revision = None
 
 from alembic import op
@@ -89,11 +89,13 @@ def upgrade():
     )
     op.create_table('notes',
     sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('body', sa.Text(), nullable=True),
     sa.Column('title', sa.Text(), nullable=True),
+    sa.Column('body', sa.Text(), nullable=True),
     sa.Column('timestamp', sa.DateTime(), nullable=True),
     sa.Column('project_id', sa.Integer(), nullable=True),
+    sa.Column('user_id', sa.Integer(), nullable=True),
     sa.ForeignKeyConstraint(['project_id'], ['projects.id'], ),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_notes_timestamp'), 'notes', ['timestamp'], unique=False)
