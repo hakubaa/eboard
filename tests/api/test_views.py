@@ -114,17 +114,59 @@ class TestApiUser(ApiTestCase):
         data = response.json
         self.assertEqual(data["notes"][0]["uri"], "/Test/notes/" + str(note.id))        
 
-    def test_creates_client_with_put_request(self):
-        pass
+    def test_creates_user_with_post_request_and_return_201(self):
+        response = self.client.post(url_for("api.user_create"), 
+                                    data=dict(username="Test", password="test",
+                                              password2="test"))
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(db.session.query(User).count(), 1)
+        self.assertEqual(db.session.query(User).one().username, "Test")
+
+    def test_create_user_returns_Bad_Request_when_no_username(self):
+        response = self.client.post(url_for("api.user_create"), 
+                                    data=dict(name="Test", password="test",
+                                              password2="test"))
+        self.assertEqual(response.status_code, 400)    
+
+    def test_create_user_returns_Bad_Request_when_invalid_passwords(self):
+        response = self.client.post(url_for("api.user_create"), 
+                                    data=dict(username="Test", password="test",
+                                              password2="sets"))
+        self.assertEqual(response.status_code, 400)      
+
+    def test_create_user_returns_Conflict_when_username_is_occupied(self):
+        self.create_user(name="Test")
+        response = self.client.post(url_for("api.user_create"), 
+                                    data=dict(username="Test", password="test",
+                                              password2="test"))
+        self.assertEqual(response.status_code, 409)                
 
     def test_updates_client_with_put_request(self):
-        pass
+        user = self.create_user(name="Test", password="test")
+        self.login(name="Test")
+        response = self.client.put(url_for("api.user_edit", username="Test"),
+                                   data=dict(public=True, new_password="sets",
+                                             new_password2="sets"))
+        self.assertEqual(response.status_code, 200)
+        user = db.session.query(User).one()
+        self.assertTrue(user.verify_password("sets"))
+        self.assertTrue(user.public)
 
     def test_deletes_client_with_delete_request(self):
-        pass
+        user = self.create_user(name="Test", password="test")
+        self.login(name="Test")
+        response = self.client.delete(url_for("api.user_delete", username="Test"),
+                                      data=dict(password="test"))
+        self.assertEqual(response.status_code, 410)
+        self.assertEqual(db.session.query(User).count(), 0)
 
-    def test_delete_request_requires_password_confirmation(self):
-        pass
+    def test_delete_request_returns_Bad_Request_when_invalid_password(self):
+        user = self.create_user(name="Test", password="test")
+        self.login(name="Test")
+        response = self.client.delete(url_for("api.user_delete", username="Test"),
+                                      data=dict(password="sets"))
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(db.session.query(User).count(), 1)
 
 
 class TestApiTasks(ApiTestCase):
