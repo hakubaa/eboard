@@ -118,17 +118,27 @@ class Task(db.Model):
         if tag_obj:
             self.tags.remove(tag_obj[0])
 
-    def move2dict(self, extradict = {}):
-        return merge_dicts({"title": self.title, 
-            "created": self.created.strftime("%Y-%m-%d %H:%M:%S"),
-             "deadline": self.deadline.strftime("%Y-%m-%d %H:%M:%S"),
-             "notes": self.notes, 
-             "tags": [ {"name": tag.name, "id": tag.id} for tag in self.tags ],
-             "status": {"name": self.status.name, 
-             "label": self.status.label } if self.status else None,
-             "daysleft": self.daysleft, "id": self.id, 
-             "importance": self.importance,
-             "urgency": self.urgency }, extradict)
+    def to_dict(self):
+        return {
+                "title": self.title, 
+                "created": self.created.strftime("%Y-%m-%d %H:%M:%S"),
+                "deadline": self.deadline.strftime("%Y-%m-%d %H:%M:%S"),
+                "notes": self.notes, 
+                "tags": [ tag.to_dict() for tag in self.tags ],
+                "complete": self.complete, "active": self.active,
+                "daysleft": self.daysleft, "id": self.id, 
+                "importance": self.importance,
+                "urgency": self.urgency 
+             }
+
+    def get_info(self):
+        return {
+                "title": self.title, 
+                "created": self.created.strftime("%Y-%m-%d %H:%M:%S"),
+                "deadline": self.deadline.strftime("%Y-%m-%d %H:%M:%S"),
+                "complete": self.complete, "active": self.active,
+                "daysleft": self.daysleft, "id": self.id
+             }
 
     @property
     def daysleft(self):
@@ -153,27 +163,11 @@ class Tag(db.Model):
                 db.session.commit()
         return tag
 
-    def move2dict(self): 
+    def to_dict(self): 
         return { "id": self.id, "name": self.name }
 
-
-class Status(db.Model):
-    __tablename__ = "statuses"
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(32), unique=True)
-    label = db.Column(db.String(32))
-
-
-class Book(db.Model):
-    __tablename__ = 'books'
-    id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(256), unique=False)
-    author = db.Column(db.String(256), unique=False)
-    file_path = db.Column(db.String(256))
-    desc = db.Column(db.String())
-
-    def __repr__(self):
-        return "<Book '%r'>" % self.title
+    def get_info(self):
+        return self.to_dict()
 
 
 class User(UserMixin, db.Model):
@@ -280,6 +274,21 @@ class User(UserMixin, db.Model):
         if note:
             self.notes.remove(note)
 
+    def to_dict(self):
+        return {
+            "id": self.id, "email": self.email,
+            "username": self.username, "public": self.public,
+            "tasks": [ task.get_info() for task in self.tasks ],
+            "projects": [ project.get_info() for project in self.projects ],
+            "notes": [ note.get_info() for note in self.notes ]
+            }
+
+    def get_info(self):
+        return {
+            "id": self.id, "email": self.email,
+            "username": self.username, "public": self.public
+            }      
+
     def __repr__(self):
         return '<User %r>' % self.username
 
@@ -343,11 +352,18 @@ class Note(db.Model):
         if tag_obj:
             self.tags.remove(tag_obj[0])
 
-    def move2dict(self):
-        return { "id": self.id, "title": self.title, "body": self.body,
+    def to_dict(self):
+        return { 
+            "id": self.id, "title": self.title, "body": self.body,
             "timestamp": self.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
-            "tags": [{"name": tag.name, "id": tag.id} for tag in self.tags ]}
+            "tags": [ tag.to_dict() for tag in self.tags ]
+            }
 
+    def get_info(self):
+        return { 
+            "id": self.id, "title": self.title,
+            "timestamp": self.timestamp.strftime("%Y-%m-%d %H:%M:%S")
+            }
 
 class Project(db.Model):
     __tablename__ = "projects"
@@ -474,12 +490,27 @@ class Project(db.Model):
         if note:
             self.notes.remove(note)
 
-    def move2dict(self):
-        return {"id": self.id, "name": self.name, 
+    def to_dict(self):
+         return {
+            "id": self.id, "name": self.name, 
+            "active": self.active, "complete": self.complete,
             "desc": self.desc,
             "deadline": self.deadline.strftime("%Y-%m-%d %H:%M"),
             "created": self.created.strftime("%Y-%m-%d %H:%M"),
-            "modified": self.modified.strftime("%Y-%m-%d %H:%M")}
+            "modified": self.modified.strftime("%Y-%m-%d %H:%M"),
+            "milestones": [ milestone.get_info() for milestone in self.milestones ],
+            "notes": [ note.get_info() for note in self.notes ]
+            }       
+
+    def get_info(self):
+        return {
+            "id": self.id, "name": self.name, 
+            "active": self.active, "complete": self.complete,
+            "desc": self.desc,
+            "deadline": self.deadline.strftime("%Y-%m-%d %H:%M"),
+            "created": self.created.strftime("%Y-%m-%d %H:%M"),
+            "modified": self.modified.strftime("%Y-%m-%d %H:%M")
+            }
 
 
 class Milestone(db.Model):
@@ -537,11 +568,20 @@ class Milestone(db.Model):
         if commit:
             db.session.commit()
 
-    def move2dict(self):
-        return { "id": self.id, "title": self.title, 
-            "desc": self.desc,
-            "project_id": self.project_id, 
-            "tasks": [ task.move2dict() for task in self.tasks ]}
+    def to_dict(self):
+        return { 
+            "id": self.id, "title": self.title, 
+            "desc": self.desc, "position": self.position,
+            # "project_id": self.project_id, 
+            "tasks": [ task.get_info() for task in self.tasks ]
+            }
+
+    def get_info(self):
+        return { 
+            "id": self.id, "title": self.title, 
+            "desc": self.desc, "position": self.position,
+            # "project_id": self.project_id, 
+            }
 
 
 class Event(db.Model):
@@ -570,7 +610,7 @@ class Event(db.Model):
     project = db.relationship("Project", back_populates = "deadline_event", 
         uselist = False)
 
-    def move2dict(self):
+    def to_dict(self):
         return {"id": self.id, "title": self.title, "allDay": self.allDay,
             "start": self.start.strftime("%Y-%m-%d %H:%M:%S"),
             "end": self.end.strftime("%Y-%m-%d %H:%M:%S"),
@@ -580,3 +620,9 @@ class Event(db.Model):
             "textColor": self.textColor, 
             "backgroundColor": self.backgroundColor,
             "bordercolor": self.borderColor }
+
+class Status(db.Model):
+    __tablename__ = "statuses"
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(32), unique=True)
+    label = db.Column(db.String(32))

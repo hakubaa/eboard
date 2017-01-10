@@ -15,7 +15,7 @@ from sqlalchemy.orm import contains_eager, subqueryload, joinedload
 from app.eboard import eboard 
 from app.eboard.forms import UploadBookForm, NoteForm, TaskForm,\
         ProjectForm, MilestoneForm, NoteFilterForm
-from app.models import Book, Task, Tag, Status, Note, Project,\
+from app.models import Task, Tag, Status, Note, Project,\
     Milestone, Event, User
 from app import db
 from app.utils import merge_dicts
