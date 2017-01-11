@@ -1,4 +1,4 @@
-import datetime
+from datetime import datetime, timedelta
 
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
@@ -8,6 +8,7 @@ from sqlalchemy.orm.exc import NoResultFound
 
 from app import db
 from app.utils import merge_dicts
+from app.models_types import BooleanString, DateTimeString
 
 
 # Association table for notes & tags
@@ -26,16 +27,16 @@ notestags = db.Table("notestags",
 class Task(db.Model):
     __tablename__ = "tasks"
 
-    id = db.Column(db.Integer, primary_key=True)
+    id = db.Column(db.Integer(), primary_key=True)
     title = db.Column(db.String(256))
-    created = db.Column(db.DateTime, default=datetime.datetime.utcnow)
-    deadline = db.Column(db.DateTime)
+    created = db.Column(db.DateTime, default=datetime.utcnow)
+    deadline = db.Column(DateTimeString(dtformat="%Y-%m-%d %H:%M"))
     notes = db.Column(db.String()) #remove
     body = db.Column(db.String())
-    importance = db.Column(db.Integer)
-    urgency = db.Column(db.Integer)
-    active = db.Column(db.Boolean(), default=True)
-    complete = db.Column(db.Boolean(), default=False)
+    importance = db.Column(db.Integer())
+    urgency = db.Column(db.Integer())
+    active = db.Column(BooleanString(), default=True)
+    complete = db.Column(BooleanString(), default=False)
 
     tags = db.relationship("Tag", secondary=taskstags, lazy="immediate")
 
@@ -51,15 +52,19 @@ class Task(db.Model):
 
     def __init__(self, *args, deadline_event=True, **kwargs):
         super().__init__(*args, **kwargs)
-        # if deadline_event:
-        #     self.deadline_event = Event(
-        #             title = "Task '" + self.title + "'", 
-        #             start = self.deadline - datetime.timedelta(minutes=30),
-        #             end = self.deadline, className = "fc-task-deadline",
-        #             desc = "Deadline of the task is on " 
-        #             + self.deadline.strftime("%Y-%m-%d %H:%M:%S") + ".",
-        #             editable = False
-        #         )
+        if deadline_event:
+            deadline = self.deadline
+            if isinstance(self.deadline, str):
+                deadline = datetime.strptime(self.deadline, 
+                                             Task.deadline.type.dtformat)
+            self.deadline_event = Event(
+                    title = "Task '" + self.title + "'", 
+                    start = deadline - timedelta(minutes=30),
+                    end = deadline, className = "fc-task-deadline",
+                    desc = "Deadline of the task is on " 
+                           + deadline.strftime(Task.deadline.type.dtformat) + ".",
+                    editable = False
+                )
 
     def update(self, data=None, commit=True, **kwargs):
         '''
@@ -81,7 +86,7 @@ class Task(db.Model):
                 self.deadline_event.title = "Task '" + self.title + "'"
             if "deadline" in data:
                 self.deadline_event.start = self.deadline - \
-                                            datetime.timedelta(minutes=30)
+                                            timedelta(minutes=30)
                 self.deadline_event.end = self.deadline
                 self.deadline_event.desc = \
                             "Deadline of the task is on " + \
@@ -142,7 +147,7 @@ class Task(db.Model):
 
     @property
     def daysleft(self):
-        return (self.deadline - datetime.datetime.now()).days
+        return (self.deadline - datetime.now()).days
 
 
 class Tag(db.Model):
@@ -176,7 +181,7 @@ class User(UserMixin, db.Model):
     email = db.Column(db.String(64), unique=True, index=True)
     username = db.Column(db.String(64), unique=True, index=True)
     password_hash = db.Column(db.String(128))
-    public = db.Column(db.Boolean(), unique=False, default=False)
+    public = db.Column(BooleanString(), unique=False, default=False)
 
     tasks = db.relationship("Task", back_populates="user",
         cascade = "all, delete, delete-orphan", lazy="dynamic")
@@ -298,8 +303,8 @@ class Note(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.Text)
     body = db.Column(db.Text)
-    timestamp = db.Column(db.DateTime, index=True, 
-                          default=datetime.datetime.utcnow)
+    timestamp = db.Column(DateTimeString(dtformat="%Y-%m-%d %H:%M"), index=True, 
+                          default=datetime.utcnow)
     tags = db.relationship("Tag", secondary=notestags, lazy="immediate")
     
     project_id = db.Column(db.Integer, db.ForeignKey("projects.id"));
@@ -371,11 +376,12 @@ class Project(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(32))
     desc = db.Column(db.Text)
-    deadline = db.Column(db.DateTime)
-    created = db.Column(db.DateTime, default=datetime.datetime.utcnow)
-    modified = db.Column(db.DateTime, default=datetime.datetime.utcnow)
-    active = db.Column(db.Boolean(), default=True)
-    complete = db.Column(db.Boolean(), default=False)
+    deadline = db.Column(DateTimeString(dtformat="%Y-%m-%d %H:%M"))
+    created = db.Column(db.DateTime, default=datetime.utcnow)
+    modified = db.Column(DateTimeString(dtformat="%Y-%m-%d %H:%M"), 
+                         default=datetime.utcnow)
+    active = db.Column(BooleanString(), default=True)
+    complete = db.Column(BooleanString(), default=False)
 
     milestones = db.relationship("Milestone", back_populates="project",
         cascade = "all, delete, delete-orphan", lazy="dynamic")
@@ -394,7 +400,7 @@ class Project(db.Model):
         if deadline_event:
             self.deadline_event = Event(
                 title = "Project '" + self.name + ",", 
-                start = self.deadline - datetime.timedelta(minutes=30),
+                start = self.deadline - timedelta(minutes=30),
                 end = self.deadline,
                 className = "fc-project-deadline",
                 desc = "Deadline of the project is set on " + 
@@ -422,7 +428,7 @@ class Project(db.Model):
                 self.deadline_event.title = "Project '" + self.name + "'"
             if "deadline" in data:
                 self.deadline_event.start = self.deadline - \
-                                            datetime.timedelta(minutes=30)
+                                            timedelta(minutes=30)
                 self.deadline_event.end = self.deadline
                 self.deadline_event.desc = \
                             "Deadline of the project is on " + \
@@ -589,10 +595,10 @@ class Event(db.Model):
     # Event Object http://fullcalendar.io/docs/event_data/Event_Object/
     id = db.Column(db.Integer, primary_key = True)
     title = db.Column(db.String)
-    allDay = db.Column(db.Boolean, default = False)
-    start = db.Column(db.DateTime)
-    end = db.Column(db.DateTime)
-    editable = db.Column(db.Boolean, default = True)
+    allDay = db.Column(BooleanString(), default = False)
+    start = db.Column(DateTimeString(dtformat="%Y-%m-%d %H:%M"))
+    end = db.Column(DateTimeString(dtformat="%Y-%m-%d %H:%M"))
+    editable = db.Column(BooleanString(), default = True)
     url = db.Column(db.String)
 
     className = db.Column(db.String)

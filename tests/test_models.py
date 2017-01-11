@@ -246,6 +246,40 @@ class TestTask(ModelTestCase):
         task = db.session.query(Task).one()
         self.assertEqual(event.task, task)
 
+    def test_accepts_string_for_boolean_fields(self):
+        task = Task(title="Task Title", deadline=datetime(2015, 1, 1, 0, 0),
+                    complete="TRUE", active="YES")
+        db.session.add(task)
+        db.session.commit()
+        task = db.session.query(Task).one()
+        self.assertTrue(task.complete)
+        self.assertTrue(task.active)
+        task.active = "NO"
+        task.complete = False
+        db.session.commit()
+        self.assertFalse(task.active)
+        self.assertFalse(task.complete)
+
+    def test_accepts_strings_for_int_fields(self):
+        task = Task(title="Task Title", deadline=datetime(2015, 1, 1, 0, 0),
+                    importance="10", urgency="5")
+        db.session.add(task)
+        db.session.commit()
+        task = db.session.query(Task).one()
+        self.assertEqual(task.importance, 10)
+        self.assertEqual(task.urgency, 5)
+        task.importance = "7"
+        task.urgency = 6
+        db.session.commit()
+        self.assertEqual(task.importance, 7)
+        self.assertEqual(task.urgency, 6)    
+
+    def test_accepts_deadline_as_string(self):
+        task = Task(title="Test Title", deadline="2015-01-01 00:00")
+        db.session.add(task)
+        db.session.commit()
+        self.assertEqual(task.deadline, datetime(2015, 1, 1, 0, 0))  
+
     def test_for_assigning_tags_to_task_in_constructor(self):
         tag1 = Tag(name="Tag1")
         tag2 = Tag(name="Tag2")
