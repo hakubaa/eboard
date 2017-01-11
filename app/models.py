@@ -51,15 +51,15 @@ class Task(db.Model):
 
     def __init__(self, *args, deadline_event=True, **kwargs):
         super().__init__(*args, **kwargs)
-        if deadline_event:
-            self.deadline_event = Event(
-                    title = "Task '" + self.title + "'", 
-                    start = self.deadline - datetime.timedelta(minutes=30),
-                    end = self.deadline, className = "fc-task-deadline",
-                    desc = "Deadline of the task is on " 
-                    + self.deadline.strftime("%Y-%m-%d %H:%M:%S") + ".",
-                    editable = False
-                )
+        # if deadline_event:
+        #     self.deadline_event = Event(
+        #             title = "Task '" + self.title + "'", 
+        #             start = self.deadline - datetime.timedelta(minutes=30),
+        #             end = self.deadline, className = "fc-task-deadline",
+        #             desc = "Deadline of the task is on " 
+        #             + self.deadline.strftime("%Y-%m-%d %H:%M:%S") + ".",
+        #             editable = False
+        #         )
 
     def update(self, data=None, commit=True, **kwargs):
         '''

@@ -1,12 +1,17 @@
 import functools
+from datetime import datetime
 
-from flask import jsonify, request
+from flask import jsonify, request, Response, url_for
 from flask_login import current_user
 import sqlalchemy
 
 from app import login_manager, db
 from app.api import api
 from app.models import User, Task
+
+
+# Read This
+# http://michal.karzynski.pl/blog/2016/06/19/building-beautiful-restful-apis-using-flask-swagger-ui-flask-restplus/
 
 
 # Create decorator for access restriction
@@ -97,23 +102,55 @@ def user_delete(user):
 @api.route("/users/<username>/tasks", methods=["GET"])
 @access_validator(owner_auth=False)
 def tasks(user):
-    return "OK", 200
-
+    data = [ task.get_info() for task in user.tasks.all() ]
+    for task in data:
+        task["uri"] = "/api/users/" + user.username + "/tasks/" + \
+                      str(task["id"])
+    return jsonify(data), 200
 
 @api.route("/users/<username>/tasks", methods=["POST"])
 @access_validator()
 def task_create(user):
-    pass
+    data = request.form.to_dict()
+    # Two fields are required
+    if not "title" in data or not "deadline" in data:
+        return "", 400
+    data["deadline"] = datetime.strptime(data["deadline"], "%Y-%m-%d %H:%M")
+    # Ignore redundat data from request
+    data = { key: value for key, value in data.items() 
+                        if key in Task.__table__.columns.keys() }
+    task = user.add_task(**data)
+
+    response = Response("")
+    response.status_code = 201
+    response.headers["Location"] = url_for("api.task_get", task_id=task.id,
+                                           username=user.username)
+    return response
 
 @api.route("/users/<username>/tasks/<task_id>", methods=["GET"])
 @access_validator(owner_auth=False)
 def task_get(user, task_id):
-    pass
+    task = db.session.query(Task).join(User).filter(
+                User.id == user.id, Task.id == task_id).first()
+    if not task:
+        return "", 404
+    return jsonify(task.to_dict()), 200
 
 @api.route("/users/<username>/tasks/<task_id>", methods=["PUT"])
 @access_validator()
-def task_update(user, task_id):
-    pass
+def task_edit(user, task_id):
+    task = db.session.query(Task).join(User).filter(
+            User.id == user.id, Task.id == task_id).first()
+    if not task:
+        return "", 404
+
+    data = request.form.to_dict()
+    if "deadline" in data:
+        data["deadline"] = datetime.strptime(data["deadline"], "%Y-%m-%d %H:%M")
+    data = { key: value for key, value in data.items() 
+                        if key in Task.__table__.columns.keys() }
+    task.update(**data)
+    return "", 200
 
 ################################################################################
 
