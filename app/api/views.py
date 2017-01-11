@@ -52,7 +52,7 @@ def user_index(user):
     return jsonify(rrepr), 200
 
 @api.route("/users/<username>", methods=["PUT"])
-@access_validator()
+@access_validator(ouner_auth=True)
 def user_edit(user):
     mod_flag = False
     if "public" in request.form:
@@ -65,7 +65,7 @@ def user_edit(user):
             mod_flag = True
     if mod_flag:
         db.session.commit()
-    return "", 200
+    return "", 204
 
 @api.route("/users", methods=["POST"])
 def user_create():
@@ -83,10 +83,15 @@ def user_create():
         db.session.commit()
     except sqlalchemy.exc.IntegrityError:
         return "Username already exists.", 409
-    return "", 201
+
+    response = Response("")
+    response.status_code = 201
+    response.headers["Location"] = url_for("api.user_index",
+                                           username=user.username)
+    return response
 
 @api.route("/users/<username>", methods=["DELETE"])
-@access_validator()
+@access_validator(ouner_auth=True)
 def user_delete(user):
     if user.verify_password(request.form["password"]):
         db.session.delete(user)
@@ -115,7 +120,6 @@ def task_create(user):
     # Two fields are required
     if not "title" in data or not "deadline" in data:
         return "", 400
-    data["deadline"] = datetime.strptime(data["deadline"], "%Y-%m-%d %H:%M")
     # Ignore redundat data from request
     data = { key: value for key, value in data.items() 
                         if key in Task.__table__.columns.keys() }
@@ -137,20 +141,29 @@ def task_get(user, task_id):
     return jsonify(task.to_dict()), 200
 
 @api.route("/users/<username>/tasks/<task_id>", methods=["PUT"])
-@access_validator()
+@access_validator(owner_auth=True)
 def task_edit(user, task_id):
     task = db.session.query(Task).join(User).filter(
-            User.id == user.id, Task.id == task_id).first()
+                User.id == user.id, Task.id == task_id).first()
     if not task:
         return "", 404
 
     data = request.form.to_dict()
-    if "deadline" in data:
-        data["deadline"] = datetime.strptime(data["deadline"], "%Y-%m-%d %H:%M")
     data = { key: value for key, value in data.items() 
                         if key in Task.__table__.columns.keys() }
     task.update(**data)
-    return "", 200
+    return "", 204
+
+@api.route("/users/<username>/tasks/<task_id>", methods=["DELETE"])
+@access_validator(owner_auth=True)
+def task_delete(user, task_id):
+    task = db.session.query(Task).join(User).filter(
+                User.id == user.id, Task.id == task_id).first()
+    if not task:
+        return "", 404
+    db.session.delete(task)
+    db.session.commit()
+    return "", 204
 
 ################################################################################
 

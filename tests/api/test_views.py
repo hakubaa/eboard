@@ -148,7 +148,7 @@ class TestApiUser(ApiTestCase):
         response = self.client.put(url_for("api.user_edit", username="Test"),
                                    data=dict(public=True, new_password="sets",
                                              new_password2="sets"))
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 204)
         user = db.session.query(User).one()
         self.assertTrue(user.verify_password("sets"))
         self.assertTrue(user.public)
@@ -269,7 +269,7 @@ class TestApiTask(ApiTestCase):
         response = self.client.put(url_for("api.task_edit", username="Test", 
                                            task_id=task.id),
                                    data=dict(title="New Title", complete=True))
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 204)
         task = db.session.query(User).one().tasks[0]
         self.assertEqual(task.title, "New Title")
         self.assertTrue(task.complete)
@@ -289,7 +289,7 @@ class TestApiTask(ApiTestCase):
         self.login(name="Test")
         response = self.client.delete(url_for("api.task_delete", username="Test",
                                               task_id=task.id))
-        self.assertEqual(response.status_code, 204)
+        self.assertEqual(response.status_code, 204) # 204 - NO CONTENT
         self.assertEqual(user.tasks.count(), 0)
         self.assertEqual(db.session.query(Task).count(), 0)
 
