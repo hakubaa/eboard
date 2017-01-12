@@ -234,6 +234,13 @@ class TestUser(ModelTestCase):
         user.remove_note(345)
         self.assertEqual(user.notes.count(), 1)
 
+    def test_for_ignoring_redundant_fields_when_creating_user(self):
+        user = User(username="Test", password="test", rubbish1="AJV*S3FK",
+                    rubbish2="SVK33FJF_SV")
+        db.session.add(user)
+        db.session.commit()
+        self.assertEqual(db.session.query(User).count(), 1)
+        
 
 class TestTask(ModelTestCase):
 
@@ -403,6 +410,19 @@ class TestTask(ModelTestCase):
         task.remove_tag(tag)
         self.assertEqual(len(task.tags), 0)
         self.assertEqual(db.session.query(Tag).count(), 1)
+
+    def test_for_ignoring_redundant_fields_when_creating_task(self):
+        task = Task(title="Task Title", deadline=datetime(2015, 1, 1, 0, 0),
+                    rubbish1="SDKFJSDF", rubbish2=10)
+        db.session.add(task)
+        db.session.commit()
+        self.assertEqual(db.session.query(Task).count(), 1)
+
+    def test_update_ignores_redundant_fields(self):
+        task = Task(title="Task Title", deadline=datetime(2015, 1, 1, 0, 0))
+        db.session.add(task)
+        db.session.commit()
+        task.update(rubbish1="SCV73KDV", rubbish2=[1, 2, 3])
 
 
 class TestProject(ModelTestCase):
@@ -644,6 +664,21 @@ class TestProject(ModelTestCase):
         project.remove_note(345)
         self.assertEqual(project.notes.count(), 1)
 
+    def test_for_ignoring_redundant_fields_when_creating_project(self):
+        project = Project(name="Sample Project", rubbish1=range(5),
+                          deadline=datetime(2015, 1, 1, 0, 0),
+                          rubbish2=345)
+        db.session.add(project)
+        db.session.commit()
+        self.assertEqual(db.session.query(Project).count(), 1)
+
+    def test_update_ignores_redundant_fields(self):
+        project = Project(name="Sample Project", 
+                          deadline=datetime(2015, 1, 1, 0, 0))
+        db.session.add(project)
+        db.session.commit()
+        project.update(rubbish1="SCV73KDV", rubbish2=[1, 2, 3])
+
 
 class TestMilestone(ModelTestCase):
 
@@ -719,6 +754,19 @@ class TestMilestone(ModelTestCase):
         milestone.remove_task(34534)
         self.assertEqual(milestone.tasks.count(), 1)
 
+    def test_for_ignoring_redundant_fields_when_creating_milestone(self):
+        milestone = Milestone(title="Sample Milestone", rubbish1=9,
+                              nofield="UNKNOWN")
+        db.session.add(milestone)
+        db.session.commit()
+        self.assertEqual(db.session.query(Milestone).count(), 1)
+
+    def test_update_ignores_redundant_fields(self):
+        milestone = Milestone(title="Sample Milestone")
+        db.session.add(milestone)
+        db.session.commit()
+        milestone.update(rubbish1="SCV73KDV", rubbish2=[1, 2, 3])
+
 
 class TestTag(ModelTestCase):
 
@@ -741,6 +789,12 @@ class TestTag(ModelTestCase):
     def test_for_preventing_tag_creation(self):
         tag = Tag.find_or_create(name="Test", create_new_tag=False)
         self.assertIsNone(tag)
+
+    def test_for_ignoring_redundant_fields_when_creating_tag(self):
+        tag = Tag(name="Test", rubbish1=1, rubbish2=(1, 2, 3))
+        db.session.add(tag)
+        db.session.commit()
+        self.assertEqual(db.session.query(Tag).count(), 1)
 
 
 class TestNote(ModelTestCase):
@@ -860,3 +914,16 @@ class TestNote(ModelTestCase):
         note.remove_tag(tag)
         self.assertEqual(len(note.tags), 0)
         self.assertEqual(db.session.query(Tag).count(), 1)
+
+    def test_for_ignoring_redundant_fields_when_creating_note(self):
+        note = Note(title="Note Title", body="Very interesting note.",
+                    deadline=datetime(2015, 1, 1, 0, 0), complete=True)
+        db.session.add(note)
+        db.session.commit()    
+        self.assertEqual(db.session.query(Note).count(), 1)
+
+    def test_update_ignores_redundant_fields(self):
+        note = Note(title="Note Title", body="Very interesting note.")
+        db.session.add(note)
+        db.session.commit()
+        note.update(deadline=datetime(2017, 1, 1, 0, 0), active=False)

@@ -5,6 +5,7 @@ from flask_login import UserMixin
 from flask import redirect, url_for
 from sqlalchemy import func
 from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy.orm import class_mapper
 
 from app import db
 from app.utils import merge_dicts
@@ -51,7 +52,10 @@ class Task(db.Model):
         cascade = "all, delete, delete-orphan", single_parent = True)
 
     def __init__(self, *args, deadline_event=True, **kwargs):
-        super().__init__(*args, **kwargs)
+        # Get rit of redundant fields in kwargs
+        fields = [prop.key for prop in class_mapper(Task).iterate_properties]
+        data = { key: value for key, value in kwargs.items() if key in fields }
+        super().__init__(*args, **data)
         if deadline_event:
             deadline = self.deadline
             if isinstance(self.deadline, str):
@@ -157,6 +161,12 @@ class Tag(db.Model):
     tasks = db.relationship("Task", secondary = taskstags)
     notes = db.relationship("Note", secondary = notestags)
 
+    def __init__(self, *args, **kwargs):
+        # Get rit of redundant fields in kwargs
+        fields = [prop.key for prop in class_mapper(Tag).iterate_properties]
+        data = { key: value for key, value in kwargs.items() if key in fields }
+        super().__init__(*args, **data)
+
     @staticmethod
     def find_or_create(name, commit=True, create_new_tag=True):
         tag = db.session.query(Tag).filter(
@@ -189,6 +199,13 @@ class User(UserMixin, db.Model):
         cascade = "all, delete, delete-orphan", lazy="dynamic")
     notes = db.relationship("Note", back_populates="user",
         cascade = "all, delete, delete-orphan", lazy="dynamic")
+
+    def __init__(self, *args, **kwargs):
+        # Get rit of redundant fields in kwargs
+        fields = [prop.key for prop in class_mapper(Milestone).iterate_properties]
+        fields.append("password")
+        data = { key: value for key, value in kwargs.items() if key in fields }
+        super().__init__(*args, **kwargs)
 
     @property
     def password(self):
@@ -267,6 +284,7 @@ class User(UserMixin, db.Model):
         self.notes.append(note)
         if commit:
             db.session.commit()
+
         return note
 
     def remove_note(self, note):
@@ -312,6 +330,12 @@ class Note(db.Model):
 
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
     user = db.relationship("User", back_populates = "notes")
+
+    def __init__(self, *args, **kwargs):
+        # Get rit of redundant fields in kwargs
+        fields = [prop.key for prop in class_mapper(Note).iterate_properties]
+        data = { key: value for key, value in kwargs.items() if key in fields }
+        super().__init__(*args, **data)
 
     def update(self, data=None, commit=True, **kwargs):
         '''
@@ -396,15 +420,22 @@ class Project(db.Model):
         cascade = "all, delete, delete-orphan", single_parent = True)
 
     def __init__(self, *args, deadline_event=True, **kwargs):
-        super().__init__(*args, **kwargs)
+        # Get rit of redundant fields in kwargs
+        fields = [prop.key for prop in class_mapper(Project).iterate_properties]
+        data = { key: value for key, value in kwargs.items() if key in fields }
+        super().__init__(*args, **data)
         if deadline_event:
+            deadline = self.deadline
+            if isinstance(self.deadline, str):
+                deadline = datetime.strptime(self.deadline, 
+                                             Task.deadline.type.dtformat)
             self.deadline_event = Event(
                 title = "Project '" + self.name + ",", 
-                start = self.deadline - timedelta(minutes=30),
-                end = self.deadline,
+                start = deadline - timedelta(minutes=30),
+                end = deadline,
                 className = "fc-project-deadline",
                 desc = "Deadline of the project is set on " + 
-                    self.deadline.strftime("%Y-%m-%d %H:%M:%S") + ".",
+                    deadline.strftime("%Y-%m-%d %H:%M:%S") + ".",
                 editable = False)
 
 
@@ -531,6 +562,12 @@ class Milestone(db.Model):
 
     tasks = db.relationship("Task", back_populates="milestone",
         cascade = "all, delete, delete-orphan", lazy="dynamic")
+
+    def __init__(self, *args, **kwargs):
+        # Get rit of redundant fields in kwargs
+        fields = [prop.key for prop in class_mapper(Milestone).iterate_properties]
+        data = { key: value for key, value in kwargs.items() if key in fields }
+        super().__init__(*args, **data)
 
     def add_task(self, *args, commit=True, **kwargs):
         '''
