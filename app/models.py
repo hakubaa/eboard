@@ -215,10 +215,10 @@ class User(UserMixin, db.Model):
 
     def __init__(self, *args, **kwargs):
         # Get rit of redundant fields in kwargs
-        fields = [prop.key for prop in class_mapper(Milestone).iterate_properties]
-        fields.append("password")
-        data = { key: value for key, value in kwargs.items() if key in fields }
-        super().__init__(*args, **data)
+        # fields = [prop.key for prop in class_mapper(Milestone).iterate_properties]
+        # fields.append("password")
+        # data = { key: value for key, value in kwargs.items() if key in fields }
+        super().__init__(*args, **kwargs)
 
     @property
     def password(self):

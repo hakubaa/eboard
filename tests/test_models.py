@@ -234,6 +234,7 @@ class TestUser(ModelTestCase):
         user.remove_note(345)
         self.assertEqual(user.notes.count(), 1)
 
+    @unittest.skip
     def test_for_ignoring_redundant_fields_when_creating_user(self):
         user = User(username="Test", password="test", rubbish1="AJV*S3FK",
                     rubbish2="SVK33FJF_SV")

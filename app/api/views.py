@@ -1,7 +1,7 @@
 import functools
 from datetime import datetime
 
-from flask import jsonify, request, Response, url_for
+from flask import jsonify, request, Response, url_for, render_template
 from flask_login import current_user, login_required
 import sqlalchemy
 
@@ -16,7 +16,7 @@ from app.models import User, Task, Note, Project, Milestone, Tag
 
 
 # Create decorator for access restriction
-def access_validator(owner_auth=True, response=""):
+def access_validator(owner_auth=True):
     '''
     Decorator for restricting access to anonymouse users and logged in users
     visiting private profiles.
@@ -29,10 +29,10 @@ def access_validator(owner_auth=True, response=""):
             try:
                 user = db.session.query(User).filter_by(username=username).one()
             except sqlalchemy.orm.exc.NoResultFound:
-                return response, 404
+                return "", 404
             if not owner_auth and not user.public \
                and current_user.username != username:
-                return response, 404 
+                return "", 404 
             return func(user, *args, **kwargs)
         return access
     return wrapper
@@ -46,11 +46,14 @@ def access_validator(owner_auth=True, response=""):
 def user_index(user):
     rrepr = user.to_dict()
     for task in rrepr["tasks"]:
-        task["uri"] = "/" + user.username + "/tasks/" + str(task["id"])
+        task["uri"] = url_for("api.task_get", username=user.username,
+                              task_id=task["id"])
     for project in rrepr["projects"]:
-        project["uri"] = "/" + user.username + "/projects/" + str(project["id"])
+        project["uri"] = url_for("api.project_get", username=user.username,
+                                 project_id=project["id"])
     for note in rrepr["notes"]:
-        note["uri"] = "/" + user.username + "/notes/" + str(note["id"])
+        note["uri"] = url_for("api.note_get", username=user.username,
+                              note_id=note["id"]) 
     return jsonify(rrepr), 200
 
 @api.route("/users/<username>", methods=["PUT"])
@@ -112,8 +115,8 @@ def user_delete(user):
 def tasks(user):
     data = [ task.get_info() for task in user.tasks.all() ]
     for task in data:
-        task["uri"] = "/api/users/" + user.username + "/tasks/" + \
-                      str(task["id"])
+        task["uri"] = url_for("api.task_get", username=user.username,
+                              task_id=task["id"]) 
     return jsonify(data), 200
 
 @api.route("/users/<username>/tasks", methods=["POST"])

@@ -57,8 +57,10 @@
             <div class="navbar-collapse collapse">
                 <ul class="nav navbar-nav" id="mainNavbar">
                     <li><a href="{{ url_for('eboard.calendar') }}">Calendar</a></li>
-                    <li><a href="{{ url_for('eboard.projects') }}">Projects</a></li>
-                    <li><a href="{{ url_for('eboard.tasks', username=current_user.username) }}">Tasks</a></li>
+                    <li><a href="{{ url_for('eboard.projects', username=current_user.username) }}">
+                        Projects</a></li>
+                    <li><a href="{{ url_for('eboard.tasks', username=current_user.username) }}">
+                        Tasks</a></li>
                     <li><a href="{{ url_for('eboard.notes') }}">Notes</a></li>
                     <li><a href="{{ url_for('mail.client') }}">E-Mail</a></li>
                     <li><a href="#">Links</a></li>

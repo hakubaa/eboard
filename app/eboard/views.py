@@ -62,7 +62,7 @@ def tasks(user):
 @eboard.route("/<username>/tasks/<task_id>", methods=["GET"])
 @access_required()
 def task_show(user, task_id):
-    task = db.session.query(Task).get(task_id)
+    task = user.tasks.filter(Task.id == task_id).one_or_none()
     if not task:
         return render_template("404.html"), 404
     return render_template("eboard/task.html", task=task)
@@ -82,7 +82,7 @@ def task_create(user):
 @eboard.route("/<username>/tasks/<task_id>/edit", methods=["GET", "POST"])
 @access_required(owner_only=True)
 def task_edit(user, task_id):
-    task = db.session.query(Task).get(task_id)
+    task = user.tasks.filter(Task.id == task_id).one_or_none()
     if not task:
         return render_template("404.html"), 404       
     form = TaskForm(request.form, obj=task)
@@ -95,7 +95,7 @@ def task_edit(user, task_id):
 @eboard.route("/<username>/tasks/<task_id>/delete", methods=["DELETE", "GET"])
 @access_required(owner_only=True)
 def task_delete(user, task_id):
-    task = db.session.query(Task).get(task_id)
+    task = user.tasks.filter(Task.id == task_id).one_or_none()
     if not task:
         return render_template("404.html"), 404
     db.session.delete(task)
@@ -108,7 +108,32 @@ def task_delete(user, task_id):
 ################################################################################
 # Projects
 
+@eboard.route("/<username>/projects", methods=["GET"])
+@access_required(owner_only=False)
+def projects(user):
+    page = int(request.args.get("page", 1))
+    pagination = user.projects.order_by(Project.deadline.desc()).paginate(\
+        page, per_page = 10, error_out=False)
+    return render_template("eboard/projects.html", pagination=pagination,
+                           projects=pagination.items, user=user)
 
+@eboard.route("/<username>/projects/new", methods=["GET", "POST"])
+@access_required(owner_only=True)
+def project_create(user):
+    form = ProjectForm()
+    if form.validate_on_submit():
+        data = request.form.to_dict()
+        user.add_project(**data)
+        return redirect(url_for("eboard.projects", username=user.username))        
+    return render_template("eboard/editproject.html", form=form)
+
+@eboard.route("/<username>/projects/<project_id>", methods=["GET"])
+@access_required(owner_only=False)
+def project_show(user, project_id):
+    project = user.projects.filter(Project.id == project_id).one_or_none()
+    if not project:
+        return render_template("404.html"), 404
+    return render_template("eboard/project.html", project=project)
 
 # Projects
 ################################################################################
@@ -373,7 +398,7 @@ def removenote(noteid):
 
 @eboard.route("/projects", methods=["GET", "POST"])
 @login_required
-def projects():
+def projects_2():
     projects = db.session.query(Project.id, Project.name, Project.description,\
         Project.created, Project.deadline).\
         order_by(Project.created.asc()).all()
@@ -381,7 +406,7 @@ def projects():
 
 @eboard.route("/project/<int:projectid>", methods=["GET", "POST"])
 @login_required
-def project(projectid):
+def project_2(projectid):
     project = None
     projects = None
     tags = None

@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% import "bootstrap/wtf.html" as wtf %}
+{% import "_macros.html" as macros %}
+
+{% block title %}JAGO - e-Board - Projects{% endblock %}
+
+{% block styles %}
+{{ super() }}
+{% endblock %}
+
+{% block page_content %}
+{% if projects %}
+<div class="container">
+    Your projects:
+    <ul class="projects">
+        {% for project in projects %}
+            <li class="note">
+                <div class="note-content">
+                    <div class="note-date">{{moment(project.deadline).format("LLL")}} 
+                        ({{moment(project.deadline).fromNow()}})</div>
+                    <div class="note-title">
+                        {{project.name}}
+                    </div>
+                    <div class="note-body">{{project.desc}}</div>
+                </div>
+            </li>
+        {% endfor %}
+    </ul>
+</div>
+<div class="pagination">
+{{ macros.pagination_widget(pagination, 'eboard.projects', username=user.username) }}
+</div>
+{% else %}
+<div class="container">
+    <p>Create your fist project.</p>
+</div>
+{% endif %}
+
+{% endblock %}
