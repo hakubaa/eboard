@@ -253,7 +253,7 @@ class TestApiTask(ApiTestCase):
         self.assertEqual(response.status_code, 200)
         data = response.json
         self.assertEqual(data["title"], task.title)
-        self.assertEqual(data["deadline"], "2015-01-01 00:00:00")
+        self.assertEqual(data["deadline"], "2015-01-01 00:00")
 
     def test_get_request_returns_Not_Found_for_unknown_id(self):
         user = self.create_user(name="Test")
@@ -788,7 +788,7 @@ class TestApiMilestone(ApiTestCase):
 
 class TestApiProjectNotesList(ApiTestCase):
     
-    def test_get_request_returns_list_of_milestones(self):
+    def test_get_request_returns_list_of_notes(self):
         user = self.create_user(name="Test")
         project = user.add_project(name="Test Project", 
                                    deadline=datetime(2015, 1, 1, 0, 0))
@@ -801,9 +801,9 @@ class TestApiProjectNotesList(ApiTestCase):
         self.assertEqual(response.status_code, 200)
         data = response.json
         self.assertEqual(len(data), 3)
-        notes_titles = [ note.title for note in data ]
-        self.assertIn("First Milestone", notes_titles)
-        self.assertIn("Third Milestone", notes_titles)
+        notes_titles = [ note["title"] for note in data ]
+        self.assertIn("First Note", notes_titles)
+        self.assertIn("Third Note", notes_titles)
 
     def test_for_presence_of_uri_to_notes(self):
         user = self.create_user(name="Test")
@@ -814,7 +814,7 @@ class TestApiProjectNotesList(ApiTestCase):
         response = self.client.get(url_for("api.project_notes", username="Test",
                                            project_id=project.id))   
         data = response.json
-        self.assertEqual(data[0]["uri"], url_for("app.project_note_get", 
+        self.assertEqual(data[0]["uri"], url_for("api.project_note_get", 
                                                  username="Test",
                                                  project_id=project.id, 
                                                  note_id=note.id))
@@ -827,9 +827,9 @@ class TestApiProjectNotesList(ApiTestCase):
         response = self.client.post(url_for("api.project_note_create", 
                                             username="Test", 
                                             project_id=project.id),  
-                                    data=dict(name="First Note"))
+                                    data=dict(title="First Note"))
         self.assertEqual(response.status_code, 201)
-        note = db.sessqion.query(Note).one()
+        note = db.session.query(Note).one()
         self.assertEqual(note.project, project)
         self.assertEqual(note.title, "First Note")
 
@@ -841,10 +841,10 @@ class TestApiProjectNotesList(ApiTestCase):
         response = self.client.post(url_for("api.project_note_create", 
                                             username="Test", 
                                             project_id=project.id),  
-                                    data=dict(title="First Note"))
+                                    data=dict(name="First Note"))
         self.assertEqual(response.status_code, 400)
 
-    def test_create_note_returns_Bad_Request_when_invalid_project_id(self):
+    def test_create_note_returns_Not_Found_when_invalid_project_id(self):
         user = self.create_user(name="Test")
         project = user.add_project(name="Test Project", 
                                    deadline=datetime(2015, 1, 1, 0, 0))
@@ -861,16 +861,17 @@ class TestApiProjectNotesList(ApiTestCase):
         project = user.add_project(name="Test Project", 
                                    deadline=datetime(2015, 1, 1, 0, 0))
         self.login(name="Test")
-        response = self.client.post(url_for("api.milestones", username="Test", 
+        response = self.client.post(url_for("api.project_note_create", 
+                                            username="Test", 
                                             project_id=project.id),  
-                                    data=dict(name="First Milestone"))
+                                    data=dict(title="First Milestone"))
         self.assertEqual(response.status_code, 201)
         note = project.notes[0]
         self.assertIn(url_for("api.project_note_get", username="Test", 
                               note_id=note.id, project_id=project.id), 
                       response.location)
 
-################################################################################
+
 class TestApiProjectNoteItem(ApiTestCase):
 
     def test_get_request_returns_information_about_note(self):
@@ -885,8 +886,8 @@ class TestApiProjectNoteItem(ApiTestCase):
                                            note_id=note.id))
         self.assertEqual(response.status_code, 200)
         data = response.json
-        self.assertEqual(note["title"], note.title)
-        self.assertEqual(note["body"], note.body)
+        self.assertEqual(data["title"], note.title)
+        self.assertEqual(data["body"], note.body)
 
     def test_get_request_returns_Not_Found_for_unknown_note_id(self):
         user = self.create_user(name="Test")
@@ -1015,7 +1016,7 @@ class TestApiProjectMilestoneTasksList(ApiTestCase):
         self.assertEqual(response.status_code, 200)
         data = response.json
         self.assertEqual(len(data), 2)
-        tasks_titles = [ task.title for task in data ]
+        tasks_titles = [ task["title"] for task in data ]
         self.assertIn("First Task", tasks_titles)
         self.assertIn("Second Task", tasks_titles)
 
@@ -1032,11 +1033,10 @@ class TestApiProjectMilestoneTasksList(ApiTestCase):
                                            project_id=project.id, 
                                            milestone_id=milestone.id))   
         data = response.json
-        self.assertEqual(data[0]["uri"], url_for("app.milestone_task_get", 
-                                                 username="Test",
-                                                 project_id=project.id, 
-                                                 milestone_id=milestone.id,
-                                                 task_id=task.id))
+        self.assertIn(url_for("api.milestone_task_get", username="Test",
+                              project_id=project.id, milestone_id=milestone.id,
+                              task_id=task.id), 
+                      data[0]["uri"])
 
     def test_for_creating_new_task_with_post_request(self):
         user = self.create_user(name="Test")
@@ -1052,8 +1052,8 @@ class TestApiProjectMilestoneTasksList(ApiTestCase):
                                               deadline="2017-01-01 00:00"))
         self.assertEqual(response.status_code, 201)
         task = user.projects[0].milestones[0].tasks.one()
-        self.assertEqual(task.project, project)
-        self.assertEqual(note.title, "First Task")
+        self.assertEqual(task.milestone.project, project)
+        self.assertEqual(task.title, "First Task")
 
     def test_for_returning_Bad_Request_when_no_task_title(self):
         user = self.create_user(name="Test")
@@ -1094,9 +1094,9 @@ class TestApiProjectMilestoneTasksList(ApiTestCase):
                                             project_id=project.id, 
                                             milestone_id=milestone.id),  
                                     data=dict(title="First Task", 
-                                              deathline="2017-01-01 00:00"))
+                                              deadline="2017-01-01 00:00"))
         self.assertEqual(response.status_code, 201)
-        taks = milestone.tasks[0]
+        task = milestone.tasks[0]
         self.assertIn(url_for("api.milestone_task_get", username="Test", 
                               task_id=task.id, project_id=project.id, 
                               milestone_id=milestone.id),
@@ -1116,7 +1116,7 @@ class TestApiProjectMilestoneTaskItem(ApiTestCase):
         response = self.client.get(url_for("api.milestone_task_get", 
                                            username="Test",
                                            project_id=project.id, 
-                                           mileste_id=milestone.id,
+                                           milestone_id=milestone.id,
                                            task_id=task.id))
         self.assertEqual(response.status_code, 200)
         data = response.json
@@ -1154,8 +1154,9 @@ class TestApiProjectMilestoneTaskItem(ApiTestCase):
                                    data=dict(title="My Last Task", 
                                              complete="YES"))
         task = db.session.query(User).one().projects[0].milestones[0].tasks[0]
-        self.assertEqual(note.title, "My Last Task")
-        self.assertEqual(note.complete, True)
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(task.title, "My Last Task")
+        self.assertEqual(task.complete, True)
 
     def test_put_request_returns_Not_Found_for_unknown_id(self):
         user = self.create_user(name="Test")
@@ -1208,11 +1209,11 @@ class TestApiProjectMilestoneTaskItem(ApiTestCase):
 class TestApiTagsList(ApiTestCase):
 
     def test_get_request_returns_lists_of_available_tags(self):
-        self.create_user(name="Test")
+        user = self.create_user(name="Test")
         tag1 = Tag.find_or_create(name="Test")
-        tag2 = Tag.find.or_create(name="Winter")
+        tag2 = Tag.find_or_create(name="Winter")
         self.login(name="Test")
-        response = self.client.get("api.tags", username=user.username)
+        response = self.client.get(url_for("api.tags"))
         self.assertEqual(response.status_code, 200)
         data = response.json
         self.assertEqual(len(data), 2)
@@ -1221,8 +1222,8 @@ class TestApiTagsList(ApiTestCase):
     def test_put_request_creates_new_tag(self):
         self.create_user(name="Test")
         self.login(name="Test")
-        response = self.client.put(url_for("api.tag_create"),  
-                                           name="Test")
+        response = self.client.put(url_for("api.tag_create",  
+                                           name="Test"))
         self.assertEqual(response.status_code, 201)
         self.assertEqual(db.session.query(Tag).count(), 1)
         self.assertEqual(db.session.query(Tag).one().name, "Test")
@@ -1233,7 +1234,7 @@ class TestApiTagsList(ApiTestCase):
         self.login(name="Test")
         response = self.client.put(url_for("api.tag_create", 
                                            name="Tag"))
-        self.assertEqual(respone.status_code, 200)
+        self.assertEqual(response.status_code, 201)
         self.assertEqual(db.session.query(Tag).count(), 1)
 
 class TestApiTagItem(ApiTestCase):
@@ -1242,20 +1243,20 @@ class TestApiTagItem(ApiTestCase):
         self.create_user(name="Test")
         tag = Tag.find_or_create("Tag")
         self.login(name="Test")
-        response = self.client.get("api.tag_get", name="Tag")
+        response = self.client.get(url_for("api.tag_get", name="Tag"))
         self.assertEqual(response.status_code, 204)
 
     def test_get_request_returns_404_when_tag_does_not_exist(self):
         self.create_user(name="Test")
         self.login(name="Test")
-        response = self.client.get("api.tag_get", name="Tag")
+        response = self.client.get(url_for("api.tag_get", name="Tag"))
         self.assertEqual(response.status_code, 404)
 
     def test_for_deleting_tag_with_delete_request(self):
         self.create_user(name="Test")
         Tag.find_or_create("Tag")
         self.login(name="Test")
-        response = self.client.delete("api.tag_delete", name="Tag")
+        response = self.client.delete(url_for("api.tag_delete", name="Tag"))
         self.assertEqual(response.status_code, 204)
         self.assertEqual(db.session.query(Tag).count(), 0)
 
@@ -1263,7 +1264,7 @@ class TestApiTagItem(ApiTestCase):
         self.create_user(name="Test")
         Tag.find_or_create("Tag")
         self.login(name="Test")
-        response = self.client.delete("api.tag_delete", name="Tagr")
+        response = self.client.delete(url_for("api.tag_delete", name="Tagr"))
         self.assertEqual(response.status_code, 404)     
         self.assertEqual(db.session.query(Tag).count(), 1)
      

@@ -55,7 +55,14 @@ class Task(db.Model):
         # Get rit of redundant fields in kwargs
         fields = [prop.key for prop in class_mapper(Task).iterate_properties]
         data = { key: value for key, value in kwargs.items() if key in fields }
+        if "tags" in data:
+            if isinstance(data["tags"], str):
+                data["tags"] = [data["tags"]]
+            # Normalize tags, convert all items to Tag-s
+            data["tags"] = list(map(Tag.find_or_create, data["tags"]))
+
         super().__init__(*args, **data)
+
         if deadline_event:
             deadline = self.deadline
             if isinstance(self.deadline, str):
@@ -81,6 +88,10 @@ class Task(db.Model):
         update_possible = {"title", "deadline", "body", "importance", 
                            "urgency", "active", "complete", "tags"}
         fields_to_update = update_possible & set(data.keys())
+        if "tags" in fields_to_update:
+            if isinstance(data["tags"], str):
+                data["tags"] = [data["tags"]]
+            data["tags"] = list(map(Tag.find_or_create, data["tags"]))
         for field in fields_to_update:
             setattr(self, field, data[field])
 
@@ -130,8 +141,8 @@ class Task(db.Model):
     def to_dict(self):
         return {
                 "title": self.title, 
-                "created": self.created.strftime("%Y-%m-%d %H:%M:%S"),
-                "deadline": self.deadline.strftime("%Y-%m-%d %H:%M:%S"),
+                "created": self.created.strftime("%Y-%m-%d %H:%M"),
+                "deadline": self.deadline.strftime("%Y-%m-%d %H:%M"),
                 "notes": self.notes, 
                 "tags": [ tag.to_dict() for tag in self.tags ],
                 "complete": self.complete, "active": self.active,
@@ -143,8 +154,8 @@ class Task(db.Model):
     def get_info(self):
         return {
                 "title": self.title, 
-                "created": self.created.strftime("%Y-%m-%d %H:%M:%S"),
-                "deadline": self.deadline.strftime("%Y-%m-%d %H:%M:%S"),
+                "created": self.created.strftime("%Y-%m-%d %H:%M"),
+                "deadline": self.deadline.strftime("%Y-%m-%d %H:%M"),
                 "complete": self.complete, "active": self.active,
                 "daysleft": self.daysleft, "id": self.id
              }
@@ -169,6 +180,8 @@ class Tag(db.Model):
 
     @staticmethod
     def find_or_create(name, commit=True, create_new_tag=True):
+        if isinstance(name, Tag):
+            return name
         tag = db.session.query(Tag).filter(
                 func.lower(Tag.name) == func.lower(name)).first()
         if not tag and create_new_tag:
@@ -205,7 +218,7 @@ class User(UserMixin, db.Model):
         fields = [prop.key for prop in class_mapper(Milestone).iterate_properties]
         fields.append("password")
         data = { key: value for key, value in kwargs.items() if key in fields }
-        super().__init__(*args, **kwargs)
+        super().__init__(*args, **data)
 
     @property
     def password(self):
@@ -335,6 +348,12 @@ class Note(db.Model):
         # Get rit of redundant fields in kwargs
         fields = [prop.key for prop in class_mapper(Note).iterate_properties]
         data = { key: value for key, value in kwargs.items() if key in fields }
+        # Normalize tags, convert all itmes to Tag-s
+        if "tags" in data:
+            if isinstance(data["tags"], str):
+                data["tags"] = [data["tags"]]
+            data["tags"] = list(map(Tag.find_or_create, data["tags"]))
+
         super().__init__(*args, **data)
 
     def update(self, data=None, commit=True, **kwargs):
@@ -347,6 +366,12 @@ class Note(db.Model):
         # Update fields which can be update (not read-only fields)
         update_possible = {"title", "body", "tags"}
         fields_to_update = update_possible & set(data.keys())
+        # Normalize tags, convert all itmes to Tag-s
+        if "tags" in fields_to_update:
+            if isinstance(data["tags"], str):
+                data["tags"] = [data["tags"]]
+            data["tags"] = list(map(Tag.find_or_create, data["tags"]))
+            
         for field in fields_to_update:
             setattr(self, field, data[field])
 

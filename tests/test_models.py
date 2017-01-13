@@ -302,6 +302,21 @@ class TestTask(ModelTestCase):
         self.assertIn(tag1, task.tags)
         self.assertIn(tag2, task.tags)
 
+    def test_for_initializing_tags_by_string_values(self):
+        tag1 = Tag(name="Tag1")
+        tag2 = Tag(name="Tag2")
+        db.session.add(tag1)
+        db.session.add(tag2)
+        db.session.commit()
+        task = Task(title="Task Title", deadline=datetime(2015, 1, 1, 0, 0),
+                    tags=["Tag1", "Tag2"])
+        db.session.add(task)
+        db.session.commit()
+        task = db.session.query(Task).one()
+        self.assertEqual(len(task.tags), 2)
+        self.assertIn(tag1, task.tags)
+        self.assertIn(tag2, task.tags)
+
     def test_for_turning_off_event_for_new_task(self):
         task = Task(title="Task Title", deadline=datetime(2015, 1, 1, 0, 0),
                     deadline_event=False)
@@ -423,6 +438,13 @@ class TestTask(ModelTestCase):
         db.session.add(task)
         db.session.commit()
         task.update(rubbish1="SCV73KDV", rubbish2=[1, 2, 3])
+
+    def test_for_updating_tags_with_string_values(self):
+        task = Task(title="Task Title", deadline=datetime(2015, 1, 1, 0, 0))
+        db.session.add(task)
+        db.session.commit()
+        task.update(tags=["Tag1", "Tag2"])
+        self.assertEqual(len(task.tags), 2)
 
 
 class TestProject(ModelTestCase):
@@ -814,6 +836,21 @@ class TestNote(ModelTestCase):
         self.assertIn(tag1, note.tags)
         self.assertIn(tag2, note.tags)  
 
+    def test_for_initializing_tags_by_string_values(self):
+        tag1 = Tag(name="Tag1")
+        tag2 = Tag(name="Tag2")
+        db.session.add(tag1)
+        db.session.add(tag2)
+        db.session.commit()
+        note = Note(title="Note Title", body="Very interseting note.",
+                    tags=["Tag1", "Tag2"])
+        db.session.add(note)
+        db.session.commit()
+        note = db.session.query(Note).one()
+        self.assertEqual(len(note.tags), 2)
+        self.assertIn(tag1, note.tags)
+        self.assertIn(tag2, note.tags)
+
     def test_for_updating_note_with_dict(self):
         tag1 = Tag(name="Tag1")
         tag2 = Tag(name="Tag2")
@@ -927,3 +964,10 @@ class TestNote(ModelTestCase):
         db.session.add(note)
         db.session.commit()
         note.update(deadline=datetime(2017, 1, 1, 0, 0), active=False)
+
+    def test_for_updating_tags_by_string_values(self):
+        note = Note(title="First Note", body="Very Interesting Note.")
+        db.session.add(note)
+        db.session.commit()
+        note.update(tags=["tag1", "tag2", "tag3"])
+        self.assertEqual(len(note.tags), 3)

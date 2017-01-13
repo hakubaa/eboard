@@ -306,28 +306,32 @@ def project_delete(user, project_id):
 
 @api.route("/users/<username>/projects/<project_id>/notes", methods=["GET"])
 @access_validator(owner_auth=False)
-def project_notes(user, prooject_id):
-    project = db.session.query(User).join(Project).filter(User.id == user.id,
+def project_notes(user, project_id):
+    project = db.session.query(Project).join(User).filter(User.id == user.id,
                     Project.id == project_id).first()
+    if not project:
+        return "", 404
     data = [ note.get_info() for note in project.notes.all() ]
     for note in data:
         note["uri"] = url_for("api.project_note_get", username=user.username,
-                              project_id=project.id, note_id=note.id)
+                              project_id=project.id, note_id=note["id"])
     return jsonify(data), 200    
 
-@api.route("/users/<username>/projects/<project_id>/notes", methods=["PUT"])
+@api.route("/users/<username>/projects/<project_id>/notes", methods=["POST"])
 @access_validator(owner_auth=True)
 def project_note_create(user, project_id):
     data = request.form.to_dict()
-    if "name" not in data:
+    if "title" not in data:
         return "", 400
     project = db.session.query(Project).join(User).filter(User.id == user.id,
                     Project.id == project_id).first()
+    if not project:
+        return "", 404
     note = project.add_note(**data)
 
     response = Response("")
     response.status_code = 201
-    response.headers["Location"] = url_for("api.prject_note_get", 
+    response.headers["Location"] = url_for("api.project_note_get", 
                                            username=user.username,
                                            project_id=project.id, 
                                            note_id=note.id)
@@ -339,7 +343,7 @@ def project_note_create(user, project_id):
 def project_note_get(user, project_id, note_id):
     note = db.session.query(Note).join(Project).join(User).filter(
                 User.id == user.id, Project.id == project_id,
-                Note.id == note.id).first()
+                Note.id == note_id).first()
     if not note:
         return "", 404
     return jsonify(note.to_dict()), 200
@@ -347,13 +351,13 @@ def project_note_get(user, project_id, note_id):
 @api.route("/users/<username>/projects/<project_id>/notes/<note_id>",
            methods=["PUT"])
 @access_validator(owner_auth=True)
-def projet_note_edit(user, project_id, note_id):
+def project_note_edit(user, project_id, note_id):
     note = db.session.query(Note).join(Project).join(User).filter(
                 User.id == user.id, Project.id == project_id,
                 Note.id == note_id).first()
     if not note:
         return "", 404
-    data = request.form_to_dict()
+    data = request.form.to_dict()
     note.update(**data)
     return "", 204
 
@@ -362,8 +366,8 @@ def projet_note_edit(user, project_id, note_id):
 @access_validator(owner_auth=True)
 def project_note_delete(user, project_id, note_id):
     note = db.session.query(Note).join(Project).join(User).filter(
-                User.id == user.id, Project.id == project.id,
-                Note.id == note.id).first()
+                User.id == user.id, Project.id == project_id,
+                Note.id == note_id).first()
     if not note:
         return "", 404
     db.session.delete(note)
@@ -463,7 +467,7 @@ def milestone_delete(user, project_id, milestone_id):
            "<milestone_id>/tasks", methods=["GET"])
 @access_validator(owner_auth=False)
 def milestone_tasks(user, project_id, milestone_id):
-    milestone = db.session.query(Milestone).join(User).join(Project).filter(
+    milestone = db.session.query(Milestone).join(Project).join(User).filter(
                     User.id == user.id, Project.id == project_id,
                     Milestone.id == milestone_id).first()
     if not milestone:
@@ -471,15 +475,15 @@ def milestone_tasks(user, project_id, milestone_id):
     data = [ task.get_info() for task in milestone.tasks.all() ]
     for task in data:
         task["uri"] = url_for("api.milestone_task_get", task_id=task["id"],
-                              milestone_id=milestone["id"],
-                              project_id="project_id", username=user.username) 
+                              milestone_id=milestone.id,
+                              project_id=project_id, username=user.username) 
     return jsonify(data), 200
 
 @api.route("/users/<username>/projects/<project_id>/milestones/" +
            "<milestone_id>/tasks", methods=["POST"])
 @access_validator(owner_auth=True)
 def milestone_task_create(user, project_id, milestone_id):
-    milestone = db.session.query(Milestone).join(User).join(Project).filter(
+    milestone = db.session.query(Milestone).join(Project).join(User).filter(
                     User.id == user.id, Project.id == project_id,
                     Milestone.id == milestone_id).first()
     if not milestone:
@@ -504,7 +508,7 @@ def milestone_task_create(user, project_id, milestone_id):
            "<milestone_id>/tasks/<task_id>", methods=["GET"])
 @access_validator(owner_auth=True)
 def milestone_task_get(user, project_id, milestone_id, task_id):
-    task = db.session.query(Task).join(User).join(Project).join(Milestone).filter(
+    task = db.session.query(Task).join(Milestone).join(Project).join(User).filter(
                 User.id == user.id, Project.id == project_id,
                 Milestone.id == milestone_id, Task.id == task_id).first()
     if not task:
@@ -515,12 +519,12 @@ def milestone_task_get(user, project_id, milestone_id, task_id):
            "<milestone_id>/tasks/<task_id>", methods=["PUT"])
 @access_validator(owner_auth=True)
 def milestone_task_edit(user, project_id, milestone_id, task_id):
-    task = db.session.query(Task).join(User).join(Project).join(Milestone).filter(
+    task = db.session.query(Task).join(Milestone).join(Project).join(User).filter(
                 User.id == user.id, Project.id == project_id,
                 Milestone.id == milestone_id, Task.id == task_id).first()
     if not task:
         return "", 404
-    
+    data = request.form.to_dict()
     task.update(**data)
     return "", 204
 
@@ -528,7 +532,7 @@ def milestone_task_edit(user, project_id, milestone_id, task_id):
            "<milestone_id>/tasks/<task_id>", methods=["DELETE"])
 @access_validator(owner_auth=True)
 def milestone_task_delete(user, project_id, milestone_id, task_id):
-    task = db.session.query(Task).join(User).join(Project).join(Milestone).filter(
+    task = db.session.query(Task).join(Milestone).join(Project).join(User).filter(
                 User.id == user.id, Project.id == project_id,
                 Milestone.id == milestone_id, Task.id == task_id).first()
     if not task:
@@ -557,16 +561,16 @@ def tag_create(name):
     return "", 201
 
 @api.route("/tags/<name>", methods=["GET"])
-def tag_get(tag_name):
-    tag = db.session.query(Tag).filter_by(name=tag_name).one()
+def tag_get(name):
+    tag = db.session.query(Tag).filter_by(name=name).one_or_none()
     if tag:
         return "", 204
     else:
         return "", 404
 
 @api.route("/tags/<name>", methods=["DELETE"])
-def tag_delete(tag_name):
-    tag = db.session.query(Tag).filter_by(name=tag_name).one()
+def tag_delete(name):
+    tag = db.session.query(Tag).filter_by(name=name).one_or_none()
     if tag:
         db.session.delete(tag)
         db.session.commit()
