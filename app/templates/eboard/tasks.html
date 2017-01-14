@@ -1,5 +1,4 @@
 {% extends "base.html" %}
-{% import "bootstrap/wtf.html" as wtf %}
 {% import "_macros.html" as macros %}
 
 {% block title %}JAGO - e-Board - Tasks{% endblock %}
@@ -8,32 +7,31 @@
 {{ super() }}
 {% endblock %}
 
-{% block page_content %}
-{% if tasks %}
+{% block content %}
 <div class="container">
-    <ul class="tasks">
-        {% for task in tasks %}
-            <li class="note">
-                <div class="note-content">
-                    <div class="note-date">{{moment(task.deadline).format("LLL")}} 
-                        ({{moment(task.deadline).fromNow()}})</div>
-                    <div class="note-title">
-                        {{task.title}}
-                    </div>
-                    <div class="note-tags">{{task.tags | join(' ', attribute='name')}}</div>
-                    <div class="note-body">{{task.body}}</div>
-                </div>
-            </li>
-        {% endfor %}
-    </ul>
+    {% if tasks %}
+        <div class="container">
+            <ul class="tasks">
+                {% for task in tasks %}
+                    <li class="note">
+                        <div class="note-content">
+                            <div class="note-date">{{moment(task.deadline).format("LLL")}} 
+                                ({{moment(task.deadline).fromNow()}})</div>
+                            <div class="note-title">
+                                {{task.title}}
+                            </div>
+                            <div class="note-tags">{{task.tags | join(' ', attribute='name')}}</div>
+                            <div class="note-body">{{task.body}}</div>
+                        </div>
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+        <div class="pagination">
+        {{ macros.pagination_widget(pagination, 'eboard.tasks', username=user.username) }}
+        </div>
+    {% else %}
+        <p>Create your fist task.</p>
+    {% endif %}
 </div>
-<div class="pagination">
-{{ macros.pagination_widget(pagination, 'eboard.tasks', username=user.username) }}
-</div>
-{% else %}
-<div class="container">
-    <p>Create your fist task.</p>
-</div>
-{% endif %}
-
 {% endblock %}

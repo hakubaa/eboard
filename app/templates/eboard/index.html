@@ -3,8 +3,6 @@
 
 {% block title %}JAGO - e-Board{% endblock %}
 
-{% block page_content %}
-
 {% block styles %}
 {{ super() }}
 <link href = "{{ url_for('static', filename='css/fullcalendar.css')}}" rel='stylesheet' />
@@ -36,9 +34,9 @@
 </style>
 {% endblock %}
 
-{% block scripts %}
+{% block body_scripts %}
 {{ super() }}
-<script src = "{{ url_for('static', filename='scripts/fullcalendar.min.js') }}"></script>
+<script src = "{{ url_for('static', filename='js/fullcalendar.js') }}"></script>
 <script>
 
 function getEventInfo(id, success) {
@@ -97,7 +95,9 @@ $('#calendar').fullCalendar({
 </script>
 {% endblock %}
 
-<div class="container-fluid">
+{% block content %}
+{{ super() }}
+<div class="container">
     <div class="row">
         <div class="col-md-6">
             <div class="panel panel-primary">
@@ -187,10 +187,5 @@ $('#calendar').fullCalendar({
         </div>
     </div>
 </div>
-
-{% endblock %}
-
-{% block content %}
-{{ super() }}
 {{ macros.newevent_model("event-model") }}
 {% endblock %}

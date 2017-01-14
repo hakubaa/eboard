@@ -1,45 +1,51 @@
-{% extends "bootstrap/base.html" %}
+<!doctype html>
 
-{% block title %}JAGO - e-Board{% endblock %}
+<html lang="en">
 
+<head>
+    <meta charset="utf-8">
+    <title>JAGO - e-Board</title>
+    <link href="{{ url_for('static', filename='css/bootstrap.min.css') }}" rel="stylesheet">
 {% block styles %}
-{{ super() }}
-<style>
-   .subnavbar {
-        min-height: 0px;
-        padding-top: 0px;
-        margin: 0px;
-        padding-bottom: 5px;
-    }
-    .subnavbar-nav > li > a {
-        padding-top: 0px;
-        padding-bottom: 5px;
-        margin: 0px;
-        /*padding-left: 1px;*/
-        display: inline;
-    }
-    .subnavbar-nav > li > a {
-        padding-top: 0px;
-        padding-bottom: 5px;
-        margin: 0px;
-        /*padding-left: 1px;*/
-        display: inline;
-    }
-    .subnavbar-text {
-        padding-top: 0px;
-        padding-bottom: 5px;
-        margin: 0px;   
-        height: auto;
-        color: yellow !important;
-        display: inline;
-    }
-    .subnavbar-nav .dropdown-toggle:active, .open .dropdown-toggle { 
-        color: white !important;
-        background-color: #222 !important;
-    }
-</style>
+    <style>
+       .subnavbar {
+            min-height: 0px;
+            padding-top: 0px;
+            margin: 0px;
+            padding-bottom: 5px;
+        }
+        .subnavbar-nav > li > a {
+            padding-top: 0px;
+            padding-bottom: 5px;
+            margin: 0px;
+            /*padding-left: 1px;*/
+            display: inline;
+        }
+        .subnavbar-nav > li > a {
+            padding-top: 0px;
+            padding-bottom: 5px;
+            margin: 0px;
+            /*padding-left: 1px;*/
+            display: inline;
+        }
+        .subnavbar-text {
+            padding-top: 0px;
+            padding-bottom: 5px;
+            margin: 0px;   
+            height: auto;
+            color: yellow !important;
+            display: inline;
+        }
+        .subnavbar-nav .dropdown-toggle:active, .open .dropdown-toggle { 
+            color: white !important;
+            background-color: #222 !important;
+        }
+    </style>
 {% endblock %}
+{% block head_scripts %}{% endblock %}
+</head>
 
+<body>
 {% block navbar %}
     <div class="navbar navbar-inverse" role="navigation">
         <div class="container">
@@ -82,22 +88,22 @@
     </div>
 {% endblock %}
 
-{% block scripts %}
-{{ super() }}
-{{ moment.include_moment() }}
-{% endblock %}
-
 {% block content %}
-<div class="container">
-    {% for message in get_flashed_messages() %}
-    <div class="alert alert-warning">
-        <button type="button" class="close" data-dismiss="alert">&times;</button>
-        {{ message }}
+    <div class="container">
+        {% for message in get_flashed_messages() %}
+        <div class="alert alert-warning">
+            <button type="button" class="close" data-dismiss="alert">&times;</button>
+            {{ message }}
+        </div>
+        {% endfor %}
     </div>
-    {% endfor %}
-
-    {% block page_content %}
-
-    {% endblock %}
-</div>
 {% endblock %}
+
+    <script src="{{ url_for('static', filename='js/jquery-3.1.1.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/moment.js') }}"></script>
+{% block body_scripts %}{% endblock %}
+
+</body>
+
+</html>

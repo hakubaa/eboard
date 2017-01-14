@@ -76,7 +76,7 @@ def task_create(user):
         user.add_task(title=form.title.data, deadline=form.deadline.data,
                       body=form.body.data)
         return redirect(url_for("eboard.tasks", username=user.username))       
-    return render_template("eboard/edittask.html", form=form)
+    return render_template("eboard/task_edit.html", form=form)
 
 
 @eboard.route("/<username>/tasks/<task_id>/edit", methods=["GET", "POST"])
@@ -89,7 +89,7 @@ def task_edit(user, task_id):
     if form.validate_on_submit():
         task.update(form.data)
         return redirect(url_for("eboard.tasks", username=user.username))
-    return render_template("eboard/edittask.html", form=form)
+    return render_template("eboard/task_edit.html", form=form)
 
 
 @eboard.route("/<username>/tasks/<task_id>/delete", methods=["DELETE", "GET"])
@@ -125,7 +125,7 @@ def project_create(user):
         data = request.form.to_dict()
         user.add_project(**data)
         return redirect(url_for("eboard.projects", username=user.username))        
-    return render_template("eboard/editproject.html", form=form)
+    return render_template("eboard/project_edit.html", form=form)
 
 @eboard.route("/<username>/projects/<project_id>", methods=["GET"])
 @access_required(owner_only=False)
@@ -134,6 +134,18 @@ def project_show(user, project_id):
     if not project:
         return render_template("404.html"), 404
     return render_template("eboard/project.html", project=project)
+
+@eboard.route("/<username>/projects/<project_id>/edit", methods=["GET", "POST"])
+@access_required(owner_only=True)
+def project_edit(user, project_id):
+    project = user.projects.filter(Project.id == project_id).one_or_none()
+    if not project:
+        return render_template("404.html"), 404       
+    form = ProjectForm(request.form, obj=project)
+    if form.validate_on_submit():
+        project.update(form.data)
+        return redirect(url_for("eboard.projects", username=user.username))
+    return render_template("eboard/project_edit.html", form=form)
 
 # Projects
 ################################################################################
@@ -497,7 +509,7 @@ def project_get():
 
 @eboard.route("/project/edit", methods=["POST", "GET"])
 @login_required
-def project_edit():
+def project_edit_old():
     project_id = request.json.get("id")
     project = db.session.query(Project).options(joinedload(Project.deadline_event)).\
         filter(Project.id == int(project_id)).one_or_none();

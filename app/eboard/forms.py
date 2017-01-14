@@ -44,7 +44,7 @@ class NoteFilterForm(Form):
 
 class ProjectForm(Form):
     name = StringField("Name", validators=[DataRequired()])
-    description = TextAreaField("Description")
+    desc = TextAreaField("Description")
     deadline = DateTimeField("Deadline", format='%Y-%m-%d %H:%M',
                              validators=[DataRequired()])
     # tags = StringField("Tags")

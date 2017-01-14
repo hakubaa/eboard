@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% import "bootstrap/wtf.html" as wtf %}
+{% import '_macros.html' as macros %}
+
+{% block title %}JAGO - e-Board{% endblock %}
+
+{% block styles %}
+{{ super() }}
+
+<style>
+    #task-header {
+        margin-top: -20px;
+    }
+    .jtask {
+        position: relative;
+        padding: 10px 0px 10px 0px;
+        border: 1px solid #999966;
+    }
+    .jbutton {
+        position: absolute;
+        top: 0px;
+        right: 0px;
+    }
+</style>
+<link rel="stylesheet" href="{{url_for('static', filename='css/bootstrap-datetimepicker.css')}}">
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="{{url_for('static', filename='scripts/bootstrap-datetimepicker.min.js')}}"></script>
+<script src="{{url_for('static', filename='scripts/eboard-tagspicker.js')}}"></script>
+<script src="{{url_for('static', filename='scripts/eboard-tagslist.js')}}"></script>   
+<script>
+
+
+$('#deadlinepicker').datetimepicker({
+    format: "YYYY-MM-DD HH:mm"
+});
+
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="page-header" id="task-header">
+        {% if taskid %}
+            <h2>Edit Task</h2>
+        {% else %}
+            <h2>New Task</h2>
+        {% endif %}
+
+    </div>
+    <div id="taskEditor">
+        <form method="post" action="" role="form">
+            {{ form.csrf_token }}
+
+            <div class="form-group required">
+                {{ form.title.label(class="control-label") }} 
+                {{ form.title(required="", class="form-control input-sm", autocomplete="off") }}
+                {% if form.title.errors %}
+                    <div class="has-error">
+                        <div class="help-block">{{ form.title.errors }}</div>
+                    </div>
+                {% endif %}
+            </div>
+
+            <div class="form-group required">
+                {{ form.deadline.label(class="control-label") }} 
+                <div class='input-group date col-sm-4' id='deadlinepicker'>
+                    {{ form.deadline(required="", type="date", class="form-control input-sm", 
+                        autocomplete="off") }}
+                    <span class="input-group-addon">
+                        <span class="glyphicon glyphicon-calendar"></span>
+                    </span>
+                </div>
+                {% if form.deadline.errors %}
+                    <div class="has-error">
+                        <div class="help-block">{{ form.deadline.errors }}</div>
+                    </div>
+                {% endif %}
+            </div>
+
+           <div class="form-group">
+                {{ form.body.label(class="control-label") }} 
+                {{ form.body(class="form-control input-sm", rows="4") }}
+                {% if form.errors %}
+                    <div class="has-error">
+                        <div class="help-block">{{ form.body.errors }}</div>
+                    </div>
+                {% endif %}
+            </div>
+
+            {{ macros.newtag_select("task-edit-tags", "task-edit-tags-select", "task-edit-tags-output") }}
+
+            <div class="form-group">
+                {{ form.submit(class="btn btn-primary") }}
+                <a class="btn btn-danger" href="{{ url_for('eboard.tasks', username=current_user.username) }}">Abort</a>
+            </div>
+        </form>
+    </div>
+</div>
+{{ macros.newtag_model("new-tag-model", "new-tag-name") }}
+{% endblock %}

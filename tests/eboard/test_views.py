@@ -124,7 +124,7 @@ class TestNewTask(EboardTestCase):
         self.create_user(username="Test")
         self.login(username="Test")
         self.client.get(url_for("eboard.task_create", username="Test"))
-        self.assert_template_used("eboard/edittask.html")
+        self.assert_template_used("eboard/task_edit.html")
 
     def test_passess_form_to_template(self):
         user = self.create_user(username="Test")
@@ -209,7 +209,7 @@ class TestEditTask(EboardTestCase):
         self.login(username="Test")
         self.client.get(url_for("eboard.task_edit", username="Test",
                                 task_id=task.id))
-        self.assert_template_used("eboard/edittask.html")
+        self.assert_template_used("eboard/task_edit.html")
 
     def test_returns_not_found_when_task_does_not_exist(self):
         user = self.create_user(username="Test")
@@ -335,7 +335,7 @@ class TestProjectNew(EboardTestCase):
         self.create_user(username="Test")
         self.login(username="Test", follow_redirects=False)
         response = self.client.get(url_for("eboard.project_create", username="Test"))
-        self.assert_template_used("eboard/editproject.html")
+        self.assert_template_used("eboard/project_edit.html")
 
     def test_passess_proper_form_to_template(self):
         self.create_user(username="Test")
@@ -361,10 +361,12 @@ class TestProjectNew(EboardTestCase):
         response = self.client.post(url_for("eboard.project_create",
                                             username="Test"),
                                     data=dict(name="My First Project",
-                                              deadline="2017-01-01 00:00"))
+                                              deadline="2017-01-01 00:00",
+                                              desc="Improve your memory."))
         project = user.projects[0]
         self.assertEqual(project.name, "My First Project")
         self.assertEqual(project.deadline, datetime(2017, 1, 1, 0, 0))
+        self.assertEqual(project.desc, "Improve your memory.")
 
     def test_redirects_to_page_with_projects_when_success(self):
         user = self.create_user(username="Test")
@@ -426,3 +428,65 @@ class TestShowProject(EboardTestCase):
                                            username="Test", 
                                            project_id=project.id+1))   
         self.assert_404(response)
+
+
+class TestEditProject(EboardTestCase):
+
+    def test_uses_proper_template(self):
+        user = self.create_user(username="Test")
+        project = user.add_project(name="Test Project",  
+                                deadline=datetime(2015, 1, 1, 0, 0))
+        self.login(username="Test")
+        self.client.get(url_for("eboard.project_edit", username="Test",
+                                project_id=project.id))
+        self.assert_template_used("eboard/project_edit.html")
+
+    def test_returns_not_found_when_project_does_not_exist(self):
+        user = self.create_user(username="Test")
+        project = user.add_project(name="Test Project", 
+                                deadline=datetime(2015, 1, 1, 0, 0))
+        self.login(username="Test")
+        response = self.client.get(url_for("eboard.project_edit", 
+                                           username="Test",
+                                           project_id=project.id+1))
+        self.assert_404(response)
+
+    def test_for_populating_form_with_project_data(self):
+        user = self.create_user(username="Test")
+        project = user.add_project(name="Project To Populate", 
+                             deadline=datetime(2015, 1, 1, 0, 0))
+        self.login(username="Test")
+        response = self.client.get(url_for("eboard.project_edit", 
+                                           username="Test",
+                                           project_id=project.id))
+        self.assertNotEqual(response.data.find(b"Project To Populate"), -1)    
+
+    def test_update_project_with_post_request(self):
+        user = self.create_user(username="Test")
+        project = user.add_project(name="Test Task", 
+                             deadline=datetime(2015, 1, 1, 0, 0))
+        self.login(username="Test")
+        self.client.post(url_for("eboard.project_edit", username="Test", 
+                                 project_id=project.id), 
+                         data=dict(name="New Project Title", 
+                                   deadline="2018-01-01 00:00"),
+                         follow_redirects=True)
+        self.assertEqual(db.session.query(Project).count(), 1)
+        self.assertEqual(user.projects.count(), 1)
+        project = user.projects.one()
+        self.assertEqual(project.name, "New Project Title")
+        self.assertEqual(project.deadline, datetime(2018, 1, 1, 0, 0))
+
+    def test_redirects_to_projects_page_when_success(self):
+        user = self.create_user(username="Test")
+        project = user.add_project(name="Test Project", 
+                                deadline=datetime(2015, 1, 1, 0, 0))
+        self.login(username="Test")
+        response = self.client.post(url_for("eboard.project_edit", 
+                                            username="Test", 
+                                            project_id=project.id), 
+                                    data=dict(name="New Project Title", 
+                                              deadline="2018-01-01 00:00"),
+                                    follow_redirects=False)
+        self.assertRedirects(response, url_for("eboard.projects", 
+                                               username="Test"))
