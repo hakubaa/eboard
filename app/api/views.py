@@ -7,7 +7,7 @@ import sqlalchemy
 
 from app import login_manager, db
 from app.api import api
-from app.models import User, Task, Note, Project, Milestone, Tag
+from app.models import User, Task, Note, Project, Milestone, Tag, Event
 
 
 # Read This
@@ -126,10 +126,12 @@ def task_create(user):
     # Two fields are required
     if not "title" in data or not "deadline" in data:
         return "", 400
-    # Ignore redundat data from request
-    # data = { key: value for key, value in data.items() 
-    #                     if key in Task.__table__.columns.keys() }
-    task = user.add_task(**data)
+
+    try:
+        task = user.add_task(**data)
+    except sqlalchemy.exc.StatementError:
+        db.ssession.rollback()
+        return "", 400
 
     response = Response("")
     response.status_code = 201
@@ -155,9 +157,12 @@ def task_edit(user, task_id):
         return "", 404
 
     data = request.form.to_dict()
-    # data = { key: value for key, value in data.items() 
-    #                     if key in Task.__table__.columns.keys() }
-    task.update(**data)
+    try:
+        task.update(**data)
+    except sqlalchemy.exc.StatementError:
+        db.session.rollback()
+        return "", 404
+
     return "", 204
 
 @api.route("/users/<username>/tasks/<task_id>", methods=["DELETE"])
@@ -192,11 +197,13 @@ def note_create(user):
     # Title is required
     if "title" not in data:
         return "", 400
-    # Ignore redundat data from request
-    # data = { key: value for key, value in data.items() 
-    #                     if key in Note.__table__.columns.keys() }
 
-    note = user.add_note(**data)
+    try:
+        note = user.add_note(**data)
+    except sqlalchemy.exc.StatementError:
+        db.session.rollback()
+        return "", 400
+
     response = Response("")
     response.status_code = 201
     response.headers["Location"] = url_for("api.note_get", note_id=note.id,
@@ -221,10 +228,11 @@ def note_edit(user, note_id):
         return "", 404
 
     data = request.form.to_dict()
-    # Ignore redundat data from request
-    #data = { key:value for key, value in data.items()
-    #                  if key in Note.__table__.columns.keys() }
-    note.update(**data)
+    try:
+        note.update(**data)
+    except sqlalchemy.exc.StatementError:
+        return "", 400
+
     return "", 204
 
 @api.route("/users/<username>/notes/<note_id>", methods=["DELETE"])
@@ -257,7 +265,12 @@ def project_create(user):
     data = request.form.to_dict()
     if "name" not in data:
         return "", 400
-    project = user.add_project(**data)
+
+    try:
+        project = user.add_project(**data)
+    except sqlalchemy.exc.StatementError:
+        db.session.rollback()
+        return "", 400
 
     response = Response("")
     response.status_code = 201
@@ -288,7 +301,11 @@ def project_edit(user, project_id):
     if not project:
         return "", 404
     data = request.form.to_dict()
-    project.update(**data)
+    try:
+        project.update(**data)
+    except sqlalchemy.exc.StatementError:
+        db.session.rollback()
+        return "", 400
     return "", 204
 
 @api.route("/users/<username>/projects/<project_id>", methods=["DELETE"])
@@ -330,7 +347,12 @@ def project_note_create(user, project_id):
                     Project.id == project_id).first()
     if not project:
         return "", 404
-    note = project.add_note(**data)
+
+    try:
+        note = project.add_note(**data)
+    except sqlalchemy.exc.StatementError:
+        db.session.rollback()
+        return "", 400
 
     response = Response("")
     response.status_code = 201
@@ -361,7 +383,13 @@ def project_note_edit(user, project_id, note_id):
     if not note:
         return "", 404
     data = request.form.to_dict()
-    note.update(**data)
+
+    try:
+        note.update(**data)
+    except sqlalchemy.exc.StatementError:
+        db.session.rollback()
+        return "", 400
+
     return "", 204
 
 @api.route("/users/<username>/projects/<project_id>/notes/<note_id>",
@@ -409,7 +437,12 @@ def milestone_create(user, project_id):
     data = request.form.to_dict()
     if "title" not in data:
         return "", 400
-    milestone = project.add_milestone(**data)
+
+    try:
+        milestone = project.add_milestone(**data)
+    except sqlalchemy.exc.StatementError:
+        db.session.rollback()
+        return "", 400
     
     response = Response("")
     response.status_code = 201
@@ -445,7 +478,11 @@ def milestone_edit(user, project_id, milestone_id):
     if not milestone:
         return "", 404
     data = request.form.to_dict()
-    milestone.update(data)
+    try:
+        milestone.update(data)
+    except sqlalchemy.exc.StatementError:
+        db.session.rollback()
+        return "", 400
     return "", 204
 
 @api.route("/users/<username>/projects/<project_id>/milestones/<milestone_id>",
@@ -496,7 +533,11 @@ def milestone_task_create(user, project_id, milestone_id):
     if "title" not in data or "deadline" not in data:
         return "", 400
 
-    task = milestone.add_task(**data)
+    try:
+        task = milestone.add_task(**data)
+    except sqlalchemy.orm.StatementError:
+        db.session.rollback()
+        return "", 400
    
     response = Response("")
     response.status_code = 201
@@ -528,7 +569,11 @@ def milestone_task_edit(user, project_id, milestone_id, task_id):
     if not task:
         return "", 404
     data = request.form.to_dict()
-    task.update(**data)
+    try:
+        task.update(**data)
+    except sqlalchemy.exc.StatementError:
+        db.session.rollback()
+        return "", 400
     return "", 204
 
 @api.route("/users/<username>/projects/<project_id>/milestones/" + \
@@ -582,3 +627,73 @@ def tag_delete(name):
         return "", 404
 
 ################################################################################
+
+################################################################################
+# EVENTS
+
+@api.route("/users/<username>/events", methods=["GET"])
+@access_validator(owner_auth=False)
+def events(user):
+    data = [ event.get_info() for event in user.events.all() ]
+    for event in data:
+        event["uri"] = url_for("api.event_get", username=user.username,
+                               event_id=event["id"])
+    return jsonify(data), 200
+
+@api.route("/users/<username>/events", methods=["POST"])
+@access_validator(owner_auth=True)
+def event_create(user):
+    data = request.form.to_dict()
+    if not {"title", "start", "end"} <= set(data.keys()):
+        return "", 400
+
+    try:
+        event = user.add_event(**data)
+    except sqlalchemy.exc.StatementError:
+        db.session.rollback()
+        return "", 400
+
+    response = Response("")
+    response.status_code = 201
+    response.headers["Location"] = url_for("api.event_get", event_id=event.id,
+                                           username=user.username)
+    return response
+
+@api.route("/users/<username>/events/<event_id>", methods=["GET"])
+@access_validator(owner_auth=False)
+def event_get(user, event_id):
+    event = db.session.query(Event).join(User).filter(User.id == user.id,
+                    Event.id == event_id).one_or_none()
+    if not event:
+        return "", 404
+    return jsonify(event.to_dict()), 200
+
+@api.route("/users/<username>/events/<event_id>", methods=["PUT"])
+@access_validator(owner_auth=True)
+def event_edit(user, event_id):
+    event = db.session.query(Event).join(User).filter(User.id == user.id,
+                    Event.id == event_id).one_or_none()
+    if not event:
+        return "", 404
+
+    data = request.form.to_dict()
+    try:
+        event.update(**data)
+    except sqlalchemy.exc.StatementError:
+        db.session.rollback()
+        return "", 400
+
+    return "", 204
+
+@api.route("/users/<username>/events/<event_id>", methods=["DELETE"])
+@access_validator(owner_auth=True)
+def event_delete(user, event_id):
+    event = db.session.query(Event).join(User).filter(
+                User.id == user.id, Event.id == event_id).one_or_none()
+    if not event:
+        return "", 404
+    db.session.delete(event)
+    db.session.commit()
+    return "", 204
+
+###############################################################################

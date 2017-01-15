@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+import collections
 
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
@@ -52,7 +53,7 @@ class Task(db.Model):
         cascade = "all, delete, delete-orphan", single_parent = True)
 
     def __init__(self, *args, deadline_event=True, **kwargs):
-        # Get rit of redundant fields in kwargs
+        # Get rid of redundant fields in kwargs
         fields = [prop.key for prop in class_mapper(Task).iterate_properties]
         data = { key: value for key, value in kwargs.items() if key in fields }
         if "tags" in data:
@@ -83,6 +84,9 @@ class Task(db.Model):
         '''
         if not data:
             data = kwargs
+        else:
+            if not isinstance(data, collections.Mapping):
+                raise TypeError("first argument must be dictionary")
 
         # Update fields which can be update (not read-only fields)
         update_possible = {"title", "deadline", "body", "importance", 
@@ -173,7 +177,7 @@ class Tag(db.Model):
     notes = db.relationship("Note", secondary = notestags)
 
     def __init__(self, *args, **kwargs):
-        # Get rit of redundant fields in kwargs
+        # Get rid of redundant fields in kwargs
         fields = [prop.key for prop in class_mapper(Tag).iterate_properties]
         data = { key: value for key, value in kwargs.items() if key in fields }
         super().__init__(*args, **data)
@@ -212,9 +216,11 @@ class User(UserMixin, db.Model):
         cascade = "all, delete, delete-orphan", lazy="dynamic")
     notes = db.relationship("Note", back_populates="user",
         cascade = "all, delete, delete-orphan", lazy="dynamic")
+    events = db.relationship("Event", back_populates="user",
+        cascade="all, delete, delete-orphan", lazy="dynamic")
 
     def __init__(self, *args, **kwargs):
-        # Get rit of redundant fields in kwargs
+        # Get rid of redundant fields in kwargs
         # fields = [prop.key for prop in class_mapper(Milestone).iterate_properties]
         # fields.append("password")
         # data = { key: value for key, value in kwargs.items() if key in fields }
@@ -230,6 +236,22 @@ class User(UserMixin, db.Model):
 
     def verify_password(self, password):
         return check_password_hash(self.password_hash, password)
+
+    def add_event(self, *args, commit=True, **kwargs):
+        '''
+        Adds event to user's events list. Checks whether the first position
+        argument is Event object.
+        '''
+        if len(args) > 0 and isinstance(args[0], Event):
+            event = args[0]
+        else:
+            event = Event(*args, **kwargs)
+            db.session.add(event)
+
+        self.events.append(event)
+        if commit:
+            db.session.commit()
+        return event
 
     def add_task(self, *args, commit=True, **kwargs):
         '''
@@ -345,7 +367,7 @@ class Note(db.Model):
     user = db.relationship("User", back_populates = "notes")
 
     def __init__(self, *args, **kwargs):
-        # Get rit of redundant fields in kwargs
+        # Get rid of redundant fields in kwargs
         fields = [prop.key for prop in class_mapper(Note).iterate_properties]
         data = { key: value for key, value in kwargs.items() if key in fields }
         # Normalize tags, convert all itmes to Tag-s
@@ -362,6 +384,9 @@ class Note(db.Model):
         '''
         if not data:
             data = kwargs
+        else:
+            if not isinstance(data, collections.Mapping):
+                raise TypeError("first argument must be dictionary")
 
         # Update fields which can be update (not read-only fields)
         update_possible = {"title", "body", "tags"}
@@ -445,7 +470,7 @@ class Project(db.Model):
         cascade = "all, delete, delete-orphan", single_parent = True)
 
     def __init__(self, *args, deadline_event=True, **kwargs):
-        # Get rit of redundant fields in kwargs
+        # Get rid of redundant fields in kwargs
         fields = [prop.key for prop in class_mapper(Project).iterate_properties]
         data = { key: value for key, value in kwargs.items() if key in fields }
         super().__init__(*args, **data)
@@ -470,6 +495,9 @@ class Project(db.Model):
         '''
         if not data:
             data = kwargs
+        else:
+            if not isinstance(data, collections.Mapping):
+                raise TypeError("first argument must be dictionary")
 
         # Update fields which can be update (not read-only fields)
         update_possible = {"name", "desc", "deadline", 
@@ -589,7 +617,7 @@ class Milestone(db.Model):
         cascade = "all, delete, delete-orphan", lazy="dynamic")
 
     def __init__(self, *args, **kwargs):
-        # Get rit of redundant fields in kwargs
+        # Get rid of redundant fields in kwargs
         fields = [prop.key for prop in class_mapper(Milestone).iterate_properties]
         data = { key: value for key, value in kwargs.items() if key in fields }
         super().__init__(*args, **data)
@@ -626,6 +654,9 @@ class Milestone(db.Model):
         '''
         if not data:
             data = kwargs
+        else:
+            if not isinstance(data, collections.Mapping):
+                raise TypeError("first argument must be dictionary")
 
         # Update fields which can be update (not read-only fields)
         update_possible = {"title", "position", "desc"}
@@ -678,16 +709,52 @@ class Event(db.Model):
     project = db.relationship("Project", back_populates = "deadline_event", 
         uselist = False)
 
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    user = db.relationship("User", back_populates="events")
+
+    def __init__(self, *args, **kwargs):
+        # Get rid of redundant fields in kwargs
+        fields = [prop.key for prop in class_mapper(Event).iterate_properties]
+        data = { key: value for key, value in kwargs.items() if key in fields }
+        super().__init__(*args, **data)
+
+    def update(self, data=None, commit=True, **kwargs):
+        '''
+        Update event on the base of dict or **kwargs.
+        '''
+        if not data:
+            data = kwargs
+        else:
+            if not isinstance(data, collections.Mapping):
+                raise TypeError("first argument must be dictionary")
+
+        # Update fields which can be update (not read-only fields)
+        update_possible = {"title", "allDay", "start", "end", "editable",
+                           "url", "className", "color", "textColor",
+                           "backgroundColor", "borderColor", "desc"}
+        fields_to_update = update_possible & set(data.keys())
+        for field in fields_to_update:
+            setattr(self, field, data[field])
+
+        if commit:
+            db.session.commit()
+
     def to_dict(self):
         return {"id": self.id, "title": self.title, "allDay": self.allDay,
-            "start": self.start.strftime("%Y-%m-%d %H:%M:%S"),
-            "end": self.end.strftime("%Y-%m-%d %H:%M:%S"),
-            "url": self.url, "desc": self.desc,
-            "className": self.className, "color": self.color,
-            "editable": self.editable,
-            "textColor": self.textColor, 
-            "backgroundColor": self.backgroundColor,
-            "bordercolor": self.borderColor }
+                "start": self.start.strftime("%Y-%m-%d %H:%M"),
+                "end": self.end.strftime("%Y-%m-%d %H:%M"),
+                "url": self.url, "desc": self.desc,
+                "className": self.className, "color": self.color,
+                "editable": self.editable,
+                "textColor": self.textColor, 
+                "backgroundColor": self.backgroundColor,
+                "bordercolor": self.borderColor }
+
+    def get_info(self):
+        return {"id": self.id, "title": self.title,
+               "start": self.start.strftime("%Y-%m-%d %H:%M"),
+               "end": self.end.strftime("%Y-%m-%d %H:%M")}
+
 
 class Status(db.Model):
     __tablename__ = "statuses"

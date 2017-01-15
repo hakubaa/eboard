@@ -6,7 +6,7 @@ from flask_testing import TestCase
 from flask import url_for
 
 from app import create_app, db
-from app.models import User, Task, Note, Project, Milestone, Tag
+from app.models import User, Task, Note, Project, Milestone, Tag, Event
 
 
 class ApiTestCase(TestCase):
@@ -96,7 +96,8 @@ class TestApiUser(ApiTestCase):
         self.login(name="Test")
         response = self.client.get(url_for("api.user_index", username="Test"))
         data = response.json
-        self.assertEqual(data["tasks"][0]["uri"], "/Test/tasks/" + str(task1.id))
+        self.assertIn(url_for("api.task_get", username="Test", task_id=task1.id),
+                      data["tasks"][0]["uri"])
 
     def test_creates_uri_for_projects(self):
         user = self.create_user(name="Test")
@@ -105,7 +106,9 @@ class TestApiUser(ApiTestCase):
         self.login(name="Test")
         response = self.client.get(url_for("api.user_index", username="Test"))
         data = response.json
-        self.assertEqual(data["projects"][0]["uri"], "/Test/projects/" + str(proj1.id))        
+        self.assertIn(url_for("api.project_get", username="Test", 
+                              project_id=proj1.id),
+                      data["projects"][0]["uri"])
 
     def test_creates_uri_for_notes(self):
         user = self.create_user(name="Test")
@@ -113,7 +116,8 @@ class TestApiUser(ApiTestCase):
         self.login(name="Test")
         response = self.client.get(url_for("api.user_index", username="Test"))
         data = response.json
-        self.assertEqual(data["notes"][0]["uri"], "/Test/notes/" + str(note.id))        
+        self.assertIn(url_for("api.note_get", username="Test", note_id=note.id),
+                      data["notes"][0]["uri"])
 
     def test_creates_user_with_post_request_and_return_201(self):
         response = self.client.post(url_for("api.user_create"), 
@@ -1268,3 +1272,179 @@ class TestApiTagItem(ApiTestCase):
         self.assertEqual(response.status_code, 404)     
         self.assertEqual(db.session.query(Tag).count(), 1)
      
+
+class TestEventsList(ApiTestCase):
+
+    def test_get_request_returns_list_of_events(self):
+        user = self.create_user(name="Test")
+        event1 = user.add_event(title="My First Event", 
+                                start=datetime(2017, 1, 1, 0, 0),
+                                end=datetime(2017, 1, 1, 0, 0))
+        event2 = user.add_event(title="My Second Event",
+                                start=datetime(2017, 1, 1, 0, 0),
+                                end=datetime(2017, 1, 1, 12, 0))
+        self.login(name="Test")
+        response = self.client.get(url_for("api.events", 
+                                   username=user.username))
+        data = response.json
+        self.assertEqual(len(data), 2)
+        events_titles = [ event["title"] for event in data ]
+        self.assertIn(event1.title, events_titles)
+        self.assertIn(event2.title, events_titles)
+
+    def test_for_presence_of_uri_to_tasks(self):
+        user = self.create_user(name="Test")
+        event = user.add_event(title="My First Event", 
+                                start=datetime(2017, 1, 1, 0, 0),
+                                end=datetime(2017, 1, 1, 0, 0))
+        self.login(name="Test")
+        response = self.client.get(url_for("api.events", username="Test"))   
+        data = response.json
+        self.assertIn(url_for("api.event_get", username="Test",
+                              event_id=event.id), 
+                      data[0]["uri"])
+
+    def test_post_request_creates_new_event(self):
+        user = self.create_user(name="Test")
+        self.login(name="Test")
+        response = self.client.post(url_for("api.event_create", username="Test"),
+                                    data=dict(title="My First Event",
+                                              start="2017-01-01 12:00",
+                                              end="2017-01-01 15:00"))
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(db.session.query(Event).count(), 1)
+        self.assertEqual(user.events.count(), 1)
+        event = db.session.query(Event).one()
+        self.assertEqual(event.title, "My First Event")
+        self.assertEqual(event.end, datetime(2017, 1, 1, 15, 0))
+
+    def test_post_request_returns_uri_to_new_event(self):
+        user = self.create_user(name="Test")
+        self.login(name="Test")
+        response = self.client.post(url_for("api.event_create", username="Test"),
+                                    data=dict(title="My First Event",
+                                              start="2017-01-01 12:00",
+                                              end="2017-01-01 15:00"))
+        self.assertEqual(response.status_code, 201)
+        event = user.events.one()
+        self.assertIn(url_for("api.event_get", username="Test", 
+                                 event_id=event.id),
+                         response.location)        
+
+    def test_event_create_returns_Bad_Request_when_no_title(self):
+        user = self.create_user(name="Test")
+        self.login(name="Test")
+        response = self.client.post(url_for("api.event_create", username="Test"),
+                                    data=dict(name="My First Event",
+                                              start="2017-01-01 12:00",
+                                              end="2017-01-01 15:00"))
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(db.session.query(Event).count(), 0)
+
+    def test_event_create_returns_Bad_Request_when_no_start_date(self):
+        user = self.create_user(name="Test")
+        self.login(name="Test")
+        response = self.client.post(url_for("api.event_create", username="Test"),
+                                    data=dict(title="My First Event",
+                                              begin="2017-01-01 12:00",
+                                              end="2017-01-01 15:00"))
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(db.session.query(Event).count(), 0)
+
+    def test_event_create_returns_Bad_Request_when_invalid_format_of_dates(self):
+        user = self.create_user(name="Test")
+        self.login(name="Test")
+        response = self.client.post(url_for("api.event_create", username="Test"),
+                                    data=dict(title="My First Event",
+                                              start="2017-01-01",
+                                              end="07-01-1900 15:00"))
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(db.session.query(Event).count(), 0)        
+
+
+class TestEventItem(ApiTestCase):
+
+    def test_get_request_returns_information_about_event(self):
+        user = self.create_user(name="Test")
+        event = user.add_event(title="First Task", 
+                               start=datetime(2015, 1, 1, 0, 0),
+                               end=datetime(2016, 1, 1, 0, 0))
+        self.login(name="Test")
+        response = self.client.get(url_for("api.event_get", username="Test",
+                                           event_id=event.id))
+        self.assertEqual(response.status_code, 200)
+        data = response.json
+        self.assertEqual(data["title"], event.title)
+        self.assertEqual(data["start"], "2015-01-01 00:00")
+        self.assertEqual(data["end"], "2016-01-01 00:00")
+
+    def test_get_request_returns_Not_Found_for_unknown_id(self):
+        user = self.create_user(name="Test")
+        event = user.add_event(title="First Task", 
+                               start=datetime(2015, 1, 1, 0, 0),
+                               end=datetime(2016, 1, 1, 0, 0))
+        self.login(name="Test")
+        response = self.client.get(url_for("api.event_get", username="Test", 
+                                           event_id=event.id+1))
+        self.assertEqual(response.status_code, 404)
+
+    def test_for_updating_event_with_put_request(self):
+        user = self.create_user(name="Test")
+        event = user.add_event(title="First Task", 
+                               start=datetime(2015, 1, 1, 0, 0),
+                               end=datetime(2016, 1, 1, 0, 0))
+        self.login(name="Test") 
+        response = self.client.put(url_for("api.event_edit", username="Test", 
+                                           event_id=event.id),
+                                   data=dict(title="New Title", 
+                                             end="2017-01-01 00:00"))
+        self.assertEqual(response.status_code, 204)
+        event = db.session.query(User).one().events[0]
+        self.assertEqual(event.title, "New Title")
+        self.assertEqual(event.end, datetime(2017, 1, 1, 0, 0))
+
+    def test_put_request_returns_Not_Found_for_unknown_id(self):
+        user = self.create_user(name="Test")
+        event = user.add_event(title="First Task", 
+                               start=datetime(2015, 1, 1, 0, 0),
+                               end=datetime(2016, 1, 1, 0, 0))
+        self.login(name="Test")
+        response = self.client.put(url_for("api.event_edit", username="Test", 
+                                           event_id=event.id+1),
+                                   data=dict(title="New Title"))
+        self.assertEqual(response.status_code, 404)
+
+    def test_put_request_returns_Bad_Request_when_invalid_data(self):
+        user = self.create_user(name="Test")
+        event = user.add_event(title="First Task", 
+                               start=datetime(2015, 1, 1, 0, 0),
+                               end=datetime(2016, 1, 1, 0, 0))
+        self.login(name="Test")
+        response = self.client.put(url_for("api.event_edit", username="Test", 
+                                           event_id=event.id),
+                                   data=dict(title="New Title",
+                                             start="2017-13-34 00:00",
+                                             end="12-01-2019"))
+        self.assertEqual(response.status_code, 400)
+
+    def test_for_deleting_event_with_delete_request(self):
+        user = self.create_user(name="Test")
+        event = user.add_event(title="First Task", 
+                               start=datetime(2015, 1, 1, 0, 0),
+                               end=datetime(2016, 1, 1, 0, 0))
+        self.login(name="Test")
+        response = self.client.delete(url_for("api.event_delete", username="Test",
+                                              event_id=event.id))
+        self.assertEqual(response.status_code, 204) # 204 - NO CONTENT
+        self.assertEqual(user.events.count(), 0)
+        self.assertEqual(db.session.query(Event).count(), 0)
+
+    def test_delete_request_returns_Not_Found_for_unknwon_id(self):
+        user = self.create_user(name="Test")
+        event = user.add_event(title="First Task", 
+                               start=datetime(2015, 1, 1, 0, 0),
+                               end=datetime(2016, 1, 1, 0, 0))
+        self.login(name="Test")
+        response = self.client.delete(url_for("api.event_delete", username="Test",
+                                              event_id=event.id+1))
+        self.assertEqual(response.status_code, 404)

@@ -242,6 +242,79 @@ class TestUser(ModelTestCase):
         db.session.commit()
         self.assertEqual(db.session.query(User).count(), 1)
         
+    def test_add_event_creates_new_event_for_user(self):
+        user = self.create_user()
+        event = Event(title="My First Event", start=datetime(2017, 1, 1, 0, 0),
+                      end=datetime(2017, 1, 1, 12, 0))
+        user.add_event(event)
+        self.assertEqual(db.session.query(Event).count(), 1)
+        self.assertEqual(user.events.count(), 1)
+        self.assertEqual(user.events[0], Event.query.one())
+        self.assertEqual(db.session.query(Event).one().user, user)
+
+    def test_passes_args_to_add_event(self):
+        user = self.create_user()
+        user.add_event(title="My First Event", start=datetime(2017, 1, 1, 0, 0),
+                       end=datetime(2017, 1, 1, 12, 0))
+        event = user.events[0]
+        self.assertEqual(event.title, "My First Event")
+        self.assertEqual(event.end, datetime(2017, 1, 1, 12, 0))
+
+    def test_add_event_returns_event(self):
+        user = self.create_user()
+        event = user.add_event(title="Event", start=datetime(2017, 1, 1, 0, 0), 
+                               end=datetime(2017, 1, 1, 12, 0))
+        self.assertEqual(event, db.session.query(Event).one())
+
+    def test_for_preventing_commit_when_adding_event(self):
+        user = self.create_user()
+        event = user.add_event(title="Event", start=datetime(2017, 1, 1, 0, 0), 
+                               end=datetime(2017, 1, 1, 12, 0), commit=False)
+        db.session.rollback() 
+        self.assertEqual(db.session.query(Event).count(), 0)
+        self.assertEqual(user.events.count(), 0)
+
+    # def test_for_commiting_when_adding_task(self):
+    #     user = self.create_user()
+    #     user.add_task(title="Test Task", deadline=datetime(2015, 1, 1, 0, 0))
+    #     db.session.rollback()
+    #     self.assertEqual(db.session.query(Task).count(), 1)
+    #     self.assertEqual(db.session.query(Task).one().user, user)
+
+    # def test_add_task_accepts_task_object_as_first_argument(self):
+    #     user = self.create_user()
+    #     task = Task(title="FUCK", deadline=datetime(2015, 1, 1, 0, 0))
+    #     db.session.add(task)
+    #     db.session.commit()
+    #     user.add_task(task)
+    #     self.assertEqual(db.session.query(Task).count(), 1)
+    #     self.assertEqual(user.tasks.count(), 1)
+    #     self.assertEqual(user.tasks[0], task)
+
+    # def test_remove_task_by_id_from_user_tasks_list(self):
+    #     user = self.create_user()
+    #     task = user.add_task(title="Task to remove", 
+    #                          deadline=datetime(2015, 1, 1, 0, 0))
+    #     self.assertEqual(user.tasks.count(), 1)
+    #     user.remove_task(task.id)
+    #     self.assertEqual(user.tasks.count(), 0)
+
+    # def test_remove_task_by_object_from_user_tasks_list(self):
+    #     user = self.create_user()
+    #     task = user.add_task(title="Task to remove", 
+    #                          deadline=datetime(2015, 1, 1, 0, 0))
+    #     self.assertEqual(user.tasks.count(), 1)
+    #     user.remove_task(task)
+    #     self.assertEqual(user.tasks.count(), 0)
+
+    # def test_remove_task_does_not_raise_exception_when_invalid_id(self):
+    #     user = self.create_user()
+    #     task = user.add_task(title="Task to remove", 
+    #                          deadline=datetime(2015, 1, 1, 0, 0))
+    #     self.assertEqual(user.tasks.count(), 1)
+    #     user.remove_task(345)
+    #     self.assertEqual(user.tasks.count(), 1)
+
 
 class TestTask(ModelTestCase):
 
@@ -972,3 +1045,47 @@ class TestNote(ModelTestCase):
         db.session.commit()
         note.update(tags=["tag1", "tag2", "tag3"])
         self.assertEqual(len(note.tags), 3)
+
+
+class TestEvent(ModelTestCase):
+
+    def test_for_ignoring_redundant_fields_when_creating_event(self):
+        event = Event(title="Sample Event", start=datetime(2017, 1, 1, 0, 0),
+                      end=datetime(2018, 1, 1, 0, 0), rubbish1=9,
+                      nofield="UNKNOWN")
+        db.session.add(event)
+        db.session.commit()
+        self.assertEqual(db.session.query(Event).count(), 1)
+        event = db.session.query(Event).one()
+        self.assertEqual(event.title, "Sample Event")
+        with self.assertRaises(AttributeError):
+            self.assertIsNone(event.rubbish1)
+
+    def test_for_updating_event_with_update_method(self):
+        event = Event(title="Sample Event", start=datetime(2017, 1, 1, 0, 0),
+                      end=datetime(2018, 1, 1, 0, 0), rubbish1=9,
+                      nofield="UNKNOWN")
+        db.session.add(event)
+        db.session.commit()
+        event.update(title="New Event's Title", end=datetime(2017, 1, 1, 12, 0))
+        event = db.session.query(Event).one()
+        self.assertEqual(event.title, "New Event's Title")
+        self.assertEqual(event.end, datetime(2017, 1, 1, 12, 0))
+
+    def test_update_ignores_redundant_fields(self):
+        event = Event(title="Sample Event", start=datetime(2017, 1, 1, 0, 0),
+                      end=datetime(2018, 1, 1, 0, 0), rubbish1=9,
+                      nofield="UNKNOWN")
+        db.session.add(event)
+        db.session.commit()
+        event.update(title="New Event's Title", rubbish1="Test", rubbish2=2)
+
+    def test_update_raises_error_when_positional_argument_is_not_dict(self):
+        event = Event(title="Sample Event", start=datetime(2017, 1, 1, 0, 0),
+                      end=datetime(2018, 1, 1, 0, 0), rubbish1=9,
+                      nofield="UNKNOWN")
+        db.session.add(event)
+        db.session.commit()
+        with self.assertRaises(TypeError):
+            event.update("New Event's Title")
+
