@@ -274,46 +274,46 @@ class TestUser(ModelTestCase):
         self.assertEqual(db.session.query(Event).count(), 0)
         self.assertEqual(user.events.count(), 0)
 
-    # def test_for_commiting_when_adding_task(self):
-    #     user = self.create_user()
-    #     user.add_task(title="Test Task", deadline=datetime(2015, 1, 1, 0, 0))
-    #     db.session.rollback()
-    #     self.assertEqual(db.session.query(Task).count(), 1)
-    #     self.assertEqual(db.session.query(Task).one().user, user)
+    def test_add_task_links_user_to_deadline_event(self):
+        user = self.create_user()
+        task = Task(title="Test Task", deadline=datetime(2017, 1, 1, 0, 0))
+        db.session.add(task)
+        db.session.commit()
+        user.add_task(task)
+        self.assertEqual(db.session.query(Event).count(), 1)
+        self.assertEqual(user.events.count(), 1)
+        self.assertEqual(user.events[0], task.deadline_event)
 
-    # def test_add_task_accepts_task_object_as_first_argument(self):
-    #     user = self.create_user()
-    #     task = Task(title="FUCK", deadline=datetime(2015, 1, 1, 0, 0))
-    #     db.session.add(task)
-    #     db.session.commit()
-    #     user.add_task(task)
-    #     self.assertEqual(db.session.query(Task).count(), 1)
-    #     self.assertEqual(user.tasks.count(), 1)
-    #     self.assertEqual(user.tasks[0], task)
+    def test_remove_task_unlinks_user_from_deadline_event(self):
+        user = self.create_user()
+        task = Task(title="Test Task", deadline=datetime(2017, 1, 1, 0, 0))
+        db.session.add(task)
+        db.session.commit()
+        user.add_task(task)
+        self.assertEqual(user.events.count(), 1)
+        user.remove_task(task)
+        self.assertEqual(user.events.count(), 0)
 
-    # def test_remove_task_by_id_from_user_tasks_list(self):
-    #     user = self.create_user()
-    #     task = user.add_task(title="Task to remove", 
-    #                          deadline=datetime(2015, 1, 1, 0, 0))
-    #     self.assertEqual(user.tasks.count(), 1)
-    #     user.remove_task(task.id)
-    #     self.assertEqual(user.tasks.count(), 0)
+    def test_add_project_links_user_to_deadline_event(self):
+        user = self.create_user()
+        project = Project(name="Test Project", 
+                          deadline=datetime(2017, 1, 1, 0, 0))
+        db.session.add(project)
+        db.session.commit()
+        user.add_project(project)
+        self.assertEqual(db.session.query(Event).count(), 1)
+        self.assertEqual(user.events.count(), 1)
+        self.assertEqual(user.events[0], project.deadline_event)
 
-    # def test_remove_task_by_object_from_user_tasks_list(self):
-    #     user = self.create_user()
-    #     task = user.add_task(title="Task to remove", 
-    #                          deadline=datetime(2015, 1, 1, 0, 0))
-    #     self.assertEqual(user.tasks.count(), 1)
-    #     user.remove_task(task)
-    #     self.assertEqual(user.tasks.count(), 0)
-
-    # def test_remove_task_does_not_raise_exception_when_invalid_id(self):
-    #     user = self.create_user()
-    #     task = user.add_task(title="Task to remove", 
-    #                          deadline=datetime(2015, 1, 1, 0, 0))
-    #     self.assertEqual(user.tasks.count(), 1)
-    #     user.remove_task(345)
-    #     self.assertEqual(user.tasks.count(), 1)
+    def test_remove_project_unliks_user_to_deadline_event(self):
+        user = self.create_user()
+        project = Project(name="Test Project", deadline=datetime(2017, 1, 1, 0, 0))
+        db.session.add(project)
+        db.session.commit()
+        user.add_project(project)
+        self.assertEqual(user.events.count(), 1)
+        user.remove_project(project)
+        self.assertEqual(user.events.count(), 0)
 
 
 class TestTask(ModelTestCase):
@@ -829,6 +829,7 @@ class TestMilestone(ModelTestCase):
         self.assertEqual(milestone.tasks.count(), 1)
         milestone.remove_task(task.id)
         self.assertEqual(milestone.tasks.count(), 0)
+        self.assertEqual(db.session.query(Task).count(), 0)
 
     def test_remove_milestone_by_object_from_project_milestones_list(self):
         milestone = Milestone(title="Sample Milestone")
@@ -863,6 +864,20 @@ class TestMilestone(ModelTestCase):
         db.session.commit()
         milestone.update(rubbish1="SCV73KDV", rubbish2=[1, 2, 3])
 
+    def test_for_moving_task_between_milestones(self):
+        milestone1 = Milestone(title ="Milestone 1")
+        milestone2 = Milestone(title="Milestone 2")
+        db.session.add(milestone1)
+        db.session.add(milestone2)
+        db.session.commit()
+        task = milestone1.add_task(title="My First Task", 
+                                   deadline=datetime(2015, 1, 1, 0, 0))
+        self.assertEqual(milestone1.tasks.count(), 1)
+        self.assertEqual(milestone2.tasks.count(), 0)
+        task.update(milestone_id=milestone2.id)
+        self.assertEqual(milestone1.tasks.count(), 0)
+        self.assertEqual(milestone2.tasks.count(), 1)
+                
 
 class TestTag(ModelTestCase):
 

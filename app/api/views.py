@@ -282,11 +282,16 @@ def project_create(user):
 @api.route("/users/<username>/projects/<project_id>", methods=["GET"])
 @access_validator(owner_auth=False)
 def project_get(user, project_id):
+    # Optimize to load milestones at the same time
     project = db.session.query(Project).join(User).filter(User.id == user.id,
                     Project.id == project_id).first()
     if not project:
         return "", 404
-    data = project.to_dict()
+
+    with_tasks = request.values.get("with_tasks", "N").upper() in ("TRUE", "T", 
+                                                                   "YES", "Y")
+
+    data = project.to_dict(with_tasks=with_tasks)
     for milestone in data["milestones"]:
         milestone["uri"] = url_for("api.milestone_get", username=user.username,
                                    project_id=project_id, 

@@ -1,8 +1,10 @@
 E-Board:
-- start new transaction without interupting current transaction
-- wrap db operations in api views in try-catch
-- tasks/projects when creating events should linkd it with user?
-    - you can add events in add_project, add_task methods
+- start new transaction without interupting current transaction -> NO
+- tasks/projects when creating events should link it with user?
+    - you can add events in add_project, add_task methods -> DONE
+- test what is going on with objects when they are removed in methods: 
+    remove_task, remove_note, remove_project etc -> OBJECTS ARE REMOVED PERMANENTLY
+
 
 E-Mail Client:
 - sending e-mails

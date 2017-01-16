@@ -133,7 +133,7 @@ def project_show(user, project_id):
     project = user.projects.filter(Project.id == project_id).one_or_none()
     if not project:
         return render_template("404.html"), 404
-    return render_template("eboard/project.html", project=project)
+    return render_template("eboard/project.html", project=project, user=user)
 
 @eboard.route("/<username>/projects/<project_id>/edit", methods=["GET", "POST"])
 @access_required(owner_only=True)
@@ -154,27 +154,31 @@ def project_edit(user, project_id):
 @login_required
 def index_old():
 
-    projects = db.session.query(Project).join(Project.status).\
-        filter(Status.name == "active").options(contains_eager(Project.status)).\
-        with_entities(Project.name, Project.description, Project.deadline, 
-            Project.created).\
-        order_by(Project.created).all()
+    # projects = db.session.query(Project).join(Project.status).\
+    #     filter(Status.name == "active").options(contains_eager(Project.status)).\
+    #     with_entities(Project.name, Project.description, Project.deadline, 
+    #         Project.created).\
+    #     order_by(Project.created).all()
 
-    notes = db.session.query(Note).options(subqueryload(Note.tags)).\
-        order_by(Note.timestamp.asc()).all()
+    # notes = db.session.query(Note).options(subqueryload(Note.tags)).\
+    #     order_by(Note.timestamp.asc()).all()
 
-    tasks = db.session.query(Task).join(Task.status).\
-        filter(Status.name == "active").options(contains_eager(Task.status)).\
-        order_by(Task.deadline.asc()).limit(5).with_entities(Task.title,
-            Task.deadline).all()
+    # tasks = db.session.query(Task).join(Task.status).\
+    #     filter(Status.name == "active").options(contains_eager(Task.status)).\
+    #     order_by(Task.deadline.asc()).limit(5).with_entities(Task.title,
+    #         Task.deadline).all()
     
-    deadlines = [ {"title": "Task '" + task.title + "'", 
-        "deadline": task.deadline, 
-        "delayed": task.deadline < datetime.datetime.now() } for task in tasks ]
-    deadlines.extend([ {"title": "Project '" + project.name + "'",
-        "deadline": project.deadline,
-        "delayed": project.deadline < datetime.datetime.now() } for project in projects ])
-    deadlines.sort(key = lambda x: x["deadline"])
+    # deadlines = [ {"title": "Task '" + task.title + "'", 
+    #     "deadline": task.deadline, 
+    #     "delayed": task.deadline < datetime.datetime.now() } for task in tasks ]
+    # deadlines.extend([ {"title": "Project '" + project.name + "'",
+    #     "deadline": project.deadline,
+    #     "delayed": project.deadline < datetime.datetime.now() } for project in projects ])
+    # deadlines.sort(key = lambda x: x["deadline"])
+
+    projects = []
+    deadlines = []
+    notes = []
 
     return render_template("eboard/index.html", deadlines = deadlines, 
         projects = projects, notes = notes)

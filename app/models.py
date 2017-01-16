@@ -50,7 +50,8 @@ class Task(db.Model):
 
     deadline_event_id = db.Column(db.Integer, db.ForeignKey("events.id"))
     deadline_event = db.relationship("Event", back_populates = "task",
-        cascade = "all, delete, delete-orphan", single_parent = True)
+        cascade = "all, delete, delete-orphan", single_parent = True,
+        lazy="immediate")
 
     def __init__(self, *args, deadline_event=True, **kwargs):
         # Get rid of redundant fields in kwargs
@@ -90,7 +91,8 @@ class Task(db.Model):
 
         # Update fields which can be update (not read-only fields)
         update_possible = {"title", "deadline", "body", "importance", 
-                           "urgency", "active", "complete", "tags"}
+                           "urgency", "active", "complete", "tags",
+                           "milestone", "milestone_id"}
         fields_to_update = update_possible & set(data.keys())
         if "tags" in fields_to_update:
             if isinstance(data["tags"], str):
@@ -265,6 +267,8 @@ class User(UserMixin, db.Model):
             db.session.add(task)
 
         self.tasks.append(task)
+        if task.deadline_event:
+            self.events.append(task.deadline_event)
         if commit:
             db.session.commit()
         return task
@@ -277,6 +281,8 @@ class User(UserMixin, db.Model):
         if not isinstance(task, Task):
             task = Task.query.get(task)
         if task:
+            if task.deadline_event:
+                self.events.remove(task.deadline_event)
             self.tasks.remove(task)
 
     def add_project(self, *args, commit=True, **kwargs):
@@ -291,6 +297,8 @@ class User(UserMixin, db.Model):
             db.session.add(project)
 
         self.projects.append(project)
+        if project.deadline_event:
+            self.events.append(project.deadline_event)
         if commit:
             db.session.commit()
         return project
@@ -303,6 +311,8 @@ class User(UserMixin, db.Model):
         if not isinstance(project, Project):
             project = Project.query.get(project)
         if project:
+            if project.deadline_event:
+                self.events.remove(project.deadline_event)
             self.projects.remove(project)
 
     def add_note(self, *args, commit=True, **kwargs):
@@ -389,7 +399,7 @@ class Note(db.Model):
                 raise TypeError("first argument must be dictionary")
 
         # Update fields which can be update (not read-only fields)
-        update_possible = {"title", "body", "tags"}
+        update_possible = {"title", "body", "tags", "project", "project_id"}
         fields_to_update = update_possible & set(data.keys())
         # Normalize tags, convert all itmes to Tag-s
         if "tags" in fields_to_update:
@@ -467,7 +477,8 @@ class Project(db.Model):
 
     deadline_event_id = db.Column(db.Integer, db.ForeignKey("events.id"))
     deadline_event = db.relationship("Event", back_populates = "project",
-        cascade = "all, delete, delete-orphan", single_parent = True)
+        cascade = "all, delete, delete-orphan", single_parent = True,
+        lazy="immediate")
 
     def __init__(self, *args, deadline_event=True, **kwargs):
         # Get rid of redundant fields in kwargs
@@ -580,17 +591,17 @@ class Project(db.Model):
         if note:
             self.notes.remove(note)
 
-    def to_dict(self):
-         return {
-            "id": self.id, "name": self.name, 
-            "active": self.active, "complete": self.complete,
-            "desc": self.desc,
-            "deadline": self.deadline.strftime("%Y-%m-%d %H:%M"),
-            "created": self.created.strftime("%Y-%m-%d %H:%M"),
-            "modified": self.modified.strftime("%Y-%m-%d %H:%M"),
-            "milestones": [ milestone.get_info() for milestone in self.milestones ],
-            "notes": [ note.get_info() for note in self.notes ]
-            }       
+    def to_dict(self, with_tasks=False):
+         return {"id": self.id, "name": self.name, 
+                 "active": self.active, "complete": self.complete,
+                 "desc": self.desc,
+                 "deadline": self.deadline.strftime("%Y-%m-%d %H:%M"),
+                 "created": self.created.strftime("%Y-%m-%d %H:%M"),
+                 "modified": self.modified.strftime("%Y-%m-%d %H:%M"),
+                 "milestones": [ milestone.to_dict() if with_tasks else 
+                                 milestone.get_info() for milestone in 
+                                 self.milestones ],
+                 "notes": [ note.get_info() for note in self.notes ] }       
 
     def get_info(self):
         return {
@@ -659,7 +670,8 @@ class Milestone(db.Model):
                 raise TypeError("first argument must be dictionary")
 
         # Update fields which can be update (not read-only fields)
-        update_possible = {"title", "position", "desc"}
+        update_possible = {"title", "position", "desc", "project",
+                           "project_id"}
         fields_to_update = update_possible & set(data.keys())
         for field in fields_to_update:
             setattr(self, field, data[field])

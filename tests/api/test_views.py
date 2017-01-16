@@ -529,6 +529,26 @@ class TestApiProject(ApiTestCase):
                                            project_id=project.id+1))
         self.assertEqual(response.status_code, 404)
 
+    def test_get_request_accepts_argument_in_query(self):
+        user = self.create_user(name="Test")
+        project = user.add_project(name="Test Project",
+                                   deadline=datetime(2015, 1, 1, 0, 0))
+        milestone = project.add_milestone(title="Frist Milestone")
+        task = milestone.add_task(title="First Task", 
+                                  deadline=datetime(2016, 1, 1, 0, 0))
+        task = milestone.add_task(title="Second Task",
+                                  deadline=datetime(2017, 1, 1, 0, 0))
+        self.login(name="Test")
+        response = self.client.get(url_for("api.project_get", username="Test",
+                                           project_id=project.id),
+                                   data=dict(with_tasks="T"))
+        data = response.json
+        self.assertEqual(len(data["milestones"][0]["tasks"]), 2)
+        tasks = data["milestones"][0]["tasks"]
+        self.assertEqual(tasks[0]["title"], "First Task")
+        self.assertEqual(tasks[1]["deadline"], "2017-01-01 00:00")
+
+
     def test_get_request_returns_uri_of_project_milestones(self):
         user = self.create_user(name="Test")
         project = user.add_project(name="Test Project", 

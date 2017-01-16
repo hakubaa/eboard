@@ -1,0 +1,193 @@
+.project-plan-wrapper {
+    /*border: 1px solid black;*/
+    border-bottom: 1px solid gray;
+}
+
+.project-info-wrapper {
+}
+
+.project-notes-wrapper {
+    border-bottom: 1px solid gray;
+    /*border: 1px solid black;*/
+}
+
+.project-plan {
+    /*border: 1px solid black;*/
+    margin-left: 0px;
+    padding-left: 1em;
+}
+
+.project-milestone {
+    padding: 3px 15px;
+}
+
+.milestone-label {
+    position: relative;
+    display: inline-block;
+    width: 100%;
+    padding: 10px 10px 10px 5px;
+    border-bottom: 1px solid black;
+}
+
+.milestone-label:hover {
+    background-color: rgb(205, 0, 103);
+    color: white;
+    cursor: pointer;
+} 
+
+#add-milestone {
+    border: none;
+}
+
+.milestone-tasks {
+    display: none;
+    list-style: none;
+    margin-left: 0px;
+    padding-left: 0px;
+    text-indent: 1em;
+}
+
+.milestone-task {
+    padding: 10px 5px;
+    cursor: pointer;
+}
+
+.milestone-task:hover {
+    background-color: rgb(247, 219, 232);
+    color: black;
+}
+
+.task-btn {
+    display: inline-block;
+    float: right;
+    //padding-left: 10px;
+}
+
+.add-task {
+    color: rgb(159,002,081);
+    font-style: italic;
+    font-weight: bold;
+}
+
+.arrow {
+    display: inline-block;
+    position: absolute;
+    right: 0px;
+}
+
+.arrow-up {
+    width: 0; 
+    height: 0; 
+    border-left: 10px solid transparent;
+    border-right: 10px solid transparent;
+    border-bottom: 10px solid rgb(159,002,081);
+}
+
+.arrow-down {
+    width: 0; 
+    height: 0; 
+    border-left: 10px solid transparent;
+    border-right: 10px solid transparent;
+    border-top: 10px solid rgb(159,002,081);
+}
+
+.milestone-options {
+    display: none;
+    list-style: none;
+    margin-left: 0px;
+    padding-left: 0px;
+    border-bottom: 1px solid black;
+}
+
+.milestone-option {
+    display: inline;
+    border-right: 1px solid black;
+}
+
+.milestone-option:last-child {
+    border-right: none;
+}
+
+.milestone-option:hover {
+    background-color: rgb(205, 0, 103);
+    color: white;
+    cursor: pointer;
+}
+
+.milestone-option > div {
+    display: inline-block;
+    padding: 0px 15px;
+}
+
+.project-extra-options {
+    margin-top: 20px;
+}
+
+.project-milestone:last-child {
+   list-style-type: none; 
+}
+
+ul.project-notes {
+    list-style-type: none;
+    padding: 0px;
+    margin: 16px 0px 0px 0px;
+    border-top: 1px solid #e0e0e0;
+}
+ul.project-notes li.project-note {
+    padding: 8px;
+    border-bottom: 1px solid #e0e0e0;
+}
+ul.project-notes li.project-note:hover {
+    background-color: rgb(247, 219, 232);
+    cursor: pointer;
+}
+div.note-date {
+    float: right;
+}
+div.note-title {
+    font-weight: bold;
+}
+div.note-body {
+    padding: 10px 0px 0px 0px;
+}
+div.note-tags {
+    font-size: small;
+    color: navy;
+    font-style: italic;
+}
+select#tag {
+    width:auto !important;
+}
+
+.project-page-header {
+    /*padding: 0px !important;*/
+    margin: 0px !important;
+    border-bottom: 1px solid gray;
+}
+
+ul#project-upcoming-tasks {
+    list-style-type: none;
+    margin-left: 0px;
+    padding-left: 0px;
+}
+
+ul#project-upcoming-tasks li {
+    border-bottom: 1px solid #808080;
+    padding: 10px 0px 0px 0px;
+}
+
+#project-main-header {
+    cursor: pointer;
+}
+
+#project-main-header:hover {
+    color: rgb(205, 0, 102);
+}
+
+.progress {
+    margin-bottom: 0px;
+    margin-top: 1em;
+}
+#progress-deadline {
+    float: right;
+}

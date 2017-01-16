@@ -1,0 +1,210 @@
+<!doctype html>
+<html>
+    <head>
+        <title>Mocha Tests</title>
+        <link rel="stylesheet" href="mocha.css">
+    </head>
+
+    <body>
+
+        <div id="fixtures"></div>
+        <div id="mocha"></div>
+
+        <script src="jquery-1.7.1.min.js"></script>
+        <script src="mocha.js"></script>
+        <script src="chai.js"></script>
+        <script src="sinon-1.17.6.js"></script>
+        <script>mocha.setup("bdd");</script>
+
+        <!-- load code you want to test heere -->
+        <script src="../../app/static/js/eboard.project.js"></script>
+
+        <!-- load your test files here -->
+        <script>
+
+        var assert = chai.assert;
+
+        function getJsonFromUrl(query) {
+            var result = {};
+            if (query !== null && query !== undefined) {
+                query.split("&").forEach(function(part) {
+                    var item = part.split("=");
+                    result[item[0]] = decodeURIComponent(item[1]);
+                });
+            }
+            return result;
+        }
+
+        function jsonOk (body) {
+            return [
+                200, {
+                'Content-type': 'application/json'
+                }, JSON.stringify(body)
+            ];
+        }
+        
+        describe("E-Board - Project - Test", function() {
+
+        describe("test init", function() {
+
+            describe("Sending Request", function() {
+
+                var xhr = null;
+                var requests = null;
+
+                beforeEach(function() {
+                    xhr = sinon.useFakeXMLHttpRequest();
+                    requests = [];
+                    xhr.onCreate = function(xhr) {
+                        requests.push(xhr);
+                    };
+                });
+
+                afterEach(function() {
+                    xhr.restore();
+                });
+
+                it("test for sending get request", function() {
+                    project.init({username: "Test", projectId: 5});
+                    assert.equal(requests.length, 1);
+                });                
+
+                it("test for using proper url", function() {
+                    project.init({username:"Test", projectId: 5});
+                    assert.equal(requests[0].url, 
+                                 "/api/users/Test/projects/5?with_tasks=T");
+                });
+
+                it("test for raising exception when no username", function() {
+                    chai.expect(function(){
+                        project.init({projectId: 5});
+                    }).to.throw("Undefined username.");
+                });
+
+                it("test for raising exception when no project id", function() {
+                    chai.expect(function(){
+                        project.init({username: "Test"});
+                    }).to.throw("Undefined project id.");
+                });
+
+            });   
+
+            describe("Handling Response", function() {
+                var server = null;
+
+                beforeEach(function () {
+                    server = sinon.fakeServer.create();
+                });
+
+                afterEach(function () {
+                    server.restore();
+                });
+
+                it("test for calling callback", function() {
+                    server.respondWith("GET", "/api/users/Test/projects/5?with_tasks=T",
+                        jsonOk({
+                            "active": true, 
+                            "complete": false, 
+                            "created": "2017-01-16 19:54", 
+                            "deadline": "2017-01-01 00:00", 
+                            "desc": "My First Project", 
+                            "id": 1, 
+                            "milestones": [], 
+                            "modified": "2017-01-16 19:54", 
+                            "name": "First Project", 
+                            "notes": []
+                        })
+                    );
+                    var spy = sinon.spy();
+                    project.init({username: "Test", projectId: 5}, spy);
+                    server.respond();
+                    assert.isTrue(spy.called);
+                });
+
+            });              
+           
+        }); // test init
+
+        describe("add milestone", function() {
+
+            describe("Sending Request", function() {
+
+                var xhr = null;
+                var requests = null;
+
+                beforeEach(function() {
+                    xhr = sinon.useFakeXMLHttpRequest();
+                    requests = [];
+                    xhr.onCreate = function(xhr) {
+                        requests.push(xhr);
+                    };
+                    project.init({username: "Test", projectId: 1});
+                    requests = [];
+                });
+
+                afterEach(function() {
+                    xhr.restore();
+                });
+
+                it("test for sending post request", function() {
+                    project.addMilestone({title: "Test", desc: "Milestone"});
+                    assert.equal(requests.length, 1);
+                    assert.equal(requests[0].method, "POST");
+                });                
+
+                it("test for using proper url", function() {
+                    project.addMilestone({title: "Test", desc: "Milestone"});
+                    assert.equal(requests[0].url, 
+                                 "/api/users/Test/projects/1/milestones");
+                });
+
+                it("test for raising exception when no title", function() {
+                    chai.expect(function(){
+                        project.addMilestone({name: "Test", desc: "Milestone"});
+                    }).to.throw("Undefined title.");
+                });
+
+                it("test for passing data to request", function() {
+                    project.addMilestone({title: "Test", desc: "Milestone"});
+                    var params = getJsonFromUrl(requests[0].requestBody);
+                    assert.equal(params.desc, "Milestone");
+                });
+
+            });   
+
+            describe("Handling Response", function() {
+                var server = null;
+
+                beforeEach(function () {
+                    server = sinon.fakeServer.create();
+                });
+
+                afterEach(function () {
+                    server.restore();
+                });
+
+                it("test for calling callback", function() {
+                    server.respondWith("POST", "/api/users/Test/projects/1/milestones",
+                        jsonOk("")
+                    );
+                    var spy = sinon.spy();
+                    project.addMilestone({title: "Test", desc: "Milestone"}, 
+                        spy);
+                    server.respond();
+                    assert.isTrue(spy.called);
+                });
+
+            });              
+           
+        }); // add milestone
+
+        }); // E-Board - Project - Test
+
+        </script>
+
+        <script>
+            mocha.run();
+        </script>
+    </body>
+
+</html>
