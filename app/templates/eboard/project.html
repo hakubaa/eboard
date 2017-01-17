@@ -6,6 +6,22 @@
 {% block styles %}
 {{ super() }}
 <link rel="stylesheet" href="{{url_for('static', filename='css/eboard.project.css')}}">
+<style>
+    #task-show-header td:first-child {
+        text-align: right;
+        font-weight: bold;
+    }
+    #task-show-header td {
+        padding: 0px 0px 5px 5px;
+        word-wrap: break-word;
+    }
+    #task-show-body {
+        word-wrap: break-word;
+        padding: 10px 10px 0px 10px;
+        text-align: justify;
+        border-top: 1px solid lightgray;
+    }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -57,7 +73,8 @@
 </div>
 
 <!-- Modal Milestone (New/Edit) -->
-<div class="modal" id="modal-milestone" role="dialog" aria-labelledby="gridSystemModalLabel">
+<div class="modal" id="modal-milestone" role="dialog" aria-labelledby="gridSystemModalLabel"
+     data-taskid="-1">
     <div class="modal-dialog  modal-lg" role="document">
         <div class="modal-content">
             <div class="modal-header">
@@ -77,6 +94,98 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
                 <button type="button" class="btn btn-primary" id="new-milestone-btn">Done</button>
+            </div>
+        </div><!-- /.modal-content -->
+    </div><!-- /.modal-dialog -->
+</div><!-- /.modal -->
+
+<!-- Modal Task (New/Edit) -->
+<div class="modal" id="modal-task-edit" role="dialog" aria-labelledby="gridSystemModalLabel"
+     data-milestoneid="-1" data-taskid="-1">
+    <div class="modal-dialog  modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                <h4 class="modal-title" id="gridSystemModalLabel">Create New Task</h4>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="usr">Title</label>
+                    <input type="text" class="form-control" id="task-title">
+                </div>
+                <div class="form-group required">
+                    <label class="control-label" for="deadline">Deadline</label> 
+                    <div class='input-group date col-sm-4' id='task-datepicker'>
+                        <input autocomplete="off" class="form-control input-sm" 
+                               id="task-deadline" name="deadline" required="" type="date" value="">
+                        <span class="input-group-addon">
+                            <span class="glyphicon glyphicon-calendar"></span>
+                        </span>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="pwd">Description</label>
+                    <textarea class="form-control" rows="5" id="task-body"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="new-task-btn">Done</button>
+            </div>
+        </div><!-- /.modal-content -->
+    </div><!-- /.modal-dialog -->
+</div><!-- /.modal -->
+
+<!-- Modal Task (Show) -->
+<div class="modal" id="modal-task-show" role="dialog" aria-labelledby="gridSystemModalLabel">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                <h4 class="modal-title" id="task-show-main-title"></h4>
+            </div>
+            <div class="modal-body">
+                <table id="task-show-header">
+                    <tbody>
+                        <tr>
+                            <td>Title:</td>
+                            <td id="task-show-title"></td>
+                        </tr>
+                        <tr>
+                            <td>Deadline:</td>
+                            <td id="task-show-deadline"></td>
+                        </tr>
+                        <tr>
+                            <td>Created:</td>
+                            <td id="task-show-created"></td>
+                        </tr>
+                        <tr>
+                            <td>Complete:</td>
+                            <td id="task-show-complete"></td>
+                        </tr>
+                        <tr>
+                            <td>Active:</td>
+                            <td id="task-show-active"></td>
+                        </tr>
+<!--                         <tr>
+                            <td>Importance:</td>
+                            <td id="task-show-importance"></td>
+                        </tr>
+                        <tr>
+                            <td>Urgency:</td>
+                            <td id="task-show-urgency"></td>
+                        </tr> -->
+                    </tbody>
+                </table>
+                <p id="task-show-body"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-danger" 
+                    id="task-show-remove-btn">Remove Task</button>
+                <button type="button" class="btn btn-primary" 
+                    id="task-show-edit-btn">Edit Task</button>
+                <button type="button" class="btn btn-default" 
+                    data-dismiss="modal">Close</button>
             </div>
         </div><!-- /.modal-content -->
     </div><!-- /.modal-dialog -->

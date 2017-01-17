@@ -107,7 +107,7 @@
                             "complete": false, 
                             "created": "2017-01-16 19:54", 
                             "deadline": "2017-01-01 00:00", 
-                            "desc": "My First Project", 
+                            "body": "My First Project", 
                             "id": 1, 
                             "milestones": [], 
                             "modified": "2017-01-16 19:54", 
@@ -197,6 +197,173 @@
             });              
            
         }); // add milestone
+
+        describe("add task", function() {
+
+            describe("Sending Request", function() {
+
+                var xhr = null;
+                var requests = null;
+
+                beforeEach(function() {
+                    xhr = sinon.useFakeXMLHttpRequest();
+                    requests = [];
+                    xhr.onCreate = function(xhr) {
+                        requests.push(xhr);
+                    };
+                    project.init({username: "Test", projectId: 1});
+                    requests = [];
+                });
+
+                afterEach(function() {
+                    xhr.restore();
+                });
+
+                it("test for sending post request", function() {
+                    project.addTask({title: "Test", deadline: "2017-01-01 00:00",
+                                     milestoneId: 1});
+                    assert.equal(requests.length, 1);
+                    assert.equal(requests[0].method, "POST");
+                });                
+
+                it("test for using proper url", function() {
+                    project.addTask({title: "Test", deadline: "2017-01-01 00:00",
+                                     milestoneId: 1});
+                    assert.equal(requests[0].url, 
+                                 "/api/users/Test/projects/1/milestones/1/tasks");
+                });
+
+                it("test for raising exception when no title", function() {
+                    chai.expect(function(){
+                        project.addTask({name: "Test", milestoneId: 1,
+                                         deadline: "2017-01-01 00:00"});
+                    }).to.throw("Undefined title.");
+                });
+
+                it("test for raising exception when no deadline", function() {
+                    chai.expect(function(){
+                        project.addTask({title: "Test", milestoneId: 1,
+                                         end: "2017-01-01 00:00"});
+                    }).to.throw("Undefined deadline.");
+                });
+
+                it("test for raising exception when no milestone", function() {
+                    chai.expect(function(){
+                        project.addTask({title: "Test", milestone: 1,
+                                         deadline: "2017-01-01 00:00"});
+                    }).to.throw("Undefined milestone.");
+                });
+
+                it("test for passing data to request", function() {
+                    project.addTask({title: "Test", milestoneId: 1,
+                                     deadline: "2017-01-01 00:00",
+                                     body: "VeryGood"});
+                    var params = getJsonFromUrl(requests[0].requestBody);
+                    assert.equal(params.body, "VeryGood");
+                });
+
+            });   
+
+            describe("Handling Response", function() {
+                var server = null;
+
+                beforeEach(function () {
+                    server = sinon.fakeServer.create();
+                });
+
+                afterEach(function () {
+                    server.restore();
+                });
+
+                it("test for calling callback", function() {
+                    server.respondWith("POST", 
+                        "/api/users/Test/projects/1/milestones/1/tasks",
+                        jsonOk("")
+                    );
+                    var spy = sinon.spy();
+                    project.addTask({title: "Test", milestoneId: 1,
+                                     deadline: "2017-01-01 00:00",
+                                     body: "VeryGood"}, spy);
+                    server.respond();
+                    assert.isTrue(spy.called);
+                });
+
+            });              
+           
+        }); // add task
+
+        describe("get task", function() {
+
+            describe("Sending Request", function() {
+
+                var xhr = null;
+                var requests = null;
+
+                beforeEach(function() {
+                    xhr = sinon.useFakeXMLHttpRequest();
+                    requests = [];
+                    xhr.onCreate = function(xhr) {
+                        requests.push(xhr);
+                    };
+                    project.init({username: "Test", projectId: 1});
+                    requests = [];
+                });
+
+                afterEach(function() {
+                    xhr.restore();
+                });
+
+                it("test for sending get request", function() {
+                    project.getTask({taskId: 1, milestoneId: 1});
+                    assert.equal(requests.length, 1);
+                    assert.equal(requests[0].method, "GET");
+                });                
+
+                it("test for using proper url", function() {
+                    project.getTask({taskId: 1, milestoneId: 1});
+                    assert.equal(requests[0].url, 
+                                 "/api/users/Test/projects/1/milestones/1/tasks/1");
+                });
+
+                it("test for raising exception when no taskId", function() {
+                    chai.expect(function(){
+                        project.getTask({task: 1, milestoneId: 1});
+                    }).to.throw("Undefined task.");
+                });
+
+                it("test for raising exception when no milestone", function() {
+                    chai.expect(function(){
+                        project.getTask({taskId: 1, milestone: 1});
+                    }).to.throw("Undefined milestone.");
+                });
+
+            });   
+
+            describe("Handling Response", function() {
+                var server = null;
+
+                beforeEach(function () {
+                    server = sinon.fakeServer.create();
+                });
+
+                afterEach(function () {
+                    server.restore();
+                });
+
+                it("test for calling callback", function() {
+                    server.respondWith("GET", 
+                        "/api/users/Test/projects/1/milestones/1/tasks/1",
+                        jsonOk({title: "Task", deadline: "2017-01-01 00:00"})
+                    );
+                    var spy = sinon.spy();
+                    project.getTask({taskId: 1, milestoneId: 1}, spy); 
+                    server.respond();
+                    assert.isTrue(spy.called);
+                });
+
+            });              
+           
+        }); // get task        
 
         }); // E-Board - Project - Test
 

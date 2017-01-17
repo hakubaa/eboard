@@ -149,7 +149,7 @@ class Task(db.Model):
                 "title": self.title, 
                 "created": self.created.strftime("%Y-%m-%d %H:%M"),
                 "deadline": self.deadline.strftime("%Y-%m-%d %H:%M"),
-                "notes": self.notes, 
+                "body": self.body, 
                 "tags": [ tag.to_dict() for tag in self.tags ],
                 "complete": self.complete, "active": self.active,
                 "daysleft": self.daysleft, "id": self.id, 

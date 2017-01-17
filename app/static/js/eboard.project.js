@@ -2,7 +2,9 @@ var project = {
 
     /**
      * Send XMLHttpRequest for information about project.
-     * @param {Object} params Dictionary with parameters.
+     * @options {Object} dictionary with options.
+     * @callbackDone {function} successful callback
+     * @callbackFail {function} failure callback
      */
     init: function(options, callbackDone, callbackFail) {
         if (options === undefined) options = {};
@@ -27,7 +29,9 @@ var project = {
 
     /**
      * Send XMLHttpRequest to create milestone.
-     * @param {Object} params Dictionary with parameters.
+     * @options {Object} dictionary with options.
+     * @callbackDone {function} successful callback
+     * @callbackFail {function} failure callback
      */
     addMilestone: function(options, callbackDone, callbackFail) {
         if (options === undefined) options = {};
@@ -39,6 +43,58 @@ var project = {
                  this.projectId + "/milestones",
             type: "POST",
             data: options
+        })
+            .done(callbackDone)
+            .fail(callbackFail);
+    },
+
+    /**
+     * Send XMLHttpRequest to create new task.
+     * @options {Object} dictionary with options.
+     * @callbackDone {function} successful callback
+     * @callbackFail {function} failure callback
+     */
+    addTask: function(options, callbackDone, callbackFail) {
+        if (options === undefined) options = {};
+        if (options.title === undefined) {
+            throw("Undefined title.");
+        }
+        if (options.deadline === undefined) {
+            throw("Undefined deadline.");
+        }
+        if (options.milestoneId === undefined) {
+            throw("Undefined milestone.");
+        }
+        $.ajax({
+            url: "/api/users/" + this.username + "/projects/" +
+                 this.projectId + "/milestones/" + options.milestoneId + 
+                 "/tasks",
+            type: "POST",
+            data: options
+        })
+            .done(callbackDone)
+            .fail(callbackFail);
+    },
+
+    /**
+     * Send XMLHttpRequest to get the task;
+     * @options {Object} dictionary with options.
+     * @callbackDone {function} successful callback
+     * @callbackFail {function} failure callback
+     */
+    getTask: function(options, callbackDone, callbackFail) {    
+        if (options === undefined) options = {};
+        if (options.taskId === undefined) {
+            throw("Undefined task.");
+        }
+        if (options.milestoneId === undefined) {
+            throw("Undefined milestone.");
+        }
+        $.ajax({
+            url: "/api/users/" + this.username + "/projects/" +
+                 this.projectId + "/milestones/" + options.milestoneId + 
+                 "/tasks/" + options.taskId,
+            type: "GET"
         })
             .done(callbackDone)
             .fail(callbackFail);
@@ -77,8 +133,99 @@ function initUI() {
                     var $milestone = $(createMilestoneElement(mid, title));
                     $("#project-plan-id").find("li:last").before($milestone);
                     $('#modal-milestone').modal("hide");
+                }, function(data, status, xhr) {
+                    alert("ERROR");
                 });
         }
+    });
+
+    $(document).on("click", ".milestone-option-add-task", function() {
+        var milestoneId = $(this).parent().parent().parent().data("milestoneid");
+        var $modal = $("#modal-task-edit");
+        $modal.data("milestoneid", milestoneId);
+        $modal.modal("show");
+    });
+
+    $("#new-task-btn").click(function() {
+        var title = $("#task-title").val();
+        var body = $("#task-body").val();
+        var deadline = $("#task-deadline").val();
+        var milestoneId = $("#modal-task-edit").data("milestoneid");
+
+        if (title === "" || deadline === "") {
+            alert("Empty title and/or deadline. Title and deadline are required.");
+        } else {
+            var $milestone = $(".project-milestone[data-milestoneid='" + 
+                               milestoneId + "']");
+            project.addTask({
+                title: title, body: body, deadline: deadline,
+                milestoneId: milestoneId
+            }, function(data, status, xhr) {
+                var uri = xhr.getResponseHeader("Location");
+                var tid = uri.split("/").pop();              
+                
+                // Send next request for task info
+                project.getTask({
+                    taskId: tid, milestoneId: milestoneId
+                },function(data, status, xhr) {
+                    $milestone.find(".milestone-tasks").append(
+                        createTaskElement(id=data["id"], title=data["title"], 
+                                          active=data["active"]));
+                    $('#modal-task-edit').modal("hide");
+                }, function(data, status, xhr) {
+                    alert("ERROR");
+                });
+
+            }, function(data, status, xhr) {
+                alert("ERROR");
+            });
+        }
+    });
+
+    $(document).on("click", ".milestone-task", function() {
+        var taskId = $(this).data("task-id");
+        var milestoneId = $(this).parent().parent().data("milestoneid");
+        
+        var $modal = $("#modal-task-show");
+
+        $modal.find("#task-show-main-title").html("Loading ...");
+        $modal.modal("show");
+
+        project.getTask(
+            {taskId: taskId, milestoneId: milestoneId},
+            function(data, status, xhr) {
+                $modal.find("#task-show-main-title").html(data["title"]);
+                $modal.find("#task-show-title").html(data["title"]);
+                $modal.find("#task-show-deadline").html(data["deadline"] + 
+                    " (" + data["daysleft"] + " day(s) left)");
+                if (parseInt(data["daysleft"]) < 0) {
+                    $modal.find("#task-show-deadline").css("color", "red");   
+                } else {
+                    $modal.find("#task-show-deadline").css("color", "green");   
+                }
+                if (data["complete"] === "true") {
+                    $modal.find("#task-show-complete").html("Yes");
+                } else {
+                    $modal.find("#task-show-complete").html("No"); 
+                }
+                if (data["active"] === "true") {
+                    $modal.find("#task-show-active").html("Yes");
+                } else {
+                    $modal.find("#task-show-active").html("No");
+                }
+                $modal.find("#task-show-created").html(data["created"]);
+                // $modal.find("#task-show-importance").html(data["importance"]);
+                // $modal.find("#task-show-urgency").html(data["urgency"]);
+                if (data["body"] === "" || data["body"] === null) {
+                    $modal.find("#task-show-body").text("No description."); 
+                } else {
+                    $modal.find("#task-show-body").text(data["body"]);
+                }
+            },
+            function(data, status, xhr) {
+                alert("ERROR");
+            }
+        );
     });
 }
 
@@ -261,4 +408,17 @@ $("#modal-milestone").on("show.bs.modal", function(event) {
     var $modal = $(this);
     $modal.find("#milestone-title").val("");
     $modal.find("#milestone-desc").val("");
+});
+
+$("#modal-task-add").on("show.bs.modal", function(event) {
+    var $modal = $(this);
+    $modal.find("#task-title").val("");
+    $modal.find("#task-body").val("");
+    $modal.find("#task-deadline").val("");
+});
+
+$("#modal-task-show").on("show.bs.modal", function(event) {
+    var $modal = $(this);
+    $modal.find("#task-show-header").find("tr td:last-child").html("");
+    $modal.find("#task-show-body").html("");
 });
