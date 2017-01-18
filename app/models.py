@@ -103,15 +103,18 @@ class Task(db.Model):
 
         # Update deadline event connected with task
         if self.deadline_event:
+            deadline = self.deadline
+            if isinstance(self.deadline, str):
+                deadline = datetime.strptime(self.deadline, 
+                                             Task.deadline.type.dtformat)
             if "title" in data:
                 self.deadline_event.title = "Task '" + self.title + "'"
             if "deadline" in data:
-                self.deadline_event.start = self.deadline - \
-                                            timedelta(minutes=30)
-                self.deadline_event.end = self.deadline
+                self.deadline_event.start = deadline - timedelta(minutes=30)
+                self.deadline_event.end = deadline
                 self.deadline_event.desc = \
                             "Deadline of the task is on " + \
-                            self.deadline.strftime("%Y-%m-%d %H:%M:%S") + "."
+                            deadline.strftime("%Y-%m-%d %H:%M:%S") + "."
 
         if commit:
             db.session.commit()
@@ -519,15 +522,18 @@ class Project(db.Model):
 
         # Update deadline event connected with task
         if self.deadline_event:
+            deadline = self.deadline
+            if isinstance(self.deadline, str):
+                deadline = datetime.strptime(self.deadline, 
+                                             Task.deadline.type.dtformat)
             if "name" in data:
                 self.deadline_event.title = "Project '" + self.name + "'"
             if "deadline" in data:
-                self.deadline_event.start = self.deadline - \
-                                            timedelta(minutes=30)
-                self.deadline_event.end = self.deadline
+                self.deadline_event.start = deadline - timedelta(minutes=30)
+                self.deadline_event.end = deadline
                 self.deadline_event.desc = \
                             "Deadline of the project is on " + \
-                            self.deadline.strftime("%Y-%m-%d %H:%M:%S") + "."
+                            deadline.strftime("%Y-%m-%d %H:%M:%S") + "."
 
         if commit:
             db.session.commit()

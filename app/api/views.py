@@ -503,6 +503,39 @@ def milestone_delete(user, project_id, milestone_id):
     db.session.commit()
     return "", 204
 
+@api.route("/users/<username>/projects/<project_id>/milestones/<milestone_id>"
+           "/position", methods=["POST"])
+@access_validator(owner_auth=True)
+def milestone_position(user, project_id, milestone_id):
+    data = request.form.to_dict()
+    mid_ref = data.get("after", data.get("before", None))
+    if not mid_ref:
+        return "", 400 # BAD REQUEST
+
+    milestones = db.session.query(Milestone).join(Project).join(User).filter(
+                    User.id == user.id, Project.id == project_id,
+                    Milestone.id.in_((int(milestone_id), int(mid_ref)))).all()
+    if len(milestones) != 2:
+        return "Invalid milestones.", 400 # BAD REQUEST
+
+    if milestones[0].id == int(milestone_id):
+        m_query = milestones[0]
+        m_ref = milestones[1]
+    else:
+        m_query = milestones[1]
+        m_ref = milestones[0]
+
+    if "before" in data: # move m_query before m_ref
+        if m_query.position > m_ref.position:
+            m_query.position, m_ref.position = m_ref.position, m_query.position
+            db.session.commit()
+    else: # move m_query after m_ref
+        if m_query.position < m_ref.position:
+            m_query.position, m_ref.position = m_ref.position, m_query.position
+            db.session.commit()
+
+    return "", 200
+
 ################################################################################
 
 ################################################################################

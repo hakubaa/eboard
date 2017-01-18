@@ -895,6 +895,52 @@ class TestApiProjectNotesList(ApiTestCase):
                               note_id=note.id, project_id=project.id), 
                       response.location)
 
+    def test_for_moving_milestone_before_another_project(self):
+        user = self.create_user(name="Test")
+        project = user.add_project(name="Test Project",
+                                   deadline=datetime(2015, 1, 1, 0, 0))
+        milestone = project.add_milestone(title="First Milestone")
+        milestone2 = project.add_milestone(title="Second Milestone")
+        self.login(name="Test")
+        response = self.client.post(url_for("api.milestone_position",
+                                            username="Test",
+                                            project_id=project.id,
+                                            milestone_id=milestone2.id),
+                                    data=dict(before=milestone.id))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            db.session.query(Milestone).filter_by(position=0).one().title, 
+            "Second Milestone"
+        )
+        self.assertEqual(
+            db.session.query(Milestone).filter_by(position=1).one().title, 
+            "First Milestone"
+        )
+
+    def test_for_moving_milestone_after_another_within_project(self):
+        user = self.create_user(name="Test")
+        project = user.add_project(name="Test Project",
+                                   deadline=datetime(2015, 1, 1, 0, 0))
+        milestone = project.add_milestone(title="First Milestone")
+        milestone2 = project.add_milestone(title="Second Milestone")
+        self.login(name="Test")
+        response = self.client.post(url_for("api.milestone_position",
+                                            username="Test",
+                                            project_id=project.id,
+                                            milestone_id=milestone.id),
+                                    data=dict(after=milestone2.id))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            db.session.query(Milestone).filter_by(position=0).one().title, 
+            "Second Milestone"
+        )
+        self.assertEqual(
+            db.session.query(Milestone).filter_by(position=1).one().title, 
+            "First Milestone"
+        )       
+
+# /api/users/hakubaa/projects/1/milestones/1/position?after=1&before=2 <- POST
+
 
 class TestApiProjectNoteItem(ApiTestCase):
 

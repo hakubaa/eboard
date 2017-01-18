@@ -363,7 +363,382 @@
 
             });              
            
-        }); // get task        
+        }); // update task        
+
+        describe("update task", function() {
+
+            describe("Sending Request", function() {
+
+                var xhr = null;
+                var requests = null;
+
+                beforeEach(function() {
+                    xhr = sinon.useFakeXMLHttpRequest();
+                    requests = [];
+                    xhr.onCreate = function(xhr) {
+                        requests.push(xhr);
+                    };
+                    project.init({username: "Test", projectId: 1});
+                    requests = [];
+                });
+
+                afterEach(function() {
+                    xhr.restore();
+                });
+
+                it("test for sending put request", function() {
+                    project.updateTask({taskId: 1, milestoneId: 1});
+                    assert.equal(requests.length, 1);
+                    assert.equal(requests[0].method, "PUT");
+                });                
+
+                it("test for using proper url", function() {
+                    project.updateTask({taskId: 1, milestoneId: 1});
+                    assert.equal(requests[0].url, 
+                                 "/api/users/Test/projects/1/milestones/1/tasks/1");
+                });
+
+                it("test for raising exception when no taskId", function() {
+                    chai.expect(function(){
+                        project.updateTask({task: 1, milestoneId: 1});
+                    }).to.throw("Undefined task.");
+                });
+
+                it("test for raising exception when no milestone", function() {
+                    chai.expect(function(){
+                        project.updateTask({taskId: 1, milestone: 1});
+                    }).to.throw("Undefined milestone.");
+                });
+
+                it("test for passing data to request", function() {
+                    project.updateTask({title: "Test", milestoneId: 1, 
+                        taskId: 1, deadline: "2017-01-01 00:00", 
+                        body: "VeryGood"});
+                    var params = getJsonFromUrl(requests[0].requestBody);
+                    assert.equal(params.body, "VeryGood");
+                });
+
+            });   
+
+            describe("Handling Response", function() {
+                var server = null;
+
+                beforeEach(function () {
+                    server = sinon.fakeServer.create();
+                });
+
+                afterEach(function () {
+                    server.restore();
+                });
+
+                it("test for calling callback", function() {
+                    server.respondWith("PUT", 
+                        "/api/users/Test/projects/1/milestones/1/tasks/1",
+                        jsonOk({title: "Task", deadline: "2017-01-01 00:00"})
+                    );
+                    var spy = sinon.spy();
+                    project.updateTask({taskId: 1, milestoneId: 1}, spy); 
+                    server.respond();
+                    assert.isTrue(spy.called);
+                });
+
+            });              
+           
+        }); // update task  
+
+        describe("delete task", function() {
+
+            describe("Sending Request", function() {
+
+                var xhr = null;
+                var requests = null;
+
+                beforeEach(function() {
+                    xhr = sinon.useFakeXMLHttpRequest();
+                    requests = [];
+                    xhr.onCreate = function(xhr) {
+                        requests.push(xhr);
+                    };
+                    project.init({username: "Test", projectId: 1});
+                    requests = [];
+                });
+
+                afterEach(function() {
+                    xhr.restore();
+                });
+
+                it("test for sending delete request", function() {
+                    project.deleteTask({taskId: 1, milestoneId: 1});
+                    assert.equal(requests.length, 1);
+                    assert.equal(requests[0].method, "DELETE");
+                });                
+
+                it("test for using proper url", function() {
+                    project.deleteTask({taskId: 1, milestoneId: 1});
+                    assert.equal(requests[0].url, 
+                                 "/api/users/Test/projects/1/milestones/1/tasks/1");
+                });
+
+                it("test for raising exception when no taskId", function() {
+                    chai.expect(function(){
+                        project.deleteTask({task: 1, milestoneId: 1});
+                    }).to.throw("Undefined task.");
+                });
+
+                it("test for raising exception when no milestone", function() {
+                    chai.expect(function(){
+                        project.deleteTask({taskId: 1, milestone: 1});
+                    }).to.throw("Undefined milestone.");
+                });
+
+            });   
+
+            describe("Handling Response", function() {
+                var server = null;
+
+                beforeEach(function () {
+                    server = sinon.fakeServer.create();
+                });
+
+                afterEach(function () {
+                    server.restore();
+                });
+
+                it("test for calling callback", function() {
+                    server.respondWith("DELETE", 
+                        "/api/users/Test/projects/1/milestones/1/tasks/1",
+                        jsonOk({title: "Task", deadline: "2017-01-01 00:00"})
+                    );
+                    var spy = sinon.spy();
+                    project.deleteTask({taskId: 1, milestoneId: 1}, spy); 
+                    server.respond();
+                    assert.isTrue(spy.called);
+                });
+            });              
+           
+        }); // delete task  
+
+        describe("update milestone", function() {
+
+            describe("Sending Request", function() {
+
+                var xhr = null;
+                var requests = null;
+
+                beforeEach(function() {
+                    xhr = sinon.useFakeXMLHttpRequest();
+                    requests = [];
+                    xhr.onCreate = function(xhr) {
+                        requests.push(xhr);
+                    };
+                    project.init({username: "Test", projectId: 1});
+                    requests = [];
+                });
+
+                afterEach(function() {
+                    xhr.restore();
+                });
+
+                it("test for sending put request", function() {
+                    project.updateMilestone({milestoneId: 1});
+                    assert.equal(requests.length, 1);
+                    assert.equal(requests[0].method, "PUT");
+                });                
+
+                it("test for using proper url", function() {
+                    project.updateMilestone({milestoneId: 1});
+                    assert.equal(requests[0].url, 
+                                 "/api/users/Test/projects/1/milestones/1");
+                });
+
+                it("test for raising exception when no milestone", function() {
+                    chai.expect(function(){
+                        project.updateMilestone({milestone: 1});
+                    }).to.throw("Undefined milestone.");
+                });
+
+                it("test for passing data to request", function() {
+                    project.updateMilestone({title: "Test", milestoneId: 1, 
+                        taskId: 1, deadline: "2017-01-01 00:00", 
+                        body: "VeryGood"});
+                    var params = getJsonFromUrl(requests[0].requestBody);
+                    assert.equal(params.body, "VeryGood");
+                });
+
+            });   
+
+            describe("Handling Response", function() {
+                var server = null;
+
+                beforeEach(function () {
+                    server = sinon.fakeServer.create();
+                });
+
+                afterEach(function () {
+                    server.restore();
+                });
+
+                it("test for calling callback", function() {
+                    server.respondWith("PUT", 
+                        "/api/users/Test/projects/1/milestones/1",
+                        jsonOk({title: "Test", deadline: "2017-01-01 00:00"})
+                    );
+                    var spy = sinon.spy();
+                    project.updateMilestone({milestoneId: 1}, spy); 
+                    server.respond();
+                    assert.isTrue(spy.called);
+                });
+
+            });              
+           
+        }); // update milestone  
+
+
+        describe("move milestone", function() {
+
+            describe("Sending Request", function() {
+
+                var xhr = null;
+                var requests = null;
+
+                beforeEach(function() {
+                    xhr = sinon.useFakeXMLHttpRequest();
+                    requests = [];
+                    xhr.onCreate = function(xhr) {
+                        requests.push(xhr);
+                    };
+                    project.init({username: "Test", projectId: 1});
+                    requests = [];
+                });
+
+                afterEach(function() {
+                    xhr.restore();
+                });
+
+                it("test for sending post request", function() {
+                    project.moveMilestone({milestoneId: 1, after: 2});
+                    assert.equal(requests.length, 1);
+                    assert.equal(requests[0].method, "POST");
+                });                
+
+                it("test for using proper url", function() {
+                    project.moveMilestone({milestoneId: 1, after: 2});
+                    assert.equal(requests[0].url, 
+                                 "/api/users/Test/projects/1/milestones/1/position");
+                });
+
+                it("test for raising exception when no milestone", function() {
+                    chai.expect(function(){
+                        project.moveMilestone({milestone: 1, after: 2});
+                    }).to.throw("Undefined milestone.");
+                });
+
+                it("test for raising exception when no after or before", function() {
+                    chai.expect(function(){
+                        project.moveMilestone({milestoneId: 1});
+                    }).to.throw("Undefined reference milestone.");
+                });
+
+                it("test for passing data to request", function() {
+                    project.moveMilestone({milestoneId: 1, after: 2, before: 0});
+                    var params = getJsonFromUrl(requests[0].requestBody);
+                    assert.equal(params.after, "2");
+                    assert.equal(params.before, "0");
+                });
+
+            });   
+
+            describe("Handling Response", function() {
+                var server = null;
+
+                beforeEach(function () {
+                    server = sinon.fakeServer.create();
+                });
+
+                afterEach(function () {
+                    server.restore();
+                });
+
+                it("test for calling callback", function() {
+                    server.respondWith("POST", 
+                        "/api/users/Test/projects/1/milestones/1/position",
+                        jsonOk("")
+                    );
+                    var spy = sinon.spy();
+                    project.moveMilestone({milestoneId: 1, after: 2}, spy);
+                    server.respond();
+                    assert.isTrue(spy.called);
+                });
+
+            });              
+           
+        }); // move milestone  
+
+        describe("delete milestone", function() {
+
+            describe("Sending Request", function() {
+
+                var xhr = null;
+                var requests = null;
+
+                beforeEach(function() {
+                    xhr = sinon.useFakeXMLHttpRequest();
+                    requests = [];
+                    xhr.onCreate = function(xhr) {
+                        requests.push(xhr);
+                    };
+                    project.init({username: "Test", projectId: 1});
+                    requests = [];
+                });
+
+                afterEach(function() {
+                    xhr.restore();
+                });
+
+                it("test for sending delete request", function() {
+                    project.deleteMilestone({milestoneId: 1});
+                    assert.equal(requests.length, 1);
+                    assert.equal(requests[0].method, "DELETE");
+                });                
+
+                it("test for using proper url", function() {
+                    project.deleteMilestone({milestoneId: 1});
+                    assert.equal(requests[0].url, 
+                                 "/api/users/Test/projects/1/milestones/1");
+                });
+
+                it("test for raising exception when no milestone", function() {
+                    chai.expect(function(){
+                        project.deleteMilestone({milestone: 1});
+                    }).to.throw("Undefined milestone.");
+                });
+
+            });   
+
+            describe("Handling Response", function() {
+                var server = null;
+
+                beforeEach(function () {
+                    server = sinon.fakeServer.create();
+                });
+
+                afterEach(function () {
+                    server.restore();
+                });
+
+                it("test for calling callback", function() {
+                    server.respondWith("DELETE", 
+                        "/api/users/Test/projects/1/milestones/1",
+                        jsonOk("")
+                    );
+                    var spy = sinon.spy();
+                    project.deleteMilestone({milestoneId: 1}, spy); 
+                    server.respond();
+                    assert.isTrue(spy.called);
+                });
+            });              
+           
+        }); // delete milestone  
 
         }); // E-Board - Project - Test
 
