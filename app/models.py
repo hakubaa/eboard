@@ -619,6 +619,15 @@ class Project(db.Model):
             "modified": self.modified.strftime("%Y-%m-%d %H:%M")
             }
 
+    @property
+    def progress(self):
+        if datetime.now() > self.deadline or self.created > self.deadline:
+            return 100
+        else:
+            time_passed = datetime.now() - self.created
+            project_dur = self.deadline - self.created
+            return round(100*time_passed/project_dur, 2)
+
 
 class Milestone(db.Model):
     __tablename__ = "milestones"

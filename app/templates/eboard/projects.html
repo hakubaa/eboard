@@ -43,6 +43,10 @@
         text-decoration: none;
         color: black;
     }
+    #new-project-btn {
+        display: inline-block;
+        margin-bottom: 10px;
+    }
     </style>
     <link rel="stylesheet" href="{{url_for('static', filename='css/bootstrap-datetimepicker.css')}}">
 {% endblock %}
@@ -50,6 +54,8 @@
 
 {% block content %}
 <div class="container">
+    <a href="{{url_for('eboard.project_create', username=user.username)}}" 
+       class="btn btn-success" role="button" id="new-project-btn">Create New Project</a>
     {% if projects %}
         <ul class="project-infos">
             {% for project in projects %}
@@ -71,6 +77,5 @@
     {% else %}
         <p>Create your fist project.</p>
     {% endif %}
-    <a href="{{url_for('eboard.project_create', username=user.username)}}" class="btn btn-success" role="button">Create New Project</a>
 </div>
 {% endblock %}

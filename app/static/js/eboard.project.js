@@ -215,6 +215,107 @@ var project = {
             .fail(callbackFail);
     },
 
+    /**
+     * Send XMLHttpRequest to get the milestone.
+     * @options {Object} dictionary with options.
+     * @callbackDone {function} successful callback
+     * @callbackFail {function} failure callback
+     */
+    getMilestone: function(options, callbackDone, callbackFail) {    
+        if (options === undefined) options = {};
+        if (options.milestoneId === undefined) {
+            throw("Undefined milestone.");
+        }
+        $.ajax({
+            url: "/api/users/" + this.username + "/projects/" +
+                 this.projectId + "/milestones/" + options.milestoneId,
+            type: "GET"
+        })
+            .done(callbackDone)
+            .fail(callbackFail);
+    },
+
+    /**
+     * Send XMLHttpRequest to get the note.
+     * @options {Object} dictionary with options.
+     * @callbackDone {function} successful callback
+     * @callbackFail {function} failure callback
+     */
+    getNote: function(options, callbackDone, callbackFail) {
+        if (options === undefined) options = {};
+        if (options.noteId === undefined) {
+            throw("Undefined note.");
+        }
+        $.ajax({
+            url: "/api/users/" + this.username + "/projects/" +
+                 this.projectId + "/notes/" + options.noteId,
+            type: "GET"
+        })
+            .done(callbackDone)
+            .fail(callbackFail);
+    },
+
+    /**
+     * Send XMLHttpRequest to add a note.
+     * @options {Object} dictionary with options.
+     * @callbackDone {function} successful callback
+     * @callbackFail {function} failure callback
+     */
+    addNote: function(options, callbackDone, callbackFail) {
+        if (options === undefined) options = {};
+        if (options.title === undefined) {
+            throw("Undefined title.");
+        }
+        $.ajax({
+            url: "/api/users/" + this.username + "/projects/" +
+                 this.projectId + "/notes",
+            type: "POST",
+            data: options
+        })
+            .done(callbackDone)
+            .fail(callbackFail);
+    },
+
+    /**
+     * Send XMLHttpRequest to update the note.
+     * @options {Object} dictionary with options.
+     * @callbackDone {function} successful callback
+     * @callbackFail {function} failure callback
+     */
+    updateNote: function(options, callbackDone, callbackFail) {
+        if (options === undefined) options = {};
+        if (options.noteId === undefined) {
+            throw("Undefined note.");
+        }
+        $.ajax({
+            url: "/api/users/" + this.username + "/projects/" +
+                 this.projectId + "/notes/" + options.noteId,
+            type: "PUT",
+            data: options
+        })
+            .done(callbackDone)
+            .fail(callbackFail);
+    },
+
+    /**
+     * Send XMLHttpRequest to delete the note.
+     * @options {Object} dictionary with options.
+     * @callbackDone {function} successful callback
+     * @callbackFail {function} failure callback
+     */
+    deleteNote: function(options, callbackDone, callbackFail) {
+        if (options === undefined) options = {};
+        if (options.noteId === undefined) {
+            throw("Undefined note.");
+        }
+        $.ajax({
+            url: "/api/users/" + this.username + "/projects/" +
+                 this.projectId + "/notes/" + options.noteId,
+            type: "DELETE"
+        })
+            .done(callbackDone)
+            .fail(callbackFail);
+    }
 };
 
 /**
@@ -273,27 +374,35 @@ function initUI() {
         );
     });
 
-    // Click on the note to show its details
-    $(document).on("click", ".project-note", function() {
-        alert($(this).data("note-id"));
-    });
-
     $("#new-milestone-btn").click(function() {
         var title = $("#milestone-title").val();
         var desc = $("#milestone-desc").val();
+        var milestoneId = $("#modal-milestone-edit").data("milestoneid");
 
-        if (title === "") {
-            alert("Empty title. Please enter the title to create a milestone.");
+        if (milestoneId !== -1) { // update milestone
+            project.updateMilestone({
+                milestoneId: milestoneId, title: title, desc: desc
+            }, function(data, status, xhr) {
+                if (title !== "") { // Title have changed.
+                    $(".project-milestone[data-milestoneid='" + 
+                      milestoneId +"']").find(".milestone-title").text(title); 
+                }
+                $('#modal-milestone-edit').modal("hide");
+            }, ajaxErrorsHandler);
         } else {
-            project.addMilestone({
-                    title: title, desc: desc
-                }, function(data, status, xhr) {
-                    var uri = xhr.getResponseHeader("Location");
-                    var mid = uri.split("/").pop(); // get id of milestone
-                    var $milestone = $(createMilestoneElement(mid, title));
-                    $("#project-plan-id").find("li:last").before($milestone);
-                    $('#modal-milestone').modal("hide");
-                }, ajaxErrorsHandler);
+            if (title === "") {
+                alert("Empty title. Please enter the title to create a milestone.");
+            } else {
+                project.addMilestone({
+                        title: title, desc: desc
+                    }, function(data, status, xhr) {
+                        var uri = xhr.getResponseHeader("Location");
+                        var mid = uri.split("/").pop(); // get id of milestone
+                        var $milestone = $(createMilestoneElement(mid, title));
+                        $("#project-plan-id").find("li:last").before($milestone);
+                        $('#modal-milestone-edit').modal("hide");
+                    }, ajaxErrorsHandler);
+            }
         }
     });
 
@@ -313,12 +422,12 @@ function initUI() {
             taskId: taskId, milestoneId: milestoneId
         },function(data, status, xhr) {
             var $modal = $("#modal-task-edit");
+            $modal.modal("show");
             $modal.data("milestoneid", milestoneId);
             $modal.data("taskid", taskId);
             $modal.find("#task-title").val(data["title"]);
             $modal.find("#task-deadline").val(data["deadline"]);
             $modal.find("#task-body").val(data["body"]);
-            $modal.modal("show");
         }, ajaxErrorsHandler);
 
         return false;
@@ -398,15 +507,20 @@ function initUI() {
                     var uri = xhr.getResponseHeader("Location");
                     var tid = uri.split("/").pop();              
                     
+                    $milestone.find(".milestone-tasks").append(
+                            createTaskElement(id=tid, title=title, 
+                                              complete=false));
+                    $('#modal-task-edit').modal("hide");
+
                     // Send next request for task info
-                    project.getTask({
-                        taskId: tid, milestoneId: milestoneId
-                    }, function(data, status, xhr) {
-                        $milestone.find(".milestone-tasks").append(
-                            createTaskElement(id=data["id"], title=data["title"], 
-                                              complete=data["complete"]));
-                        $('#modal-task-edit').modal("hide");
-                    }, ajaxErrorsHandler);
+                    // project.getTask({
+                    //     taskId: tid, milestoneId: milestoneId
+                    // }, function(data, status, xhr) {
+                    //     $milestone.find(".milestone-tasks").append(
+                    //         createTaskElement(id=data["id"], title=data["title"], 
+                    //                           complete=data["complete"]));
+                    //     $('#modal-task-edit').modal("hide");
+                    // }, ajaxErrorsHandler);
 
                 }, ajaxErrorsHandler);
             }
@@ -453,6 +567,150 @@ function initUI() {
             }, ajaxErrorsHandler);
         }
         return false;    
+    });
+
+    $(document).on("click", ".task-btn-move", function() {
+        var taskId = $(this).parent().data("taskid");
+        var milestoneId = $(this).closest(".project-milestone").
+                          data("milestoneid");
+        var $modal = $("#modal-task-move");
+        $modal.data("milestoneid", milestoneId);
+        $modal.data("taskid", taskId);
+        $modal.modal("show");
+        return false;
+    });
+
+    $("#move-task-btn").click(function() {
+        var newMilestoneId = $("#milestone4task-id").val();
+        if (newMilestoneId === null) {
+            alert("You have not selected any milestone.");
+        } else {
+            var milestoneId = $("#modal-task-move").data("milestoneid");
+            var taskId = $("#modal-task-move").data("taskid");
+
+            if (milestoneId == newMilestoneId) {
+                alert("The task is already in this milestone.");
+            } else {
+                project.updateTask({
+                    taskId: taskId, milestoneId: milestoneId,
+                    milestone_id: newMilestoneId
+                }, function(data, status, xhr) {
+                    var $tasksList = $(".project-milestone[data-milestoneid='" + 
+                                       newMilestoneId + "']").find(".milestone-tasks");
+                    var $task = $(".milestone-task[data-taskid='" + taskId + "']");
+                    $task.remove().appendTo($tasksList);
+                    $('#modal-task-move').modal("hide");
+                }, ajaxErrorsHandler);
+            }
+        }
+    });
+
+    $(document).on("click", ".milestone-option-edit", function() {
+        var milestoneId = $(this).closest(".project-milestone").
+                                  data("milestoneid");
+        project.getMilestone({
+            milestoneId: milestoneId
+        },function(data, status, xhr) {
+            var $modal = $("#modal-milestone-edit");
+            $modal.modal("show");
+            $modal.data("milestoneid", milestoneId);
+            $modal.find("#milestone-title").val(data["title"]);
+            $modal.find("#milestone-desc").val(data["desc"]);
+        }, ajaxErrorsHandler);
+
+        return false;
+    });
+
+    $(document).on("click", ".milestone-option-info", function() {
+        var milestoneId = $(this).closest(".project-milestone").
+                                  data("milestoneid"); 
+        project.getMilestone({milestoneId: milestoneId},
+            function(data, status, xhr) {
+                var $modal = $("#modal-milestone-show");
+                $modal.find("#milestone-show-title").text(data["title"]);
+                $modal.find("#milestone-show-desc").text(data["desc"]);
+                $modal.modal("show");  
+            }, ajaxErrorsHandler);    
+        return false;
+    });
+
+    $("#add-note").click(function() {
+        $("#modal-note-edit").modal("show");
+    });
+
+    // Create new note
+    $("#new-note-btn").click(function() {
+        var title = $("#note-title").val();
+        var body = $("#note-body").val();
+        var noteId = $("#modal-note-edit").data("noteid");
+
+        if (noteId !== -1) { // update the task
+            project.updateNote({
+                noteId: noteId, title: title, body: body
+            }, function(data, status, xhr) {
+                if (title !== "") { // Title have changed.
+                    $(".project-note[data-noteid='" + noteId +"']").
+                        find(".note-title").text(title); 
+                }
+                $('#modal-note-edit').modal("hide");
+            }, ajaxErrorsHandler);
+        } else {
+            if (title === "") {
+                alert("No title. Please enter title in order to create new note.")
+            } else {
+                project.addNote({title: title, body: body}, 
+                    function(data, status, xhr) {
+                        var uri = xhr.getResponseHeader("Location");
+                        var nid = uri.split("/").pop();              
+                        
+                        $("#project-notes-id").append(createNoteElement(
+                            {id: nid, title: title, timestamp: moment()}));
+                        $('#modal-note-edit').modal("hide");
+                    }, ajaxErrorsHandler);
+            }
+        }
+    });
+
+    // Click on the note to show its details
+    $(document).on("click", ".project-note", function() {
+        var noteId = $(this).data("noteid");
+        project.getNote({noteId: noteId}, 
+            function(data, status, xhr) {
+                var $modal = $("#modal-note-show");
+                $modal.find("#note-show-title").text(data["title"]);
+                if (data["body"] === "" || data["body"] === null) {
+                    $modal.find("#note-show-body").text("No description."); 
+                } else {
+                    $modal.find("#note-show-body").text(data["body"]);
+                }
+                $modal.modal("show");
+            }, ajaxErrorsHandler);
+    });
+
+    $(document).on("click", ".note-btn-edit", function() {
+        var noteId = $(this).closest(".project-note").data("noteid");
+        project.getNote({noteId: noteId}, 
+            function(data, status, xhr) {
+                var $modal = $("#modal-note-edit");
+                $modal.modal("show");
+                $modal.data("noteid", noteId);
+                $modal.find("#note-title").val(data["title"]);
+                $modal.find("#note-body").val(data["body"]);
+            }, ajaxErrorsHandler);
+        return false;
+    });
+
+    $(document).on("click", ".note-btn-remove", function() {
+        var noteId = $(this).closest(".project-note").data("noteid");
+        if (confirm("Are you sure you want to remove this note?")) {
+            var $taskDOM = $(this).parent(); // required in callback
+            project.deleteNote({
+                noteId: noteId
+            },function(data, status, xhr) {
+                $taskDOM.remove();
+            }, ajaxErrorsHandler);
+        }
+        return false;
     });
 }
 
@@ -525,6 +783,7 @@ function createMilestoneElement(id, title) {
     var options = document.createElement("ul");
     options.className = "milestone-options";
     options.appendChild(createMilestoneOption("Add Task", "milestone-option-add-task"));
+    options.appendChild(createMilestoneOption("Info", "milestone-option-info"));
     options.appendChild(createMilestoneOption("Move Up", "milestone-option-move-up"));
     options.appendChild(createMilestoneOption("Move Down", "milestone-option-move-down"));
     options.appendChild(createMilestoneOption("Edit", "milestone-option-edit"));
@@ -573,29 +832,29 @@ function createTaskElement(id, title, complete) {
 
     var divCheck;
     if (!complete) {
-        divCheck = createTaskImg(
+        divCheck = createImgBtn(
             "/static/images/unchecked_checkbox.png",
-            "task-btn-check", "unchecked-checkbox"
+            "task-btn task-btn-check", "unchecked-checkbox"
         );
     } else {
-         divCheck = createTaskImg(
+         divCheck = createImgBtn(
             "/static/images/checked_checkbox.png",
-            "task-btn-check", "checked-checkbox"
+            "task-btn task-btn-check", "checked-checkbox"
         );           
     }
     li.appendChild(span);
     li.appendChild(divCheck);
-    li.appendChild(createTaskImg(
+    li.appendChild(createImgBtn(
         "/static/images/edit-button.png",
-        "task-btn-edit", "edit-task"
+        "task-btn task-btn-edit", "edit-task"
     ));
-    li.appendChild(createTaskImg(
+    li.appendChild(createImgBtn(
         "/static/images/remove-button.png",
-        "task-btn-remove", "remove-task"
+        "task-btn task-btn-remove", "remove-task"
     ));
-    li.appendChild(createTaskImg(
+    li.appendChild(createImgBtn(
         "/static/images/move-button.png",
-        "task-btn-move", "move-task"
+        "task-btn task-btn-move", "move-task"
     ));
 
     return li;
@@ -607,14 +866,17 @@ function createTaskElement(id, title, complete) {
  * @classname {string} class name
  * @alt {string} alt text
  */
-function createTaskImg(imgsrc, classname, alt) {
+function createImgBtn(imgsrc, classname, alt, width, height) {
+    if (width === undefined) width = 26;
+    if (height === undefined) height = 26;
+
     var div = document.createElement("div");
-    div.className = "task-btn " + classname;
+    div.className = classname;
     var img = document.createElement("img");
     img.src = imgsrc;
     img.alt = alt;
-    img.width = "26";
-    img.height = "26";
+    img.width = width;
+    img.height = height;
     div.appendChild(img);
     return div;
 }
@@ -624,11 +886,25 @@ function createTaskImg(imgsrc, classname, alt) {
  * @note {object} note objects
  */
 function createNoteElement(note) {
-    var $li = $("<li/>", {class: "project-note", "data-note-id": note.id});
-    var $noteContent = $("<div />", {class: "note-content"})
-    $noteContent.append($("<div />", {class: "note-date", 
-        text: moment(note.timestamp).format("YYYY-MM-DD HH:mm") }));
+    var $li = $("<li/>", {class: "project-note", "data-noteid": note.id});
+    var $noteContent = $("<div />", {class: "note-content"});
+
+    $noteContent.append(createImgBtn(
+        "/static/images/edit-button.png",
+        "note-btn note-btn-edit", "note-edit"
+    ));
+    $noteContent.append(createImgBtn(
+        "/static/images/remove-button.png",
+        "note-btn note-btn-remove", "remove-note"
+    ));
+
+    // $noteContent.append($("<div />", {class: "note-date", 
+    //     text: moment(note.timestamp).format("YYYY-MM-DD HH:mm") }));
     $noteContent.append($("<div />", {class: "note-title", text: note.title}));
+
+    var $noteFooter = $("<div />", {class: "note-footer",
+        text: moment(note.timestamp).format("YYYY-MM-DD HH:mm") });
+    $noteContent.append($noteFooter);
     $li.append($noteContent);
     return $li;
 }
@@ -637,13 +913,14 @@ function createNoteElement(note) {
  MODALs EVENTS
 *******************************************************************************/
 
-$("#modal-milestone").on("show.bs.modal", function(event) {
+$("#modal-milestone-edit").on("show.bs.modal", function(event) {
     var $modal = $(this);
     $modal.find("#milestone-title").val("");
     $modal.find("#milestone-desc").val("");
+    $modal.data("milestoneid", "-1");
 });
 
-$("#modal-task-add").on("show.bs.modal", function(event) {
+$("#modal-task-edit").on("show.bs.modal", function(event) {
     var $modal = $(this);
     $modal.find("#task-title").val("");
     $modal.find("#task-body").val("");
@@ -656,4 +933,32 @@ $("#modal-task-show").on("show.bs.modal", function(event) {
     var $modal = $(this);
     $modal.find("#task-show-header").find("tr td:last-child").html("");
     $modal.find("#task-show-body").html("");
+});
+
+$("#modal-task-move").on("show.bs.modal", function(event) {
+    var $modal = $(this);
+
+    var $select = $modal.find('#milestone4task-id');
+    $select.empty();
+    $select.append("<option disabled selected value='none'>" +
+                   "--Select Milestone--</option>");
+
+    var milestoneId = $(this).data("milestoneid");
+
+    // Create list of milestones.
+    $(".project-milestone").not(":last").each(function(index) {
+        if ($(this).data("milestoneid") != milestoneId) {
+            $select.append(
+                $("<option></option>").val($(this).data("milestoneid")).
+                    html($(this).find(".milestone-title").html())
+            );
+        }
+    });
+});
+
+$("#modal-note-edit").on("show.bs.modal", function(event) {
+    var $modal = $(this);
+    $modal.find("#note-title").val("");
+    $modal.find("#note-body").val("");
+    $modal.data("noteid", "-1");
 });

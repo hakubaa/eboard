@@ -6,22 +6,6 @@
 {% block styles %}
 {{ super() }}
 <link rel="stylesheet" href="{{url_for('static', filename='css/eboard.project.css')}}">
-<style>
-    #task-show-header td:first-child {
-        text-align: right;
-        font-weight: bold;
-    }
-    #task-show-header td {
-        padding: 0px 0px 5px 5px;
-        word-wrap: break-word;
-    }
-    #task-show-body {
-        word-wrap: break-word;
-        padding: 10px 10px 0px 10px;
-        text-align: justify;
-        border-top: 1px solid lightgray;
-    }
-</style>
 {% endblock %}
 
 {% block content %}
@@ -30,7 +14,7 @@
         <h1 id="project-main-header">Project {{project.name}}</h1>
         <a href="{{url_for('eboard.project_edit', username=user.username, project_id=project.id)}}" 
             class="btn btn-primary btn-xs" role="button">Edit</a>
-        <a href="{{url_for('eboard.project_remove', projectid=project.id)}}" 
+        <a href="{{url_for('eboard.project_delete', username=user.username, project_id=project.id)}}" 
             onclick="return confirm('Are your sure you want to remove the project, its all milestones, tasks and notes?')"
             class="btn btn-danger btn-xs" role="button">Remove</a>
         <div>
@@ -38,7 +22,7 @@
                 <div class="progress-bar progress-bar-success" role="progressbar" 
                     aria-valuenow="{{project.progress}}" aria-valuemin="0" aria-valuemax="100" 
                     style="width: {{project.progress}}%">
-                    {{project.progress}}% Complete
+                    {{project.progress}}%
                 </div>
             </div>
             <div>
@@ -56,7 +40,7 @@
         <ol class="project-plan" id="project-plan-id" start="1">
             <!-- Milestones go here. -->
             <li class="project-milestone project-extra-options">
-                <a href="#" data-toggle="modal" data-target="#modal-milestone"
+                <a href="#" data-toggle="modal" data-target="#modal-milestone-edit"
                     class="btn btn-primary btn-xs" role="button">Add Milestone</a>
             </li>
         </ol>
@@ -73,13 +57,13 @@
 </div>
 
 <!-- Modal Milestone (New/Edit) -->
-<div class="modal" id="modal-milestone" role="dialog" aria-labelledby="gridSystemModalLabel"
-     data-taskid="-1">
+<div class="modal" id="modal-milestone-edit" role="dialog" aria-labelledby="gridSystemModalLabel"
+     data-milestoneid="-1">
     <div class="modal-dialog  modal-lg" role="document">
         <div class="modal-content">
             <div class="modal-header">
                 <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-                <h4 class="modal-title" id="gridSystemModalLabel">Create New Milestone</h4>
+                <h4 class="modal-title" id="gridSystemModalLabel">Add/Edit Milestone</h4>
             </div>
             <div class="modal-body">
                 <div class="form-group">
@@ -106,7 +90,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-                <h4 class="modal-title" id="gridSystemModalLabel">Create New Task</h4>
+                <h4 class="modal-title" id="gridSystemModalLabel">Create/Edit Task</h4>
             </div>
             <div class="modal-body">
                 <div class="form-group">
@@ -184,6 +168,94 @@
                     id="task-show-remove-btn">Remove Task</button>
                 <button type="button" class="btn btn-primary" 
                     id="task-show-edit-btn">Edit Task</button> -->
+                <button type="button" class="btn btn-default" 
+                    data-dismiss="modal">Close</button>
+            </div>
+        </div><!-- /.modal-content -->
+    </div><!-- /.modal-dialog -->
+</div><!-- /.modal -->
+
+<!-- Move Task To Other Model -->
+<div class="modal" id="modal-task-move" role="dialog" aria-labelledby="gridSystemModalLabel"
+     data-milestoneid="-1" data-taskid="-1">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                <h4 class="modal-title" id="gridSystemModalLabel">Move Task to Milestone</h4>
+            </div>
+            <div class="modal-body">
+                <p>Move task to one of the project's milestones.</p>
+                <select class="form-control" name="milestone" id="milestone4task-id">
+                </select>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">Abort</button>
+                <button type="button" class="btn btn-primary" id="move-task-btn">Ok</button>
+            </div>
+        </div><!-- /.modal-content -->
+    </div><!-- /.modal-dialog -->
+</div><!-- /.modal -->
+
+<!-- Modal Milestone (Show) -->
+<div class="modal" id="modal-milestone-show" role="dialog" aria-labelledby="gridSystemModalLabel">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                <h4 class="modal-title" id="milestone-show-title"></h4>
+            </div>
+            <div class="modal-body">
+                <p id="milestone-show-desc"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" 
+                    data-dismiss="modal">Close</button>
+            </div>
+        </div><!-- /.modal-content -->
+    </div><!-- /.modal-dialog -->
+</div><!-- /.modal -->
+
+<!-- Modal Note (New/Edit) -->
+<div class="modal" id="modal-note-edit" role="dialog" aria-labelledby="gridSystemModalLabel"
+     data-noteid="-1">
+    <div class="modal-dialog  modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                <h4 class="modal-title" id="gridSystemModalLabel">Create/Edit Note</h4>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="usr">Title</label>
+                    <input type="text" class="form-control" id="note-title">
+                </div>
+                <div class="form-group">
+                    <label for="pwd">Description</label>
+                    <textarea class="form-control" rows="8" id="note-body"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="new-note-btn">Done</button>
+            </div>
+        </div><!-- /.modal-content -->
+    </div><!-- /.modal-dialog -->
+</div><!-- /.modal -->
+
+<!-- Modal Note (Show) -->
+<div class="modal" id="modal-note-show" role="dialog" aria-labelledby="gridSystemModalLabel">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                <span aria-hidden="true">&times;</span></button>
+                <h4 class="modal-title" id="note-show-title"></h4>
+            </div>
+            <div class="modal-body">
+                <p id="note-show-body"></p>
+            </div>
+            <div class="modal-footer">
                 <button type="button" class="btn btn-default" 
                     data-dismiss="modal">Close</button>
             </div>

@@ -363,7 +363,7 @@
 
             });              
            
-        }); // update task        
+        }); // get task        
 
         describe("update task", function() {
 
@@ -739,6 +739,357 @@
             });              
            
         }); // delete milestone  
+
+        describe("get milestone", function() {
+
+            describe("Sending Request", function() {
+
+                var xhr = null;
+                var requests = null;
+
+                beforeEach(function() {
+                    xhr = sinon.useFakeXMLHttpRequest();
+                    requests = [];
+                    xhr.onCreate = function(xhr) {
+                        requests.push(xhr);
+                    };
+                    project.init({username: "Test", projectId: 1});
+                    requests = [];
+                });
+
+                afterEach(function() {
+                    xhr.restore();
+                });
+
+                it("test for sending get request", function() {
+                    project.getMilestone({milestoneId: 1});
+                    assert.equal(requests.length, 1);
+                    assert.equal(requests[0].method, "GET");
+                });                
+
+                it("test for using proper url", function() {
+                    project.getMilestone({milestoneId: 1});
+                    assert.equal(requests[0].url, 
+                                 "/api/users/Test/projects/1/milestones/1");
+                });
+
+                it("test for raising exception when no milestone", function() {
+                    chai.expect(function(){
+                        project.getMilestone({milestone: 1});
+                    }).to.throw("Undefined milestone.");
+                });
+
+            });   
+
+            describe("Handling Response", function() {
+                var server = null;
+
+                beforeEach(function () {
+                    server = sinon.fakeServer.create();
+                });
+
+                afterEach(function () {
+                    server.restore();
+                });
+
+                it("test for calling callback", function() {
+                    server.respondWith("GET", 
+                        "/api/users/Test/projects/1/milestones/1",
+                        jsonOk("")
+                    );
+                    var spy = sinon.spy();
+                    project.getMilestone({milestoneId: 1}, spy); 
+                    server.respond();
+                    assert.isTrue(spy.called);
+                });
+
+            });              
+           
+        }); // update milestone
+
+
+        describe("get note", function() {
+
+            describe("Sending Request", function() {
+
+                var xhr = null;
+                var requests = null;
+
+                beforeEach(function() {
+                    xhr = sinon.useFakeXMLHttpRequest();
+                    requests = [];
+                    xhr.onCreate = function(xhr) {
+                        requests.push(xhr);
+                    };
+                    project.init({username: "Test", projectId: 1});
+                    requests = [];
+                });
+
+                afterEach(function() {
+                    xhr.restore();
+                });
+
+                it("test for sending get request", function() {
+                    project.getNote({noteId: 1});
+                    assert.equal(requests.length, 1);
+                    assert.equal(requests[0].method, "GET");
+                });                
+
+                it("test for using proper url", function() {
+                    project.getNote({noteId: 1, projectId: 1});
+                    assert.equal(requests[0].url, 
+                                 "/api/users/Test/projects/1/notes/1");
+                });
+
+                it("test for raising exception when no note id", function() {
+                    chai.expect(function(){
+                        project.getNote({note: 1});
+                    }).to.throw("Undefined note.");
+                });
+
+
+            });   
+
+            describe("Handling Response", function() {
+                var server = null;
+
+                beforeEach(function () {
+                    server = sinon.fakeServer.create();
+                });
+
+                afterEach(function () {
+                    server.restore();
+                });
+
+                it("test for calling callback", function() {
+                    server.respondWith("GET", 
+                        "/api/users/Test/projects/1/notes/1",
+                        jsonOk("")
+                    );
+                    var spy = sinon.spy();
+                    project.getNote({noteId: 1}, spy); 
+                    server.respond();
+                    assert.isTrue(spy.called);
+                });
+
+            });  
+
+        }); // get note            
+
+
+        describe("add note", function() {
+
+            describe("Sending Request", function() {
+
+                var xhr = null;
+                var requests = null;
+
+                beforeEach(function() {
+                    xhr = sinon.useFakeXMLHttpRequest();
+                    requests = [];
+                    xhr.onCreate = function(xhr) {
+                        requests.push(xhr);
+                    };
+                    project.init({username: "Test", projectId: 1});
+                    requests = [];
+                });
+
+                afterEach(function() {
+                    xhr.restore();
+                });
+
+                it("test for sending post request", function() {
+                    project.addNote({title: "Title", desc: "Desc"});
+                    assert.equal(requests.length, 1);
+                    assert.equal(requests[0].method, "POST");
+                });                
+
+                it("test for using proper url", function() {
+                    project.addNote({title: "Title", desc: "Desc"});
+                    assert.equal(requests[0].url, 
+                                 "/api/users/Test/projects/1/notes");
+                });
+
+                it("test for raising exception when no title", function() {
+                    chai.expect(function(){
+                        project.addNote({name: "Title", desc: "Desc"});
+                    }).to.throw("Undefined title.");
+                });
+
+                it("test for passing data to request", function() {
+                    project.addNote({title: "Title", desc: "Desc"});
+                    var params = getJsonFromUrl(requests[0].requestBody);
+                    assert.equal(params.title, "Title");
+                });
+
+            });   
+
+            describe("Handling Response", function() {
+                var server = null;
+
+                beforeEach(function () {
+                    server = sinon.fakeServer.create();
+                });
+
+                afterEach(function () {
+                    server.restore();
+                });
+
+                it("test for calling callback", function() {
+                    server.respondWith("POST", 
+                        "/api/users/Test/projects/1/notes",
+                        jsonOk("")
+                    );
+                    var spy = sinon.spy();
+                    project.addNote({title: "Title", desc: "Desc"}, spy);
+                    server.respond();
+                    assert.isTrue(spy.called);
+                });
+
+            });  
+
+        }); // add note
+
+        describe("update note", function() {
+
+            describe("Sending Request", function() {
+
+                var xhr = null;
+                var requests = null;
+
+                beforeEach(function() {
+                    xhr = sinon.useFakeXMLHttpRequest();
+                    requests = [];
+                    xhr.onCreate = function(xhr) {
+                        requests.push(xhr);
+                    };
+                    project.init({username: "Test", projectId: 1});
+                    requests = [];
+                });
+
+                afterEach(function() {
+                    xhr.restore();
+                });
+
+                it("test for sending put request", function() {
+                    project.updateNote({noteId: 1, title: "Title"});
+                    assert.equal(requests.length, 1);
+                    assert.equal(requests[0].method, "PUT");
+                });                
+
+                it("test for using proper url", function() {
+                    project.updateNote({noteId: 1, title: "Title"});
+                    assert.equal(requests[0].url, 
+                                 "/api/users/Test/projects/1/notes/1");
+                });
+
+                it("test for raising exception when no note id", function() {
+                    chai.expect(function(){
+                        project.updateNote({note: 1, title: "Title"});
+                    }).to.throw("Undefined note.");
+                });
+
+                it("test for passing data to request", function() {
+                    project.updateNote({noteId: 1, title: "Title"});
+                    var params = getJsonFromUrl(requests[0].requestBody);
+                    assert.equal(params.title, "Title");
+                });
+
+            });   
+
+            describe("Handling Response", function() {
+                var server = null;
+
+                beforeEach(function () {
+                    server = sinon.fakeServer.create();
+                });
+
+                afterEach(function () {
+                    server.restore();
+                });
+
+                it("test for calling callback", function() {
+                    server.respondWith("PUT", 
+                        "/api/users/Test/projects/1/notes/1",
+                        jsonOk("")
+                    );
+                    var spy = sinon.spy();
+                    project.updateNote({noteId: 1, title: "Title"}, spy);
+                    server.respond();
+                    assert.isTrue(spy.called);
+                });
+
+            });  
+
+        }); // update note
+
+        describe("delete note", function() {
+
+            describe("Sending Request", function() {
+
+                var xhr = null;
+                var requests = null;
+
+                beforeEach(function() {
+                    xhr = sinon.useFakeXMLHttpRequest();
+                    requests = [];
+                    xhr.onCreate = function(xhr) {
+                        requests.push(xhr);
+                    };
+                    project.init({username: "Test", projectId: 1});
+                    requests = [];
+                });
+
+                afterEach(function() {
+                    xhr.restore();
+                });
+
+                it("test for sending delete request", function() {
+                    project.deleteNote({noteId: 1});
+                    assert.equal(requests.length, 1);
+                    assert.equal(requests[0].method, "DELETE");
+                });                
+
+                it("test for using proper url", function() {
+                    project.deleteNote({noteId: 1});
+                    assert.equal(requests[0].url, 
+                                 "/api/users/Test/projects/1/notes/1");
+                });
+
+                it("test for raising exception when no note id", function() {
+                    chai.expect(function(){
+                        project.deleteNote({note: 1});
+                    }).to.throw("Undefined note.");
+                });
+
+
+            });   
+
+            describe("Handling Response", function() {
+                var server = null;
+
+                beforeEach(function () {
+                    server = sinon.fakeServer.create();
+                });
+
+                afterEach(function () {
+                    server.restore();
+                });
+
+                it("test for calling callback", function() {
+                    server.respondWith("DELETE", 
+                        "/api/users/Test/projects/1/notes/1",
+                        jsonOk("")
+                    );
+                    var spy = sinon.spy();
+                    project.deleteNote({noteId: 1}, spy);
+                    server.respond();
+                    assert.isTrue(spy.called);
+                });
+
+            });  
+
+        }); // get note      
 
         }); // E-Board - Project - Test
 

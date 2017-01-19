@@ -144,8 +144,21 @@ def project_edit(user, project_id):
     form = ProjectForm(request.form, obj=project)
     if form.validate_on_submit():
         project.update(form.data)
-        return redirect(url_for("eboard.projects", username=user.username))
-    return render_template("eboard/project_edit.html", form=form)
+        return redirect(url_for("eboard.project_show", username=user.username,
+                                project_id=project_id))
+    return render_template("eboard/project_edit.html", form=form,
+                           projectid=project_id)
+
+@eboard.route("/<username>/projects/<project_id>/delete", methods=["GET", "POST"])
+@access_required(owner_only=True)
+def project_delete(user, project_id):
+    project = user.projects.filter(Project.id == project_id).one_or_none()
+    if not project:
+        return render_template("404.html"), 404
+    db.session.delete(project)
+    db.session.commit()
+    return redirect(url_for("eboard.projects", username=user.username))
+
 
 # Projects
 ################################################################################
@@ -484,7 +497,7 @@ def project_new():
 
 @eboard.route("/project/remove/<int:projectid>", methods=["GET", "POST"])
 @login_required
-def project_remove(projectid):
+def project_remove_old(projectid):
     project = Project.query.get_or_404(projectid)
     if project:
         db.session.delete(project)
@@ -493,7 +506,7 @@ def project_remove(projectid):
 
 @eboard.route("/project/get", methods=["POST", "GET"])
 @login_required
-def project_get():
+def project_get_old():
     project_id = request.json.get("id")
     project = db.session.query(Project).options(subqueryload("milestones").\
         joinedload("tasks").joinedload("status")).options(
@@ -536,7 +549,7 @@ def project_edit_old():
 
 @eboard.route("/project/milestone/get", methods=["POST", "GET"])
 @login_required
-def milestone_get():
+def milestone_get_old():
     milestone_id = request.json.get("milestoneid")
     milestone = db.session.query(Milestone).options(subqueryload("tasks").\
         joinedload("status")).options(subqueryload("tasks").joinedload("tags")).\
@@ -547,7 +560,7 @@ def milestone_get():
 
 @eboard.route("/project/milestone/edit", methods=["POST", "GET"])
 @login_required
-def milestone_edit():
+def milestone_edit_old():
     milestone_id = request.json.get("id")
     if milestone_id: #update
         milestone = Milestone.query.\
@@ -575,7 +588,7 @@ def milestone_edit():
 
 @eboard.route("/project/milestone/move", methods=["POST", "GET"])
 @login_required
-def milestone_move():
+def milestone_move_old():
     milestone_id = int(request.json.get("milestoneid"))
     milestone = Milestone.query.filter(Milestone.id == milestone_id).one_or_none()
     if milestone:
@@ -601,7 +614,7 @@ def milestone_move():
 
 @eboard.route("/project/milestone/remove", methods=["POST", "GET"])
 @login_required
-def milestone_remove():
+def milestone_remove_old():
     milestone_id = int(request.json.get("milestoneid"))
     milestone = Milestone.query.filter(Milestone.id == milestone_id).one()
     db.session.delete(milestone)
@@ -610,7 +623,7 @@ def milestone_remove():
 
 @eboard.route("/project/milestone/list4task", methods=["POST", "GET"])
 @login_required
-def milestone_list4task():
+def milestone_list4task_old():
     task_id = request.json.get("taskid")
     if task_id:
         task = Task.query.filter(Task.id == int(task_id)).one_or_none()
@@ -665,7 +678,7 @@ def task_edit_old():
 
 @eboard.route("/project/task/get", methods=["POST", "GET"])
 @login_required
-def task_get():
+def task_get_old():
     task_id = request.json.get("taskid")
     if task_id:
         task = Task.query.filter(Task.id == int(task_id)).one_or_none()
@@ -675,7 +688,7 @@ def task_get():
 
 @eboard.route("/project/task/remove", methods=["POST", "GET"])
 @login_required
-def task_remove():
+def task_remove_old():
     print("Delete task")
     task_id = request.json.get("taskid")
     task = Task.query.filter(Task.id == int(task_id)).one_or_none()
@@ -688,7 +701,7 @@ def task_remove():
 
 @eboard.route("/project/task/status", methods=["POST", "GET"])
 @login_required
-def task_status():
+def task_status_old():
     task_id = request.json.get("taskid")
     status = db.session.query(Status).\
         filter(Status.name == request.json.get("status")).one()
@@ -700,7 +713,7 @@ def task_status():
 
 @eboard.route("/project/task/move", methods=["POST", "GET"])
 @login_required
-def task_move():
+def task_move_old():
     task_id = request.json.get("taskid")
     task = Task.query.filter(Task.id == int(task_id)).one()
     if task:
@@ -719,7 +732,7 @@ def task_move():
 
 @eboard.route("/project/note/edit", methods=["POST", "GET"])
 @login_required
-def note_edit():
+def note_edit_old():
     note_id = request.json.get("id")
     tags = [ int(tag) for tag in json.loads(request.json.get("tags")) if tag.isdigit() ]
     if note_id: #update
@@ -742,7 +755,7 @@ def note_edit():
 
 @eboard.route("/project/note/remove", methods=["GET", "POST"])
 @login_required
-def note_remove():
+def note_remove_old():
     note_id = request.json.get("id")
     if note_id:
         Note.query.filter(Note.id == int(note_id)).delete()
@@ -752,7 +765,7 @@ def note_remove():
 
 @eboard.route("/project/note/get", methods=["POST", "GET"])
 @login_required
-def note_get():
+def note_get_old():
     note_id = request.json.get("id")
     if note_id:
         note = Note.query.options(subqueryload(Note.tags)).\

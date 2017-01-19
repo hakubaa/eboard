@@ -118,8 +118,6 @@ EMailsManager.prototype.loadEMails = function(page) {
             this.callbacks.onLoad();
         }
 
-        console.log("######################################################################")
-
         var pageSize = this.getPageSize();
         var page_ids = this.source.getIds().slice((page-1)*pageSize, 
                                                   page*pageSize);

@@ -66,12 +66,18 @@ $(function () {
 
            <div class="form-group">
                 {{ form.desc.label(class="control-label") }} 
-                {{ form.desc(class="form-control input-sm", rows="8", required="") }}
+                {{ form.desc(class="form-control input-sm", rows="8") }}
             </div>
 
             <div class="form-group">
                 {{ form.submit(class="btn btn-primary") }}
-                <a class="btn btn-danger" href="{{ url_for('eboard.projects', username=current_user.username) }}">Abort</a>
+                {% if projectid %}
+                    <a class="btn btn-danger" href="{{ url_for('eboard.project_show', 
+                        username=current_user.username, project_id=projectid) }}">Abort</a>
+                {% else %}
+                    <a class="btn btn-danger" href="{{ url_for('eboard.projects', 
+                        username=current_user.username) }}">Abort</a>
+                {% endif %}
             </div>
 
         </form>
