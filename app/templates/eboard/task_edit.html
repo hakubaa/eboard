@@ -82,7 +82,7 @@ $('#deadlinepicker').datetimepicker({
 
            <div class="form-group">
                 {{ form.body.label(class="control-label") }} 
-                {{ form.body(class="form-control input-sm", rows="4") }}
+                {{ form.body(class="form-control input-sm", rows="8") }}
                 {% if form.errors %}
                     <div class="has-error">
                         <div class="help-block">{{ form.body.errors }}</div>
@@ -90,14 +90,40 @@ $('#deadlinepicker').datetimepicker({
                 {% endif %}
             </div>
 
-            {{ macros.newtag_select("task-edit-tags", "task-edit-tags-select", "task-edit-tags-output") }}
+            <div class="form-group">
+                <label class="control-label" for="tags-list">Tags</label> 
+                <div>
+                    <ul class="list-inline" id="task-edit-tags">
+                        <li>
+                            <select class="form-control input-sm ignore" 
+                                    id="task-edit-tags-select" 
+                                    name="tag" value="none">
+                            </select>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            {{ form.tags(hidden="", id="task-edit-tags-output")}}
 
             <div class="form-group">
                 {{ form.submit(class="btn btn-primary") }}
-                <a class="btn btn-danger" href="{{ url_for('eboard.tasks', username=current_user.username) }}">Abort</a>
+                <a class="btn btn-danger" href="{{ url_for('eboard.tasks', 
+                    username=current_user.username) }}">Abort</a>
             </div>
         </form>
     </div>
 </div>
-{{ macros.newtag_model("new-tag-model", "new-tag-name") }}
+{{ macros.newtag_model("modal-new-tag", "new-tag-name") }}
+{% endblock %}
+
+{% block body_scripts %}
+<script src="{{ url_for('static', filename='js/eboard.tags.js') }}"></script>
+<script>
+    var tags4task = new TagsPicker({
+            input: $("#task-edit-tags-select"),
+            output: $("#task-edit-tags-output"),
+            list: $("#task-edit-tags"),
+            modal: $("#modal-new-tag")
+        });
+</script>
 {% endblock %}

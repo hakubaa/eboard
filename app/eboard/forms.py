@@ -22,7 +22,7 @@ class TaskForm(Form):
     submit = SubmitField("Submit")
     tags = StringField("Tags")
 
-        
+
 class NoteForm(Form):
     title = StringField("Title", validators=[DataRequired()])
     body = TextAreaField("What's on your mind?", validators = [DataRequired()])

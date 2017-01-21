@@ -2,10 +2,11 @@
 {% import "bootstrap/wtf.html" as wtf %}
 {% import "_macros.html" as macros %}
 
-{% block title %}JAGO - e-Board{% endblock %}
+{% block title %}JAGO - e-Board - Notes{% endblock %}
 
 {% block styles %}
 {{ super() }}
+<link rel="stylesheet" href="{{url_for('static', filename='css/eboard.project.css')}}">
 <style>
 ul.notes {
     list-style-type: none;
@@ -47,78 +48,114 @@ select#tag {
 select#project {
     width:auto !important;
 }
-
+#new-note-btn {
+    margin-left: 16px; 
+}
 </style>
 {% endblock %}
 
-{% block page_content %}
+{% block content %}
 <div class="container">
-    <form class="form-horizontal" method="POST" action="">
-        {{ form.csrf_token }}
-        <div class="form-group">
-            <label for="tag" class="col-sm-1 control-label">
-                Tags
-            </label>
-            <div class="col-sm-11">
-                {{ form.tag(class="form-control", onchange="this.form.submit()") }}
-            </div>
-        </div>
-        <div class="form-group">
-            <label for="project" class="col-sm-1 control-label">Project</label>
-            <div class="col-sm-11">
-                {{ form.project(class="form-control", onchange="this.form.submit()") }}
-            </div>
-        </div>
-    </form>
-</div>
+    <a href="{{url_for('eboard.note_create', username=user.username)}}" 
+       class="btn btn-primary" role="button" id="new-note-btn">Create New Note</a>
 {% if notes %}
-<div class="container">
-    <ul class="notes">
-        {% for note in notes %}
-            <li class="note">
-                <div class="note-content">
-                    <div class="note-date">{{moment(note.timestamp).format("LLL")}} 
-                        ({{moment(note.timestamp).fromNow()}})</div>
-                    <div class="note-title">
-                        {{note.title}}
-                        {% if note.project_id %}
-                            <a href="project/{{note.project_id}}">
-                            ({{note.project_name}})
+    <div class="container">
+        <ul class="notes">
+            {% for note in notes %}
+                <li class="note" data-noteid="{{note.id}}">
+                    <div class="note-content">
+                        <div class="note-date">{{note.timestamp.strftime("%Y-%m-%d")}} </div>
+                        <div class="note-title">
+                            {{note.title}}
+                            {% if note.project_id %}
+                                <a href="{{ url_for('eboard.project_show', username=user.username,
+                                                    project_id=note.project_id) }}">
+                                (Go to project)
+                                </a>
+                            {% endif %}
+                        </div>
+                        <div class="note-tags">{{note.tags | join(' ', attribute='name')}}</div>
+                        <div class="note-body">
+                            {{note.body[:250]}}
+                            {% if note.body|length  > 250 %}
+                                (...)
+                            {% endif %}
+                        </div>
+                        <div class="note-footer">
+                            <a href="{{ url_for('eboard.note_edit', username=user.username, 
+                                       note_id=note.id) }}">
+                                <span class="label label-primary">Edit</span>
                             </a>
-                        {% endif %}
+                            <a href="{{ url_for('eboard.note_delete', 
+                                        username=user.username, note_id=note.id) }}" 
+                                onclick="return confirm('Are your sure you want to remove this note?')">
+                                <span class="label label-danger">Remove</span>
+                            </a>
+                        </div>
                     </div>
-                    <div class="note-tags">{{note.tags | join(' ', attribute='name')}}</div>
-                    <div class="note-body">{{note.body}}</div>
-                    <div class="note-footer">
-                        <a href="{{ url_for('eboard.editnote', noteid=note.id) }}">
-                            <span class="label label-primary">Edit</span>
-                        </a>
-                        <a href="{{ url_for('eboard.removenote', noteid=note.id) }}" 
-                            onclick="return confirm('Are your sure you want to remove this note?')">
-                            <span class="label label-danger">Remove</span>
-                        </a>
-                    </div>
-                </div>
-            </li>
-        {% endfor %}
-    </ul>
-</div>
-<div class="pagination">
-{{ macros.pagination_widget(pagination, 'eboard.notes') }}
-</div>
+                </li>
+            {% endfor %}
+        </ul>
+        <div class="pagination">
+            {{ macros.pagination_widget(pagination, 'eboard.notes', 
+                                        username=user.username) }}
+        </div>
+    </div>
 {% else %}
-<div class="container">
-    <p>Create your fist note</p>
-</div>
+    <div class="container">
+        <p>Create your fist note</p>
+    </div>
 {% endif %}
+</div>
 
+<!-- Modal Note (Show) -->
+<div class="modal" id="modal-note-show" role="dialog" aria-labelledby="gridSystemModalLabel">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                <span aria-hidden="true">&times;</span></button>
+                <h4 class="modal-title" id="note-show-title"></h4>
+            </div>
+            <div class="modal-body">
+                <p id="note-show-body"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" 
+                    data-dismiss="modal">Close</button>
+            </div>
+        </div><!-- /.modal-content -->
+    </div><!-- /.modal-dialog -->
+</div><!-- /.modal -->
 {% endblock %}
 
-{% block extra_navbar %}
-    <div class="navbar subnavbar" role="navigation">
-        <p class="navbar-text subnavbar-text">Notes /</p>
-        <ul class="nav navbar-nav subnavbar-nav">
-            <li><a href="{{ url_for('eboard.editnote') }}">New Note</a></li>
-        </ul>
-    </div>
+{% block body_scripts %}
+<script>
+$(document).on("click", ".note", function() {
+    var noteId = $(this).data("noteid");
+    $.ajax({
+        url: "/api/users/{{user.username}}/notes/" + noteId,
+        type: "GET"
+    })
+        .done(function(data, status, xhr) {
+            var $modal = $("#modal-note-show");
+            $modal.find("#note-show-title").text(data["title"]);
+            if (data["body"] === "" || data["body"] === null) {
+                $modal.find("#note-show-body").text("No description."); 
+            } else {
+                $modal.find("#note-show-body").text(data["body"]);
+            }
+            $modal.modal("show");
+        })
+        .fail(function(jqXHR, textStatus, errorThrown) {
+            var status = "ERROR";
+            if (textStatus !== null) status = textStatus.toUpperCase();
+            alert(status + ": " + errorThrown);  
+        });   
+});
+
+$(".note a").click(function(event) {
+    event.stopImmediatePropagation();
+});
+</script>
 {% endblock %}

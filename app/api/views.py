@@ -145,7 +145,11 @@ def task_get(user, task_id):
     task = db.session.query(Task).join(User).filter(
                 User.id == user.id, Task.id == task_id).first()
     if not task:
-        return "", 404
+        # Look for task in user's projects
+        task = user.projects.join(Milestone).join(Task).with_entities(Task).\
+                   filter(Task.id == task_id).one_or_none()
+        if not task:
+            return "", 404
     return jsonify(task.to_dict()), 200
 
 @api.route("/users/<username>/tasks/<task_id>", methods=["PUT"])
@@ -154,7 +158,11 @@ def task_edit(user, task_id):
     task = db.session.query(Task).join(User).filter(
                 User.id == user.id, Task.id == task_id).first()
     if not task:
-        return "", 404
+        # Look for task in user's projects
+        task = user.projects.join(Milestone).join(Task).with_entities(Task).\
+                   filter(Task.id == task_id).one_or_none()
+        if not task:
+            return "", 404
 
     data = request.form.to_dict()
     try:
@@ -171,7 +179,12 @@ def task_delete(user, task_id):
     task = db.session.query(Task).join(User).filter(
                 User.id == user.id, Task.id == task_id).first()
     if not task:
-        return "", 404
+        # Look for task in user's projects
+        task = user.projects.join(Milestone).join(Task).with_entities(Task).\
+                   filter(Task.id == task_id).one_or_none()
+        if not task:
+            return "", 404
+
     db.session.delete(task)
     db.session.commit()
     return "", 204
@@ -216,7 +229,11 @@ def note_get(user, note_id):
     note = db.session.query(Note).join(User).filter(User.id == user.id,
                 Note.id == note_id).first()
     if not note:
-        return "", 404
+        # Look for note in user's projects
+        note = user.projects.join(Note).with_entities(Note).\
+                   filter(Note.id == note_id).one_or_none()
+        if not note:
+            return "", 404
     return jsonify(note.to_dict()), 200
 
 @api.route("/users/<username>/notes/<note_id>", methods=["PUT"])
@@ -225,7 +242,11 @@ def note_edit(user, note_id):
     note = db.session.query(Note).join(User).filter(User.id == user.id,
                 Note.id == note_id).first()
     if not note:
-        return "", 404
+        # Look for note in user's projects
+        note = user.projects.join(Note).with_entities(Note).\
+                   filter(Note.id == note_id).one_or_none()
+        if not note:
+            return "", 404
 
     data = request.form.to_dict()
     try:
@@ -241,7 +262,11 @@ def note_delete(user, note_id):
     note = db.session.query(Note).join(User).filter(User.id == user.id,
                 Note.id == note_id).first()
     if not note:
-        return "", 404
+        # Look for note in user's projects
+        note = user.projects.join(Note).with_entities(Note).\
+                   filter(Note.id == note_id).one_or_none()
+        if not note:
+            return "", 404
     db.session.delete(note)
     db.session.commit()
     return "", 204
@@ -336,7 +361,7 @@ def project_notes(user, project_id):
                     Project.id == project_id).first()
     if not project:
         return "", 404
-    data = [ note.get_info() for note in project.notes.all() ]
+    data = [ note.get_info() for note in project.notes ]
     for note in data:
         note["uri"] = url_for("api.project_note_get", username=user.username,
                               project_id=project.id, note_id=note["id"])
@@ -423,7 +448,7 @@ def milestones(user, project_id):
                   Project.id == project_id).one_or_none()
     if not project:
         return "", 404
-    data = [ milestone.get_info() for milestone in project.milestones.all() ]
+    data = [ milestone.get_info() for milestone in project.milestones ]
     for milestone in data:
         milestone["uri"] = url_for("api.milestone_get", username=user.username,
                                    project_id=project.id,
@@ -550,7 +575,7 @@ def milestone_tasks(user, project_id, milestone_id):
                     Milestone.id == milestone_id).first()
     if not milestone:
         return "", 404
-    data = [ task.get_info() for task in milestone.tasks.all() ]
+    data = [ task.get_info() for task in milestone.tasks ]
     for task in data:
         task["uri"] = url_for("api.milestone_task_get", task_id=task["id"],
                               milestone_id=milestone.id,
@@ -637,14 +662,14 @@ def milestone_task_delete(user, project_id, milestone_id, task_id):
 @login_required
 def tags():
     tags_db = db.session.query(Tag).all()
-    data = [ tag.to_dict()["name"] for tag in tags_db ]
+    data = [ tag.to_dict() for tag in tags_db ]
     return jsonify(data), 200
 
 @api.route("/tags/<name>", methods=["PUT"])
 @login_required
 def tag_create(name):
     tag = Tag.find_or_create(name)
-    return "", 201
+    return jsonify({"id": tag.id, "name": tag.name}), 201
 
 @api.route("/tags/<name>", methods=["GET"])
 def tag_get(name):

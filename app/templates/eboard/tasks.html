@@ -5,23 +5,119 @@
 
 {% block styles %}
 {{ super() }}
+<link rel="stylesheet" href="{{url_for('static', filename='css/eboard.project.css')}}">
+<style>
+ul.tasks {
+    list-style-type: none;
+    padding: 0px;
+    margin: 16px 0px 0px 0px;
+    border-top: 1px solid #333;
+}
+ul.tasks li.task {
+    padding: 8px;
+    border-bottom: 1px solid #333;
+    cursor: pointer;
+}
+li.task-delayed {
+    background-color: #ffcdd2;
+}
+li.task-5days {
+    background-color: #fff9c4;
+}
+li.task-distant {
+    background-color: #c8e6c9;
+}
+li.task-complete {
+    background-color: #bbdefb;
+}
+li.task:hover {
+    background-color: #bcaaa4;
+}
+div.task-date {
+    float: right;
+}
+div.task-title {
+    font-size: 1.2em;
+    font-weight: bold;
+}
+div.task-thumbnail {
+    position: absolute;
+}
+div.task-content {
+    min-height: 48px;
+}
+div.task-body {
+    padding: 10px 0px 0px 0px;
+}
+div.task-tags {
+    font-size: small;
+    color: navy;
+    font-style: italic;
+}
+select#tag {
+    width:auto !important;
+}
+
+select#project {
+    width:auto !important;
+}
+#new-task-btn {
+    margin-left: 16px; 
+}
+</style>
 {% endblock %}
 
 {% block content %}
 <div class="container">
+    <a href="{{url_for('eboard.task_create', username=user.username)}}" 
+       class="btn btn-primary" role="button" id="new-task-btn">Create New Task</a>
     {% if tasks %}
         <div class="container">
             <ul class="tasks">
                 {% for task in tasks %}
-                    <li class="note">
-                        <div class="note-content">
-                            <div class="note-date">{{moment(task.deadline).format("LLL")}} 
-                                ({{moment(task.deadline).fromNow()}})</div>
-                            <div class="note-title">
-                                {{task.title}}
+                    <li class="task
+                    {% if task.complete %}
+                        task-complete
+                    {% elif task.daysleft < 0 %}
+                        task-delayed
+                    {% elif task.daysleft < 5 %}
+                        task-5days
+                    {% else %}
+                        task-distant
+                    {% endif %}" data-taskid="{{task.id}}">
+                        <div class="task-content">
+                            <div class="task-date">
+                                {{task.deadline.strftime("%Y-%m-%d")}} 
+                                {% if not task.complete %}
+                                    ({{task.daysleft|abs}} days 
+                                    {% if task.daysleft < 0 %} 
+                                        delayed 
+                                    {% else %} 
+                                        left 
+                                    {% endif %})
+                                {% endif %}
                             </div>
-                            <div class="note-tags">{{task.tags | join(' ', attribute='name')}}</div>
-                            <div class="note-body">{{task.body}}</div>
+                            <div class="task-title">
+                            {{task.title}}
+                            {% if task.milestone %}
+                                <a href="{{ url_for('eboard.project_show', username=user.username,
+                                                    project_id=task.milestone.project_id) }}">
+                                <small>(Go to project)</small>
+                                </a>
+                            {% endif %}
+                            </div>
+                            <div class="task-tags">{{task.tags | join(' ', attribute='name')}}</div>
+                            <div class="task-footer">
+                                <a href="{{ url_for('eboard.task_edit', username=user.username, 
+                                           task_id=task.id) }}">
+                                    <span class="label label-primary">Edit</span>
+                                </a>
+                                <a href="{{ url_for('eboard.task_delete', 
+                                            username=user.username, task_id=task.id) }}" 
+                                    onclick="return confirm('Are your sure you want to remove this task?')">
+                                    <span class="label label-danger">Remove</span>
+                                </a>
+                            </div>
                         </div>
                     </li>
                 {% endfor %}
@@ -34,4 +130,105 @@
         <p>Create your fist task.</p>
     {% endif %}
 </div>
+
+<!-- Modal Task (Show) -->
+<div class="modal" id="modal-task-show" role="dialog" aria-labelledby="gridSystemModalLabel">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                <h4 class="modal-title" id="task-show-main-title"></h4>
+            </div>
+            <div class="modal-body">
+                <table id="task-show-header">
+                    <tbody>
+                        <tr>
+                            <td>Title:</td>
+                            <td id="task-show-title"></td>
+                        </tr>
+                        <tr>
+                            <td>Deadline:</td>
+                            <td id="task-show-deadline"></td>
+                        </tr>
+                        <tr>
+                            <td>Created:</td>
+                            <td id="task-show-created"></td>
+                        </tr>
+                        <tr>
+                            <td>Complete:</td>
+                            <td id="task-show-complete"></td>
+                        </tr>
+                        <tr>
+                            <td>Active:</td>
+                            <td id="task-show-active"></td>
+                        </tr>
+                    </tbody>
+                </table>
+                <p id="task-show-body"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" 
+                    data-dismiss="modal">Close</button>
+            </div>
+        </div><!-- /.modal-content -->
+    </div><!-- /.modal-dialog -->
+</div><!-- /.modal -->
+{% endblock %}
+
+
+{% block body_scripts %}
+<script>
+    $(document).on("click", ".task", function() {
+        var taskId = $(this).data("taskid");
+        var $modal = $("#modal-task-show");
+
+        $modal.find("#task-show-main-title").html("Loading ...");
+        $modal.modal("show");
+
+        $.ajax({
+            url: "/api/users/{{user.username}}/tasks/" + taskId,
+            type: "GET"
+        })
+            .done(function(data, status, xhr) {
+                $modal.find("#task-show-main-title").html(data["title"]);
+                $modal.find("#task-show-title").html(data["title"]);
+                $modal.find("#task-show-deadline").html(data["deadline"] + 
+                    " (" + Math.abs(data["daysleft"]) + " day(s) " +
+                    (data["daysleft"] < 0 ? "delayed" : "left") + ")");
+                if (parseInt(data["daysleft"]) < 0) {
+                    $modal.find("#task-show-deadline").css("color", "red");   
+                } else {
+                    $modal.find("#task-show-deadline").css("color", "green");   
+                }
+                if (data["complete"]) {
+                    $modal.find("#task-show-complete").html("Yes");
+                } else {
+                    $modal.find("#task-show-complete").html("No"); 
+                }
+                if (data["active"]) {
+                    $modal.find("#task-show-active").html("Yes");
+                } else {
+                    $modal.find("#task-show-active").html("No");
+                }
+                $modal.find("#task-show-created").html(data["created"]);
+                // $modal.find("#task-show-importance").html(data["importance"]);
+                // $modal.find("#task-show-urgency").html(data["urgency"]);
+                if (data["body"] === "" || data["body"] === null) {
+                    $modal.find("#task-show-body").text("No description."); 
+                } else {
+                    $modal.find("#task-show-body").text(data["body"]);
+                }
+            })
+            .fail(function(jqXHR, textStatus, errorThrown) {
+                var status = "ERROR";
+                if (textStatus !== null) status = textStatus.toUpperCase();
+                alert(status + ": " + errorThrown);  
+            });    
+    });
+
+    $(".task a").click(function(event) {
+        event.stopImmediatePropagation();
+    });
+
+</script>
 {% endblock %}

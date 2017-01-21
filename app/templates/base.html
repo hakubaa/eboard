@@ -67,7 +67,7 @@
                         Projects</a></li>
                     <li><a href="{{ url_for('eboard.tasks', username=current_user.username) }}">
                         Tasks</a></li>
-                    <li><a href="{{ url_for('eboard.notes') }}">Notes</a></li>
+                    <li><a href="{{ url_for('eboard.notes', username=current_user.username) }}">Notes</a></li>
                     <li><a href="{{ url_for('mail.client') }}">E-Mail</a></li>
                     <li><a href="#">Links</a></li>
                     <li><a href="#">Files</a></li>

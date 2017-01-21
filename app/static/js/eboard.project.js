@@ -379,7 +379,7 @@ function initUI() {
         var desc = $("#milestone-desc").val();
         var milestoneId = $("#modal-milestone-edit").data("milestoneid");
 
-        if (milestoneId !== -1) { // update milestone
+        if (milestoneId != "-1") { // update milestone
             project.updateMilestone({
                 milestoneId: milestoneId, title: title, desc: desc
             }, function(data, status, xhr) {
@@ -409,8 +409,8 @@ function initUI() {
     $(document).on("click", ".milestone-option-add-task", function() {
         var milestoneId = $(this).parent().parent().parent().data("milestoneid");
         var $modal = $("#modal-task-edit");
-        $modal.data("milestoneid", milestoneId);
         $modal.modal("show");
+        $modal.data("milestoneid", milestoneId);
     });
 
     $(document).on("click", ".task-btn-edit", function() {
@@ -484,7 +484,7 @@ function initUI() {
         var $milestone = $(".project-milestone[data-milestoneid='" + 
                            milestoneId + "']");
 
-        if (taskId !== -1) { // update the task
+        if (taskId != "-1") { // update the task
             project.updateTask({
                 taskId: taskId, milestoneId: milestoneId,
                 title: title, body: body, deadline: deadline
@@ -644,7 +644,7 @@ function initUI() {
         var body = $("#note-body").val();
         var noteId = $("#modal-note-edit").data("noteid");
 
-        if (noteId !== -1) { // update the task
+        if (noteId != "-1") { // update the task
             project.updateNote({
                 noteId: noteId, title: title, body: body
             }, function(data, status, xhr) {
@@ -677,13 +677,13 @@ function initUI() {
         project.getNote({noteId: noteId}, 
             function(data, status, xhr) {
                 var $modal = $("#modal-note-show");
+                $modal.modal("show");
                 $modal.find("#note-show-title").text(data["title"]);
                 if (data["body"] === "" || data["body"] === null) {
                     $modal.find("#note-show-body").text("No description."); 
                 } else {
                     $modal.find("#note-show-body").text(data["body"]);
                 }
-                $modal.modal("show");
             }, ajaxErrorsHandler);
     });
 
@@ -778,7 +778,8 @@ function createMilestoneElement(id, title) {
 
     var div = document.createElement("div");
     div.className = "milestone-label";
-    div.innerHTML = "<span class='milestone-title'>" + title + "</span><div class='arrow arrow-down'></div>";
+    div.innerHTML = "<span class='milestone-title'>" + title + 
+                    "</span><div class='arrow arrow-down'></div>";
 
     var options = document.createElement("ul");
     options.className = "milestone-options";

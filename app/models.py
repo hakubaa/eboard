@@ -7,6 +7,7 @@ from flask import redirect, url_for
 from sqlalchemy import func
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm import class_mapper
+from sqlalchemy.ext.hybrid import hybrid_property
 
 from app import db
 from app.utils import merge_dicts
@@ -169,7 +170,7 @@ class Task(db.Model):
                 "daysleft": self.daysleft, "id": self.id
              }
 
-    @property
+    @hybrid_property
     def daysleft(self):
         return (self.deadline - datetime.now()).days
 
@@ -471,9 +472,9 @@ class Project(db.Model):
     complete = db.Column(BooleanString(), default=False)
 
     milestones = db.relationship("Milestone", back_populates="project",
-        cascade = "all, delete, delete-orphan", lazy="dynamic")
+        cascade = "all, delete, delete-orphan")
     notes = db.relationship("Note", back_populates="project",
-        cascade = "all, delete, delete-orphan", lazy="dynamic")
+        cascade = "all, delete, delete-orphan")
 
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
     user = db.relationship("User", back_populates = "projects")
@@ -550,7 +551,7 @@ class Project(db.Model):
         db.session.add(milestone)
 
         # Update mileston position
-        if self.milestones.count() > 0:
+        if len(self.milestones) > 0:
             last_position = db.session.query(func.max(Milestone.position)) \
                                       .filter(Milestone.project_id == self.id) \
                                       .one()
@@ -640,7 +641,7 @@ class Milestone(db.Model):
     project = db.relationship("Project", back_populates="milestones")
 
     tasks = db.relationship("Task", back_populates="milestone",
-        cascade = "all, delete, delete-orphan", lazy="dynamic")
+        cascade = "all, delete, delete-orphan")
 
     def __init__(self, *args, **kwargs):
         # Get rid of redundant fields in kwargs

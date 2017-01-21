@@ -34,7 +34,8 @@
 
 {% macro newtag_model(modelid, newtagid) %}
 <!-- Modal Add New Tag -->
-<div class="modal" id="{{modelid}}" role="dialog" aria-labelledby="gridSystemModalLabel">
+<div class="modal" id="{{modelid}}" role="dialog" aria-labelledby="gridSystemModalLabel"
+     data-tagslistid="-1">
     <div class="modal-dialog" role="document">
         <div class="modal-content">
             <div class="modal-header">
@@ -60,7 +61,8 @@
     <div>
         <ul class="list-inline" id="{{tagslistid}}">
             <li>
-                <select class="form-control input-sm ignore" id="{{tagselectid}}" name="tag" value="none">
+                <select class="form-control input-sm ignore" id="{{tagselectid}}" 
+                        name="tag" value="none">
                 </select>
             </li>
         </ul>

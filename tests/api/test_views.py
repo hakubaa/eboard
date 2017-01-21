@@ -311,6 +311,20 @@ class TestApiTask(ApiTestCase):
                                               task_id=task.id+1))
         self.assertEqual(response.status_code, 404)
 
+    def test_get_task_from_project(self):
+        user = self.create_user(name="Test")
+        project = user.add_project(name="Project", 
+                                   deadline=datetime(2019, 1, 1, 0, 0))
+        milestone = project.add_milestone(title="New Milestone")
+        task = milestone.add_task(title="My First Task!",
+                                  deadline=datetime(2019, 1, 1, 0, 0))
+        self.login(name="Test")
+        response = self.client.get(url_for("api.task_get", username="Test",
+                                           task_id=task.id))
+        self.assertEqual(response.status_code, 200)
+        data = response.json
+        self.assertEqual(data["title"], task.title)
+
        
 class TestApiNotesList(ApiTestCase):
     
@@ -793,7 +807,7 @@ class TestApiMilestone(ApiTestCase):
                                               project_id=project.id, 
                                               milestone_id=milestone.id))
         self.assertEqual(response.status_code, 204)
-        self.assertEqual(project.milestones.count(), 0)
+        self.assertEqual(len(project.milestones), 0)
         self.assertEqual(db.session.query(Milestone).count(), 0)
 
     def test_delete_request_returns_Not_Found_for_unknwon_id(self):
@@ -1039,7 +1053,7 @@ class TestApiProjectNoteItem(ApiTestCase):
                                               project_id=project.id, 
                                               note_id=note.id))
         self.assertEqual(response.status_code, 204)
-        self.assertEqual(project.notes.count(), 0)
+        self.assertEqual(len(project.notes), 0)
         self.assertEqual(db.session.query(Note).count(), 0)
 
     def test_delete_request_returns_Not_Found_for_unknwon_note_id(self):
@@ -1121,7 +1135,7 @@ class TestApiProjectMilestoneTasksList(ApiTestCase):
                                     data=dict(title="First Task", 
                                               deadline="2017-01-01 00:00"))
         self.assertEqual(response.status_code, 201)
-        task = user.projects[0].milestones[0].tasks.one()
+        task = user.projects[0].milestones[0].tasks[0]
         self.assertEqual(task.milestone.project, project)
         self.assertEqual(task.title, "First Task")
 
@@ -1257,7 +1271,7 @@ class TestApiProjectMilestoneTaskItem(ApiTestCase):
                                               milestone_id=milestone.id,
                                               task_id=task.id))
         self.assertEqual(response.status_code, 204)
-        self.assertEqual(milestone.tasks.count(), 0)
+        self.assertEqual(len(milestone.tasks), 0)
         self.assertEqual(db.session.query(Task).count(), 0)
 
     def test_delete_request_returns_Not_Found_for_unknwon_id(self):
