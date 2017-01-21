@@ -115,7 +115,7 @@ class TestTasks(EboardTestCase):
                         data=dict(page=1))
         tasks = self.get_context_variable("tasks")
         self.assertEqual(len(tasks), 2)
-        self.assertEqual(tasks[1].title, "Test Task")
+        self.assertEqual(tasks[0].title, "Test Task")
 
     def test_render_tasks_from_projecs(self):
         user = self.create_user(username="Test")
@@ -690,8 +690,21 @@ class TestNewNote(EboardTestCase):
                          follow_redirects=False)
         self.assertNotEqual(response.data.find(b"This field is required."), -1)
 
+    def test_creates_note_with_tags(self):
+        user = self.create_user(username="Test")
+        self.login(username="Test")
+        self.client.post(url_for("eboard.note_create", username="Test"), 
+                         data=dict(title="My Note!!!", 
+                                   body="My Note! My precious Note!",
+                                   tags="Tag1, Tag2,   Tag3"),
+                         follow_redirects=True)
+        note = user.notes.one()
+        self.assertEqual(len(note.tags), 3)
+        tags = set([ tag.name for tag in note.tags ])
+        self.assertEqual({"Tag1", "Tag2", "Tag3"}, tags)
 
-class EditNoteTest(EboardTestCase):
+
+class TestEditNote(EboardTestCase):
 
     def test_renders_proper_template(self):
         user = self.create_user(username="Test")
@@ -760,6 +773,22 @@ class EditNoteTest(EboardTestCase):
         note = project.notes[0]
         self.assertEqual(note.title, "Updated Note")
         self.assertEqual(note.body, "Future is today.")
+
+    def test_update_note_remove_old_tags(self):
+        user = self.create_user(username="Test")
+        note = user.add_note(title="Test Note", 
+                             body="Very Important Note!")
+        self.login(username="Test")
+        self.client.post(url_for("eboard.note_edit", username="Test", 
+                                 note_id=note.id), 
+                         data=dict(title="New Note Title", 
+                                   body="Note without body!",
+                                   tags="Test, E-Board, New"),
+                         follow_redirects=True)
+        note = user.notes.one()
+        self.assertEqual(len(note.tags), 3)
+        tags = set([ tag.name for tag in note.tags ])
+        self.assertEqual({"Test", "E-Board", "New"}, tags)  
 
 
 class TestDeleteNote(EboardTestCase):

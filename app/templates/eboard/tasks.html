@@ -140,11 +140,15 @@ select#project {
                 <h4 class="modal-title" id="task-show-main-title"></h4>
             </div>
             <div class="modal-body">
-                <table id="task-show-header">
+                <table class="resource-header">
                     <tbody>
                         <tr>
                             <td>Title:</td>
                             <td id="task-show-title"></td>
+                        </tr>
+                        <tr>
+                            <td>Tags:</td>
+                            <td id="task-show-tags"></td>
                         </tr>
                         <tr>
                             <td>Deadline:</td>
@@ -164,7 +168,7 @@ select#project {
                         </tr>
                     </tbody>
                 </table>
-                <p id="task-show-body"></p>
+                <p class="resource-body"></p>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-default" 
@@ -211,12 +215,18 @@ select#project {
                     $modal.find("#task-show-active").html("No");
                 }
                 $modal.find("#task-show-created").html(data["created"]);
-                // $modal.find("#task-show-importance").html(data["importance"]);
-                // $modal.find("#task-show-urgency").html(data["urgency"]);
-                if (data["body"] === "" || data["body"] === null) {
-                    $modal.find("#task-show-body").text("No description."); 
+                var tags = data["tags"].map(
+                        function(item) { return item["name"]; }
+                    ).join(", ");
+                if (tags === "") {
+                    $modal.find("#task-show-tags").html(" ------ ");
                 } else {
-                    $modal.find("#task-show-body").text(data["body"]);
+                    $modal.find("#task-show-tags").html(tags);
+                }
+                if (data["body"] === "" || data["body"] === null) {
+                    $modal.find(".resource-body").text("No description."); 
+                } else {
+                    $modal.find(".resource-body").text(data["body"]);
                 }
             })
             .fail(function(jqXHR, textStatus, errorThrown) {

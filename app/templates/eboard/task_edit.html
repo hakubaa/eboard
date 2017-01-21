@@ -6,7 +6,6 @@
 
 {% block styles %}
 {{ super() }}
-
 <style>
     #task-header {
         margin-top: -20px;
@@ -22,20 +21,10 @@
         right: 0px;
     }
 </style>
-<link rel="stylesheet" href="{{url_for('static', filename='css/bootstrap-datetimepicker.css')}}">
 {% endblock %}
 
 {% block scripts %}
 {{ super() }}
-<script src="{{url_for('static', filename='scripts/bootstrap-datetimepicker.min.js')}}"></script>
-<script src="{{url_for('static', filename='scripts/eboard-tagspicker.js')}}"></script>
-<script src="{{url_for('static', filename='scripts/eboard-tagslist.js')}}"></script>   
-<script>
-
-
-$('#deadlinepicker').datetimepicker({
-    format: "YYYY-MM-DD HH:mm"
-});
 
 </script>
 {% endblock %}
@@ -125,5 +114,10 @@ $('#deadlinepicker').datetimepicker({
             list: $("#task-edit-tags"),
             modal: $("#modal-new-tag")
         });
+
+    $("#modal-new-tag").on("show.bs.modal", function(event) {
+        var $modal = $(this);
+        $modal.find("#new-tag-name").val("");
+    });
 </script>
 {% endblock %}

@@ -126,6 +126,8 @@ def task_create(user):
     # Two fields are required
     if not "title" in data or not "deadline" in data:
         return "", 400
+    if "tags" in data:
+        data["tags"] = [tag.strip() for tag in data["tags"].split(",")]
 
     try:
         task = user.add_task(**data)
@@ -165,6 +167,9 @@ def task_edit(user, task_id):
             return "", 404
 
     data = request.form.to_dict()
+    if "tags" in data:
+        data["tags"] = [tag.strip() for tag in data["tags"].split(",")]
+
     try:
         task.update(**data)
     except sqlalchemy.exc.StatementError:
@@ -210,6 +215,8 @@ def note_create(user):
     # Title is required
     if "title" not in data:
         return "", 400
+    if "tags" in data:
+        data["tags"] = [tag.strip() for tag in data["tags"].split(",") ]
 
     try:
         note = user.add_note(**data)
@@ -249,6 +256,9 @@ def note_edit(user, note_id):
             return "", 404
 
     data = request.form.to_dict()
+    if "tags" in data:
+        data["tags"] = [tag.strip() for tag in data["tags"].split(",")]
+
     try:
         note.update(**data)
     except sqlalchemy.exc.StatementError:
@@ -377,6 +387,8 @@ def project_note_create(user, project_id):
                     Project.id == project_id).first()
     if not project:
         return "", 404
+    if "tags" in data:
+        data["tags"] = data["tags"].split(",")
 
     try:
         note = project.add_note(**data)
@@ -413,7 +425,9 @@ def project_note_edit(user, project_id, note_id):
     if not note:
         return "", 404
     data = request.form.to_dict()
-
+    if "tags" in data:
+        data["tags"] = data["tags"].split(",")
+        
     try:
         note.update(**data)
     except sqlalchemy.exc.StatementError:
@@ -595,6 +609,8 @@ def milestone_task_create(user, project_id, milestone_id):
     data = request.form.to_dict()
     if "title" not in data or "deadline" not in data:
         return "", 400
+    if "tags" in data:
+                data["tags"] = data["tags"].split(",")
 
     try:
         task = milestone.add_task(**data)
@@ -632,6 +648,9 @@ def milestone_task_edit(user, project_id, milestone_id, task_id):
     if not task:
         return "", 404
     data = request.form.to_dict()
+    if "tags" in data:
+        data["tags"] = [tag.strip() for tag in data["tags"].split(",")]
+
     try:
         task.update(**data)
     except sqlalchemy.exc.StatementError:

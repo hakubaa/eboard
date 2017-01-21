@@ -17,6 +17,7 @@ ul.notes {
 ul.notes li.note {
     padding: 8px;
     border-bottom: 1px solid #e0e0e0;
+    cursor: pointer;
 }
 ul.notes li.note:hover {
     background-color: #f0f0f0;
@@ -115,10 +116,26 @@ select#project {
             <div class="modal-header">
                 <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                 <span aria-hidden="true">&times;</span></button>
-                <h4 class="modal-title" id="note-show-title"></h4>
+                <h4 class="modal-title" id="note-show-main-title"></h4>
             </div>
             <div class="modal-body">
-                <p id="note-show-body"></p>
+                <table class="resource-header">
+                    <tbody>
+                        <tr>
+                            <td>Title:</td>
+                            <td id="note-show-title"></td>
+                        </tr>
+                        <tr>
+                            <td>Tags:</td>
+                            <td id="note-show-tags"></td>
+                        </tr>
+                        <tr>
+                            <td>Timestamp:</td>
+                            <td id="note-show-timestamp"></td>
+                        </tr>
+                    </tbody>
+                </table>
+                <p class="resource-body"></p>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-default" 
@@ -139,12 +156,18 @@ $(document).on("click", ".note", function() {
     })
         .done(function(data, status, xhr) {
             var $modal = $("#modal-note-show");
+            $modal.find("#note-show-main-title").text(data["title"]);
             $modal.find("#note-show-title").text(data["title"]);
+            $modal.find("#note-show-timestamp").text(data["timestamp"]);
             if (data["body"] === "" || data["body"] === null) {
-                $modal.find("#note-show-body").text("No description."); 
+                $modal.find(".resource-body").text("No description."); 
             } else {
-                $modal.find("#note-show-body").text(data["body"]);
+                $modal.find(".resource-body").text(data["body"]);
             }
+            var tags = data["tags"].map(function(item) { 
+                    return item["name"]; 
+                }).join(", ");
+            $modal.find("#note-show-tags").text(tags);
             $modal.modal("show");
         })
         .fail(function(jqXHR, textStatus, errorThrown) {

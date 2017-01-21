@@ -56,7 +56,7 @@ TagsPicker.prototype.initInput = function() {
         } else {
             self.addTag(tagName);
         }
-        $(this).val("none");
+        // $(this).val("none");
    });       
 };
 

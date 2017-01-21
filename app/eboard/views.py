@@ -73,9 +73,10 @@ def task_show(user, task_id):
 def task_create(user):
     form = TaskForm(request.form)
     if form.validate_on_submit():
-        tags = [ tag.strip() for tag in form.tags.data.split(",") ]
-        user.add_task(title=form.title.data, deadline=form.deadline.data,
-                      body=form.body.data, tags=tags)
+        data = request.form.to_dict()
+        if "tags" in data:
+            data["tags"] = [ tag.strip() for tag in data["tags"].split(",") ]
+        user.add_task(**data)
         return redirect(url_for("eboard.tasks", username=user.username))       
     return render_template("eboard/task_edit.html", form=form)
 
@@ -194,6 +195,8 @@ def note_create(user):
     form = NoteForm(request.form)
     if form.validate_on_submit():
         data = request.form.to_dict()
+        if "tags" in data:
+            data["tags"] = [ tag.strip() for tag in data["tags"].split(",") ]
         note = user.add_note(**data)
         return redirect(url_for("eboard.notes", username=user.username))
     return render_template("eboard/note_edit.html", form=form)
@@ -207,7 +210,10 @@ def note_edit(user, note_id):
 
     form = NoteForm(request.form, obj=note)
     if form.validate_on_submit():
-        note.update(**form.data)
+        data = { key: value for key, value in form.data.items() 
+                            if key not in ("tags",)}
+        data["tags"] = [ tag.strip() for tag in form.tags.data.split(",") ]
+        note.update(data)
         return redirect(url_for("eboard.notes", username=user.username))
 
     # Adjust tags for template

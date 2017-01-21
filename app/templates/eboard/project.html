@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% import "bootstrap/wtf.html" as wtf %}
+{% import '_macros.html' as macros %}
 
 {% block title %}JAGO - e-Board - Project{% endblock %}
 
@@ -111,6 +112,21 @@
                     <label for="pwd">Description</label>
                     <textarea class="form-control" rows="5" id="task-body"></textarea>
                 </div>
+                <div class="form-group">
+                    <label class="control-label" for="tags-list">Tags</label> 
+                    <div>
+                        <ul class="list-inline" id="task-tags">
+                            <li>
+                                <select class="form-control input-sm ignore" 
+                                        id="task-tags-select" 
+                                        name="tag" value="none">
+                                </select>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                <input hidden="" id="task-tags-output" name="tags" type="text" 
+                       value="">
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
@@ -129,11 +145,15 @@
                 <h4 class="modal-title" id="task-show-main-title"></h4>
             </div>
             <div class="modal-body">
-                <table id="task-show-header">
+                <table class="resource-header">
                     <tbody>
                         <tr>
                             <td>Title:</td>
                             <td id="task-show-title"></td>
+                        </tr>
+                        <tr>
+                            <td>Tags:</td>
+                            <td id="task-show-tags"></td>
                         </tr>
                         <tr>
                             <td>Deadline:</td>
@@ -151,23 +171,11 @@
                             <td>Active:</td>
                             <td id="task-show-active"></td>
                         </tr>
-<!--                         <tr>
-                            <td>Importance:</td>
-                            <td id="task-show-importance"></td>
-                        </tr>
-                        <tr>
-                            <td>Urgency:</td>
-                            <td id="task-show-urgency"></td>
-                        </tr> -->
                     </tbody>
                 </table>
-                <p id="task-show-body"></p>
+                <p class="resource-body"></p>
             </div>
             <div class="modal-footer">
-<!--                 <button type="button" class="btn btn-danger" 
-                    id="task-show-remove-btn">Remove Task</button>
-                <button type="button" class="btn btn-primary" 
-                    id="task-show-edit-btn">Edit Task</button> -->
                 <button type="button" class="btn btn-default" 
                     data-dismiss="modal">Close</button>
             </div>
@@ -234,6 +242,20 @@
                     <label for="pwd">Description</label>
                     <textarea class="form-control" rows="8" id="note-body"></textarea>
                 </div>
+                <div class="form-group">
+                    <label class="control-label" for="note-tags">Tags</label> 
+                    <div>
+                        <ul class="list-inline" id="note-tags">
+                            <li>
+                                <select class="form-control input-sm ignore" 
+                                        id="note-tags-select" 
+                                        name="tag" value="none">
+                                </select>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                <input hidden="" id="note-tags-output" name="tags" type="text" value="">
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
@@ -250,10 +272,26 @@
             <div class="modal-header">
                 <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                 <span aria-hidden="true">&times;</span></button>
-                <h4 class="modal-title" id="note-show-title"></h4>
+                <h4 class="modal-title" id="note-show-main-title"></h4>
             </div>
             <div class="modal-body">
-                <p id="note-show-body"></p>
+                <table class="resource-header">
+                    <tbody>
+                        <tr>
+                            <td>Title:</td>
+                            <td id="note-show-title"></td>
+                        </tr>
+                        <tr>
+                            <td>Tags:</td>
+                            <td id="note-show-tags"></td>
+                        </tr>
+                        <tr>
+                            <td>Timestamp:</td>
+                            <td id="note-show-timestamp"></td>
+                        </tr>
+                    </tbody>
+                </table>
+                <p class="resource-body"></p>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-default" 
@@ -262,10 +300,13 @@
         </div><!-- /.modal-content -->
     </div><!-- /.modal-dialog -->
 </div><!-- /.modal -->
+
+{{ macros.newtag_model("modal-new-tag", "new-tag-name") }}
 {% endblock %}
 
 {% block body_scripts %}
 <script src="{{ url_for('static', filename='js/eboard.project.js') }}"></script>
+<script src="{{ url_for('static', filename='js/eboard.tags.js') }}"></script>
 <script>
     project.init({username: "{{user.username}}", projectId: {{project.id}} }, 
         showProject);

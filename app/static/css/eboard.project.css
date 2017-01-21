@@ -191,26 +191,27 @@ ul#project-upcoming-tasks li {
 #progress-deadline {
     float: right;
 }
-#task-show-header td:first-child {
+
+.resource-header td:first-child {
     text-align: right;
     font-weight: bold;
 }
-#task-show-header td {
+.resource-header td {
     padding: 0px 0px 5px 5px;
     word-wrap: break-word;
 }
-#task-show-body {
+.resource-body {
     word-wrap: break-word;
     padding: 10px 10px 0px 10px;
     text-align: justify;
     border-top: 1px solid lightgray;
 }
+
 #milestone-show-desc {
     word-wrap: break-word;
     padding: 10px 10px 0px 10px;
     text-align: justify;
 }
-
 .note-btn {
     display: inline-block;
     float: right;

@@ -12,12 +12,6 @@
 </style>
 {% endblock %}
 
-{% block scripts %}
-{{ super() }}
-<script src="{{url_for('static', filename='scripts/eboard-tagspicker.js')}}"></script>
-<script src="{{url_for('static', filename='scripts/eboard-tagslist.js')}}"></script>   
-{% endblock %}
-
 {% block content %}
 <div class="container">
     <div class="page-header" id="note-header">
@@ -33,7 +27,8 @@
 
             <div class="form-group required">
                 {{ form.title.label(class="control-label") }} 
-                {{ form.title(required="", class="form-control input-sm", autocomplete="off", required="") }}
+                {{ form.title(required="", class="form-control input-sm", 
+                              autocomplete="off", required="") }}
                 {% if form.title.errors %}
                     <div class="has-error">
                         <div class="help-block">{{ form.title.errors }}</div>
@@ -85,6 +80,11 @@
             output: $("#note-edit-tags-output"),
             list: $("#note-edit-tags"),
             modal: $("#modal-new-tag")
+        });
+
+    $("#modal-new-tag").on("show.bs.modal", function(event) {
+            var $modal = $(this);
+            $modal.find("#new-tag-name").val("");
         });
 </script>
 {% endblock %}

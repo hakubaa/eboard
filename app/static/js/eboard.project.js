@@ -362,12 +362,18 @@ function initUI() {
                     $modal.find("#task-show-active").html("No");
                 }
                 $modal.find("#task-show-created").html(data["created"]);
-                // $modal.find("#task-show-importance").html(data["importance"]);
-                // $modal.find("#task-show-urgency").html(data["urgency"]);
-                if (data["body"] === "" || data["body"] === null) {
-                    $modal.find("#task-show-body").text("No description."); 
+                var tags = data["tags"].map(
+                        function(item) { return item["name"]; }
+                    ).join(", ");
+                if (tags === "") {
+                    $modal.find("#task-show-tags").html(" ------ ");
                 } else {
-                    $modal.find("#task-show-body").text(data["body"]);
+                    $modal.find("#task-show-tags").html(tags);
+                }
+                if (data["body"] === "" || data["body"] === null) {
+                    $modal.find(".resource-body").text("No description."); 
+                } else {
+                    $modal.find(".resource-body").text(data["body"]);
                 }
             },
             ajaxErrorsHandler
@@ -411,6 +417,12 @@ function initUI() {
         var $modal = $("#modal-task-edit");
         $modal.modal("show");
         $modal.data("milestoneid", milestoneId);
+        new TagsPicker({
+                input: $("#task-tags-select"),
+                output: $("#task-tags-output"),
+                list: $("#task-tags"),
+                modal: $("#modal-new-tag")
+            });
     });
 
     $(document).on("click", ".task-btn-edit", function() {
@@ -428,6 +440,18 @@ function initUI() {
             $modal.find("#task-title").val(data["title"]);
             $modal.find("#task-deadline").val(data["deadline"]);
             $modal.find("#task-body").val(data["body"]);
+            $modal.find("#task-tags-output").val(
+                data["tags"].map(function(item) { 
+                    return item["name"]; 
+            }).join(","));
+
+            new TagsPicker({
+                    input: $("#task-tags-select"),
+                    output: $("#task-tags-output"),
+                    list: $("#task-tags"),
+                    modal: $("#modal-new-tag")
+                });
+
         }, ajaxErrorsHandler);
 
         return false;
@@ -480,6 +504,7 @@ function initUI() {
         var deadline = $("#task-deadline").val();
         var milestoneId = $("#modal-task-edit").data("milestoneid");
         var taskId = $("#modal-task-edit").data("taskid");
+        var tags = $("#task-tags-output").val();
 
         var $milestone = $(".project-milestone[data-milestoneid='" + 
                            milestoneId + "']");
@@ -487,7 +512,8 @@ function initUI() {
         if (taskId != "-1") { // update the task
             project.updateTask({
                 taskId: taskId, milestoneId: milestoneId,
-                title: title, body: body, deadline: deadline
+                title: title, body: body, deadline: deadline,
+                tags: tags
             }, function(data, status, xhr) {
                 if (title !== "") { // Title have changed.
                     $milestone.find("li[data-taskid='" + taskId +"']").
@@ -502,7 +528,7 @@ function initUI() {
             } else {
                 project.addTask({
                     title: title, body: body, deadline: deadline,
-                    milestoneId: milestoneId
+                    milestoneId: milestoneId, tags: tags
                 }, function(data, status, xhr) {
                     var uri = xhr.getResponseHeader("Location");
                     var tid = uri.split("/").pop();              
@@ -636,6 +662,12 @@ function initUI() {
 
     $("#add-note").click(function() {
         $("#modal-note-edit").modal("show");
+        new TagsPicker({
+                input: $("#note-tags-select"),
+                output: $("#note-tags-output"),
+                list: $("#note-tags"),
+                modal: $("#modal-new-tag")
+            });
     });
 
     // Create new note
@@ -643,10 +675,11 @@ function initUI() {
         var title = $("#note-title").val();
         var body = $("#note-body").val();
         var noteId = $("#modal-note-edit").data("noteid");
+        var tags = $("#note-tags-output").val();
 
         if (noteId != "-1") { // update the task
             project.updateNote({
-                noteId: noteId, title: title, body: body
+                noteId: noteId, title: title, body: body, tags: tags
             }, function(data, status, xhr) {
                 if (title !== "") { // Title have changed.
                     $(".project-note[data-noteid='" + noteId +"']").
@@ -658,7 +691,7 @@ function initUI() {
             if (title === "") {
                 alert("No title. Please enter title in order to create new note.")
             } else {
-                project.addNote({title: title, body: body}, 
+                project.addNote({title: title, body: body, tags: tags}, 
                     function(data, status, xhr) {
                         var uri = xhr.getResponseHeader("Location");
                         var nid = uri.split("/").pop();              
@@ -678,12 +711,18 @@ function initUI() {
             function(data, status, xhr) {
                 var $modal = $("#modal-note-show");
                 $modal.modal("show");
+                $modal.find("#note-show-main-title").text(data["title"]);
                 $modal.find("#note-show-title").text(data["title"]);
+                $modal.find("#note-show-timestamp").text(data["timestamp"]);
                 if (data["body"] === "" || data["body"] === null) {
-                    $modal.find("#note-show-body").text("No description."); 
+                    $modal.find(".resource-body").text("No description."); 
                 } else {
-                    $modal.find("#note-show-body").text(data["body"]);
+                    $modal.find(".resource-body").text(data["body"]);
                 }
+                var tags = data["tags"].map(function(item) { 
+                        return item["name"]; 
+                    }).join(", ");
+                $modal.find("#note-show-tags").text(tags);
             }, ajaxErrorsHandler);
     });
 
@@ -696,6 +735,17 @@ function initUI() {
                 $modal.data("noteid", noteId);
                 $modal.find("#note-title").val(data["title"]);
                 $modal.find("#note-body").val(data["body"]);
+                $modal.find("#note-tags-output").val(
+                    data["tags"].map(function(item) { 
+                        return item["name"]; 
+                }).join(","));
+
+                new TagsPicker({
+                        input: $("#note-tags-select"),
+                        output: $("#note-tags-output"),
+                        list: $("#note-tags"),
+                        modal: $("#modal-new-tag")
+                    });
             }, ajaxErrorsHandler);
         return false;
     });
@@ -928,12 +978,20 @@ $("#modal-task-edit").on("show.bs.modal", function(event) {
     $modal.find("#task-deadline").val("");
     $modal.data("milestoneid", "-1");
     $modal.data("taskid", "-1");
+    $modal.find("#task-tags-output").val("");
+    $modal.find("#task-tags").children().not(":first").remove();
 });
 
 $("#modal-task-show").on("show.bs.modal", function(event) {
     var $modal = $(this);
-    $modal.find("#task-show-header").find("tr td:last-child").html("");
-    $modal.find("#task-show-body").html("");
+    $modal.find(".resource-header").find("tr td:last-child").html("");
+    $modal.find(".resource-body").html("");
+});
+
+$("#modal-note-show").on("show.bs.modal", function(event) {
+    var $modal = $(this);
+    $modal.find(".resource-header").find("tr td:last-child").html("");
+    $modal.find(".resource-body").html("");
 });
 
 $("#modal-task-move").on("show.bs.modal", function(event) {
@@ -962,4 +1020,11 @@ $("#modal-note-edit").on("show.bs.modal", function(event) {
     $modal.find("#note-title").val("");
     $modal.find("#note-body").val("");
     $modal.data("noteid", "-1");
+    $modal.find("#note-tags-output").val("");
+    $modal.find("#note-tags").children().not(":first").remove();
+});
+
+$("#modal-new-tag").on("show.bs.modal", function(event) {
+    var $modal = $(this);
+    $modal.find("#new-tag-name").val("");
 });

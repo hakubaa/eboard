@@ -244,8 +244,19 @@ class TestApiTasks(ApiTestCase):
         self.assertIn(url_for("api.task_get", username="Test", task_id=task.id),
                       response.location)
 
+    def test_create_task_accepts_tags_as_one_string(self):
+        user = self.create_user(name="Test")
+        self.login(name="Test")
+        response = self.client.post(url_for("api.task_create", username="Test"), 
+                                    data=dict(title="Second Task", 
+                                              deadline="2016-01-01 00:00",
+                                              tags="Tag1,Tag2,Tag3"))
+        self.assertEqual(db.session.query(Tag).count(), 3)
+        task = user.tasks[0]
+        self.assertEqual(len(task.tags), 3)
 
-class TestApiTask(ApiTestCase):
+
+class TestApiTaskItem(ApiTestCase):
 
     def test_get_request_returns_information_about_task(self):
         user = self.create_user(name="Test")
@@ -325,7 +336,21 @@ class TestApiTask(ApiTestCase):
         data = response.json
         self.assertEqual(data["title"], task.title)
 
-       
+    def test_update_task_accepts_tags_as_one_string(self):
+        user = self.create_user(name="Test")
+        task = user.add_task(title="First Task", 
+                             deadline=datetime(2015, 1, 1, 0, 0),
+                             tags=["Tag1", "Tag2"])
+        self.login(name="Test")
+        response = self.client.put(url_for("api.task_edit", username="Test", 
+                                           task_id=task.id),
+                                   data=dict(tags="Tag3, Tag4, Tag5")) 
+        task = db.session.query(User).one().tasks[0]
+        self.assertEqual(len(task.tags), 3)
+        tags = set([tag.name for tag in task.tags])
+        self.assertEqual(tags, {"Tag3", "Tag4", "Tag5"})
+
+
 class TestApiNotesList(ApiTestCase):
     
     def test_get_request_returns_list_of_notes(self):
@@ -386,6 +411,18 @@ class TestApiNotesList(ApiTestCase):
         note = user.notes[0]
         self.assertIn(url_for("api.note_get", username="Test", note_id=note.id),
                       response.location)
+
+    def test_create_note_accepts_tags_as_one_string(self):
+        user = self.create_user(name="Test")
+        self.login(name="Test")
+        response = self.client.post(url_for("api.note_create", username="Test"), 
+                                    data=dict(title="Second Note", 
+                                              body="Not Important Note!",
+                                              tags="Tag1,Tag2,Tag3"))
+        self.assertEqual(db.session.query(Tag).count(), 3)
+        note = user.notes[0]
+        self.assertEqual(len(note.tags), 3)
+
 
 class TestApiNoteItem(ApiTestCase):
 
@@ -456,6 +493,19 @@ class TestApiNoteItem(ApiTestCase):
         response = self.client.delete(url_for("api.note_delete", note_id=note.id,
                                               username=user2.username))
         self.assertEqual(response.status_code, 404)
+
+    def test_update_note_accepts_tags_as_one_string(self):
+        user = self.create_user(name="Test")
+        note = user.add_note(title="First Note", body="Very Important Note!!!",
+                             tags=["Tag1", "Tag2"])
+        self.login(name="Test") 
+        response = self.client.put(url_for("api.note_edit", username="Test", 
+                                           note_id=note.id),
+                                   data=dict(tags="Tag3, Tag4, Tag5")) 
+        note = db.session.query(User).one().notes[0]
+        self.assertEqual(len(note.tags), 3)
+        tags = set([tag.name for tag in note.tags])
+        self.assertEqual(tags, {"Tag3", "Tag4", "Tag5"})
 
 
 class TestApiProjects(ApiTestCase):
@@ -1301,7 +1351,8 @@ class TestApiTagsList(ApiTestCase):
         self.assertEqual(response.status_code, 200)
         data = response.json
         self.assertEqual(len(data), 2)
-        self.assertEqual(set(data), {"Test", "Winter"})
+        self.assertEqual(set(tag["name"] for tag in data), 
+                         {"Test", "Winter"})
 
     def test_put_request_creates_new_tag(self):
         self.create_user(name="Test")
