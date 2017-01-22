@@ -1,22 +1,19 @@
 from flask_wtf import Form
-from wtforms import StringField, PasswordField, TextAreaField, \
-                    SubmitField, FileField, DateTimeField, SelectField
+from wtforms import (
+    StringField, PasswordField, TextAreaField, 
+    SubmitField, FileField, DateTimeField, SelectField, IntegerField
+)
 from wtforms.validators import DataRequired, Email, Length
+
 from app.models import Tag, Project
 from app import db
+from app.models import dtformat_default
 
-class UploadBookForm(Form):
-    title = StringField("Title", validators = [DataRequired()])
-    file = FileField("File", validators = [DataRequired()])
-    link = StringField("Link")
-    author = StringField("Author(s)")
-    description = TextAreaField("Description")
-    submit = SubmitField("Submit")
 
 
 class TaskForm(Form):
     title = StringField("Title", validators = [DataRequired()])
-    deadline = DateTimeField("Deadline", format='%Y-%m-%d %H:%M', \
+    deadline = DateTimeField("Deadline", format=dtformat_default, \
         validators = [DataRequired()])
     body = TextAreaField("Body")
     submit = SubmitField("Submit")
@@ -45,9 +42,8 @@ class NoteFilterForm(Form):
 class ProjectForm(Form):
     name = StringField("Name", validators=[DataRequired()])
     desc = TextAreaField("Description")
-    deadline = DateTimeField("Deadline", format='%Y-%m-%d %H:%M',
+    deadline = DateTimeField("Deadline", format=dtformat_default,
                              validators=[DataRequired()])
-    # tags = StringField("Tags")
     submit = SubmitField("Submit")    
 
 

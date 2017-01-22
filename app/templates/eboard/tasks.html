@@ -194,6 +194,12 @@ select#project {
             type: "GET"
         })
             .done(function(data, status, xhr) {
+                // Deadline and created are in UTC, convert to local zone.
+                // var deadline = moment.utc(data["deadline"], "YYYY-MM-DD HH:mm").
+                //                    local().format("YYYY-MM-DD HH:mm");
+                // var created = moment.utc(data["created"], "YYYY-MM-DD HH:mm").
+                //                   local().format("YYYY-MM-DD HH:mm");
+
                 $modal.find("#task-show-main-title").html(data["title"]);
                 $modal.find("#task-show-title").html(data["title"]);
                 $modal.find("#task-show-deadline").html(data["deadline"] + 

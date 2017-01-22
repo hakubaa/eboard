@@ -1,5 +1,6 @@
 import functools
 from datetime import datetime
+from pytz import timezone
 
 from flask import jsonify, request, Response, url_for, render_template
 from flask_login import current_user, login_required
@@ -44,7 +45,7 @@ def access_validator(owner_auth=True):
 @api.route("/users/<username>", methods=["GET"])
 @access_validator(owner_auth=False)
 def user_index(user):
-    rrepr = user.to_dict()
+    rrepr = user.to_dict(timezone=timezone(user.timezone))
     for task in rrepr["tasks"]:
         task["uri"] = url_for("api.task_get", username=user.username,
                               task_id=task["id"])
@@ -83,7 +84,8 @@ def user_create():
     if data["password"] != data["password2"]:
         return "Invalid password confirmation.", 400
 
-    user = User(username=data["username"], password=data["password"])
+    user = User(username=data["username"], password=data["password"],
+                timezone=data.get("timezone", "UTC"))
     db.session.add(user)
     try:
         db.session.commit()
@@ -113,7 +115,7 @@ def user_delete(user):
 @api.route("/users/<username>/tasks", methods=["GET"])
 @access_validator(owner_auth=False)
 def tasks(user):
-    data = [ task.get_info() for task in user.tasks.all() ]
+    data = [ task.get_info(timezone(user.timezone)) for task in user.tasks.all() ]
     for task in data:
         task["uri"] = url_for("api.task_get", username=user.username,
                               task_id=task["id"]) 
@@ -130,8 +132,8 @@ def task_create(user):
         data["tags"] = [tag.strip() for tag in data["tags"].split(",")]
 
     try:
-        task = user.add_task(**data)
-    except sqlalchemy.exc.StatementError:
+        task = user.add_task(timezone=timezone(user.timezone), **data)
+    except (sqlalchemy.exc.StatementError, ValueError):
         db.ssession.rollback()
         return "", 400
 
@@ -152,7 +154,7 @@ def task_get(user, task_id):
                    filter(Task.id == task_id).one_or_none()
         if not task:
             return "", 404
-    return jsonify(task.to_dict()), 200
+    return jsonify(task.to_dict(timezone=timezone(user.timezone))), 200
 
 @api.route("/users/<username>/tasks/<task_id>", methods=["PUT"])
 @access_validator(owner_auth=True)
@@ -171,8 +173,8 @@ def task_edit(user, task_id):
         data["tags"] = [tag.strip() for tag in data["tags"].split(",")]
 
     try:
-        task.update(**data)
-    except sqlalchemy.exc.StatementError:
+        task.update(timezone=timezone(user.timezone), **data)
+    except (sqlalchemy.exc.StatementError, ValueError):
         db.session.rollback()
         return "", 404
 
@@ -202,7 +204,7 @@ def task_delete(user, task_id):
 @api.route("/users/<username>/notes", methods=["GET"])
 @access_validator(owner_auth=False)
 def notes(user):
-    data = [ note.to_dict() for note in user.notes.all() ]
+    data = [ note.to_dict(timezone(user.timezone)) for note in user.notes.all() ]
     for note in data:
         note["uri"] = url_for("api.note_get", username=user.username,
                               note_id=note["id"])
@@ -241,7 +243,7 @@ def note_get(user, note_id):
                    filter(Note.id == note_id).one_or_none()
         if not note:
             return "", 404
-    return jsonify(note.to_dict()), 200
+    return jsonify(note.to_dict(timezone(user.timezone))), 200
 
 @api.route("/users/<username>/notes/<note_id>", methods=["PUT"])
 @access_validator(owner_auth=False)
@@ -288,7 +290,7 @@ def note_delete(user, note_id):
 @api.route("/users/<username>/projects", methods=["GET"])
 @access_validator(owner_auth=False)
 def projects(user):
-    data = [ project.get_info() for project in user.projects.all() ]
+    data = [ project.get_info(timezone(user.timezone)) for project in user.projects.all() ]
     for project in data:
         project["uri"] = url_for("api.project_get", username=user.username,
                                  project_id=project["id"])
@@ -302,8 +304,8 @@ def project_create(user):
         return "", 400
 
     try:
-        project = user.add_project(**data)
-    except sqlalchemy.exc.StatementError:
+        project = user.add_project(timezone=timezone(user.timezone), **data)
+    except (sqlalchemy.exc.StatementError, ValueError):
         db.session.rollback()
         return "", 400
 
@@ -326,7 +328,7 @@ def project_get(user, project_id):
     with_tasks = request.values.get("with_tasks", "N").upper() in ("TRUE", "T", 
                                                                    "YES", "Y")
 
-    data = project.to_dict(with_tasks=with_tasks)
+    data = project.to_dict(timezone(user.timezone), with_tasks=with_tasks)
     for milestone in data["milestones"]:
         milestone["uri"] = url_for("api.milestone_get", username=user.username,
                                    project_id=project_id, 
@@ -342,8 +344,8 @@ def project_edit(user, project_id):
         return "", 404
     data = request.form.to_dict()
     try:
-        project.update(**data)
-    except sqlalchemy.exc.StatementError:
+        project.update(timezone=timezone(user.timezone), **data)
+    except (sqlalchemy.exc.StatementError, ValueError):
         db.session.rollback()
         return "", 400
     return "", 204
@@ -371,7 +373,7 @@ def project_notes(user, project_id):
                     Project.id == project_id).first()
     if not project:
         return "", 404
-    data = [ note.get_info() for note in project.notes ]
+    data = [ note.get_info(timezone(user.timezone)) for note in project.notes ]
     for note in data:
         note["uri"] = url_for("api.project_note_get", username=user.username,
                               project_id=project.id, note_id=note["id"])
@@ -413,7 +415,7 @@ def project_note_get(user, project_id, note_id):
                 Note.id == note_id).first()
     if not note:
         return "", 404
-    return jsonify(note.to_dict()), 200
+    return jsonify(note.to_dict(timezone(user.timezone))), 200
 
 @api.route("/users/<username>/projects/<project_id>/notes/<note_id>",
            methods=["PUT"])
@@ -462,7 +464,7 @@ def milestones(user, project_id):
                   Project.id == project_id).one_or_none()
     if not project:
         return "", 404
-    data = [ milestone.get_info() for milestone in project.milestones ]
+    data = [ milestone.get_info(timezone(user.timezone)) for milestone in project.milestones ]
     for milestone in data:
         milestone["uri"] = url_for("api.milestone_get", username=user.username,
                                    project_id=project.id,
@@ -505,7 +507,7 @@ def milestone_get(user, project_id, milestone_id):
                     Milestone.id == milestone_id).first()
     if not milestone:
         return "", 404
-    data = milestone.to_dict()
+    data = milestone.to_dict(timezone(user.timezone))
     for task in data["tasks"]:
         task["uri"] = url_for("api.milestone_task_get", username=user.username,
                               project_id=project_id, milestone_id=milestone_id,
@@ -546,7 +548,7 @@ def milestone_delete(user, project_id, milestone_id):
            "/position", methods=["POST"])
 @access_validator(owner_auth=True)
 def milestone_position(user, project_id, milestone_id):
-    data = request.form.to_dict()
+    data = request.form.to_dict(timezone(user.timezone))
     mid_ref = data.get("after", data.get("before", None))
     if not mid_ref:
         return "", 400 # BAD REQUEST
@@ -589,7 +591,7 @@ def milestone_tasks(user, project_id, milestone_id):
                     Milestone.id == milestone_id).first()
     if not milestone:
         return "", 404
-    data = [ task.get_info() for task in milestone.tasks ]
+    data = [ task.get_info(timezone(user.timezone)) for task in milestone.tasks ]
     for task in data:
         task["uri"] = url_for("api.milestone_task_get", task_id=task["id"],
                               milestone_id=milestone.id,
@@ -613,8 +615,8 @@ def milestone_task_create(user, project_id, milestone_id):
                 data["tags"] = data["tags"].split(",")
 
     try:
-        task = milestone.add_task(**data)
-    except sqlalchemy.orm.StatementError:
+        task = milestone.add_task(timezone=timezone(user.timezone), **data)
+    except (sqlalchemy.orm.StatementError, ValueError):
         db.session.rollback()
         return "", 400
    
@@ -636,7 +638,7 @@ def milestone_task_get(user, project_id, milestone_id, task_id):
                 Milestone.id == milestone_id, Task.id == task_id).first()
     if not task:
         return "", 404
-    return jsonify(task.to_dict()), 200
+    return jsonify(task.to_dict(timezone(user.timezone))), 200
 
 @api.route("/users/<username>/projects/<project_id>/milestones/" + \
            "<milestone_id>/tasks/<task_id>", methods=["PUT"])
@@ -652,8 +654,8 @@ def milestone_task_edit(user, project_id, milestone_id, task_id):
         data["tags"] = [tag.strip() for tag in data["tags"].split(",")]
 
     try:
-        task.update(**data)
-    except sqlalchemy.exc.StatementError:
+        task.update(timezone=timezone(user.timezone), **data)
+    except (sqlalchemy.exc.StatementError, ValueError):
         db.session.rollback()
         return "", 400
     return "", 204
@@ -716,7 +718,7 @@ def tag_delete(name):
 @api.route("/users/<username>/events", methods=["GET"])
 @access_validator(owner_auth=False)
 def events(user):
-    data = [ event.get_info() for event in user.events.all() ]
+    data = [ event.get_info(timezone(user.timezone)) for event in user.events.all() ]
     for event in data:
         event["uri"] = url_for("api.event_get", username=user.username,
                                event_id=event["id"])
@@ -730,8 +732,8 @@ def event_create(user):
         return "", 400
 
     try:
-        event = user.add_event(**data)
-    except sqlalchemy.exc.StatementError:
+        event = user.add_event(timezone=timezone(user.timezone), **data)
+    except (sqlalchemy.exc.StatementError, ValueError):
         db.session.rollback()
         return "", 400
 
@@ -748,7 +750,7 @@ def event_get(user, event_id):
                     Event.id == event_id).one_or_none()
     if not event:
         return "", 404
-    return jsonify(event.to_dict()), 200
+    return jsonify(event.to_dict(timezone(user.timezone))), 200
 
 @api.route("/users/<username>/events/<event_id>", methods=["PUT"])
 @access_validator(owner_auth=True)
@@ -760,8 +762,8 @@ def event_edit(user, event_id):
 
     data = request.form.to_dict()
     try:
-        event.update(**data)
-    except sqlalchemy.exc.StatementError:
+        event.update(timezone=timezone(user.timezone), **data)
+    except (sqlalchemy.exc.StatementError, ValueError):
         db.session.rollback()
         return "", 400
 

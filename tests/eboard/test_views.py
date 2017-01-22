@@ -1,12 +1,13 @@
 import sys
 import unittest
 from datetime import datetime
+import pytz
 
 from flask_testing import TestCase #http://pythonhosted.org/Flask-Testing/
 from flask import url_for
 
 from app import create_app, db
-from app.models import User, Task, Project, Note
+from app.models import User, Task, Project, Note, dtformat_default
 from app.eboard.forms import TaskForm, ProjectForm, NoteForm
 
 
@@ -23,8 +24,8 @@ class EboardTestCase(TestCase):
         db.session.remove()
         db.drop_all()
 
-    def create_user(self, username="Test", password="test"):
-        user = User(username=username, password=password)
+    def create_user(self, username="Test", password="test", **kwargs):
+        user = User(username=username, password=password, **kwargs)
         db.session.add(user)
         db.session.commit()
         return user
@@ -203,6 +204,19 @@ class TestNewTask(EboardTestCase):
         tags = set([ tag.name for tag in task.tags ])
         self.assertEqual({"Test", "E-Board", "New"}, tags)
 
+    def test_for_converting_deadline_from_user_tz_to_utc(self):
+        user = self.create_user(username="Test", timezone="Europe/Warsaw")
+        self.login(username="Test")
+        self.client.post(url_for("eboard.task_create", username="Test"), 
+                         data=dict(title="Test Task", 
+                                   deadline="2015-01-01 12:00"),
+                         follow_redirects=False)
+        task = user.tasks.one()
+        loc_dt = pytz.timezone(user.timezone).localize(
+                      datetime(2015, 1, 1, 12, 0, 0))     
+        self.assertEqual(task.deadline.replace(tzinfo=pytz.utc), 
+                         loc_dt.astimezone(pytz.utc))
+
 
 class TestShowTask(EboardTestCase):
 
@@ -340,6 +354,36 @@ class TestEditTask(EboardTestCase):
         tags = set([ tag.name for tag in task.tags ])
         self.assertEqual({"Test", "E-Board", "New"}, tags)      
 
+    def test_for_converting_deadline_from_user_tz_to_utc(self):
+        user = self.create_user(username="Test", timezone="Europe/Warsaw")
+        task = user.add_task(title="Test Task", 
+                             deadline=datetime(2015, 1, 1, 12, 0, 0))
+        self.login(username="Test")
+        self.client.post(url_for("eboard.task_edit", username="Test", 
+                                 task_id=task.id), 
+                         data=dict(title="New Task Title", 
+                                   deadline="2018-01-01 15:00",
+                                   tags="Test, E-Board, New"),
+                         follow_redirects=False)
+        task = user.tasks.one()
+        loc_dt = pytz.timezone(user.timezone).localize(
+                      datetime(2018, 1, 1, 15, 0, 0))     
+        self.assertEqual(task.deadline.strftime(dtformat_default), 
+                         loc_dt.astimezone(pytz.utc).strftime(dtformat_default))
+
+    def test_for_converting_deadline_when_populating_form_with_task_data(self):
+        user = self.create_user(username="Test", timezone="Europe/Warsaw")
+        task = user.add_task(title="Task To Populate", 
+                             deadline=datetime(2015, 1, 1, 15, 0, 0))
+        self.login(username="Test")
+        response = self.client.get(url_for("eboard.task_edit", username="Test",
+                                           task_id=task.id))
+
+        utz = pytz.timezone(user.timezone)
+        deadline = pytz.utc.localize(datetime(2015, 1, 1, 15, 0)).\
+                       astimezone(utz).strftime(dtformat_default)
+        self.assertNotEqual(response.data.decode("utf-8").find(deadline), -1) 
+
 
 class TestDeleteTask(EboardTestCase):
 
@@ -466,6 +510,20 @@ class TestProjectNew(EboardTestCase):
         self.assertEqual(project.deadline, datetime(2017, 1, 1, 0, 0))
         self.assertEqual(project.desc, "Improve your memory.")
 
+    def test_for_converting_deadline_from_user_tz_to_utc(self):
+        user = self.create_user(username="Test", timezone="Europe/Warsaw")
+        self.login(username="Test")
+        self.client.post(url_for("eboard.project_create",
+                                 username="Test"),
+                         data=dict(name="My First Project",
+                                   deadline="2017-01-01 12:00",
+                                   desc="Improve your memory."))
+        project = user.projects.one()
+        loc_dt = pytz.timezone(user.timezone).localize(
+                      datetime(2017, 1, 1, 12, 0, 0))     
+        self.assertEqual(project.deadline.replace(tzinfo=pytz.utc), 
+                         loc_dt.astimezone(pytz.utc))
+
     def test_redirects_to_page_with_projects_when_success(self):
         user = self.create_user(username="Test")
         self.login(username="Test")
@@ -589,6 +647,37 @@ class TestEditProject(EboardTestCase):
         self.assertRedirects(response, url_for("eboard.project_show", 
                                                username="Test",
                                                project_id=project.id))
+
+    def test_for_converting_deadline_from_user_tz_to_utc(self):
+        user = self.create_user(username="Test", timezone="Europe/Warsaw")
+        project = user.add_project(name="Test Project", 
+                                   deadline=datetime(2015, 1, 1, 0, 0))
+        self.login(username="Test")
+        self.client.post(url_for("eboard.project_edit", 
+                                 username="Test", 
+                                 project_id=project.id), 
+                         data=dict(name="New Project Title", 
+                                   deadline="2018-01-01 18:00"),
+                         follow_redirects=False)
+        project = user.projects.one()
+        loc_dt = pytz.timezone(user.timezone).localize(
+                      datetime(2018, 1, 1, 18, 0, 0))     
+        self.assertEqual(project.deadline.strftime(dtformat_default), 
+                         loc_dt.astimezone(pytz.utc).strftime(dtformat_default))
+
+    def test_for_converting_deadline_when_populating_form_with_task_data(self):
+        user = self.create_user(username="Test", timezone="Europe/Warsaw")
+        project = user.add_project(name="Project To Populate", 
+                                   deadline=datetime(2015, 1, 1, 15, 0))
+        self.login(username="Test")
+        response = self.client.get(url_for("eboard.project_edit", 
+                                           username="Test",
+                                           project_id=project.id))
+
+        utz = pytz.timezone(user.timezone)
+        deadline = pytz.utc.localize(datetime(2015, 1, 1, 15, 0)).\
+                       astimezone(utz).strftime(dtformat_default)
+        self.assertNotEqual(response.data.decode("utf-8").find(deadline), -1)
 
 
 class TestNotes(EboardTestCase):

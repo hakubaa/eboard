@@ -1,8 +1,10 @@
 import os
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 import sqlalchemy
 import functools
+import pytz
+from pytz import timezone
 
 from flask import render_template, flash, current_app, \
                     redirect, url_for, send_from_directory, send_file, \
@@ -14,9 +16,10 @@ from sqlalchemy.orm import contains_eager, subqueryload, joinedload
 
 from app.eboard import eboard 
 from app.eboard.forms import NoteForm, TaskForm, ProjectForm, MilestoneForm
-from app.models import Task, Tag, Status, Note, Project,\
+from app.models import Task, Tag, Note, Project,\
     Milestone, Event, User
 from app import db
+from app.models import dtformat_default
 
 
 def access_required(owner_only=False):
@@ -56,9 +59,17 @@ def tasks(user):
     tasks_all = tasks_free.union_all(tasks_pros)
     pagination = tasks_all.order_by(Task.complete.asc(), Task.deadline.asc()).\
                      paginate(page, per_page = 10, error_out=False)
+
+    # Convert deadlines to user time zone
+    user_tz = timezone(user.timezone)
+    for task in tasks_all:
+        task.deadline = pytz.utc.localize(task.deadline).\
+                            astimezone(user_tz).replace(tzinfo=None)
+
     return render_template("eboard/tasks.html", tasks=pagination.items, 
                            pagination=pagination, user=user)
 
+# Does not work.
 @eboard.route("/<username>/tasks/<task_id>", methods=["GET"])
 @access_required()
 def task_show(user, task_id):
@@ -76,7 +87,7 @@ def task_create(user):
         data = request.form.to_dict()
         if "tags" in data:
             data["tags"] = [ tag.strip() for tag in data["tags"].split(",") ]
-        user.add_task(**data)
+        task = user.add_task(timezone=timezone(user.timezone), **data)
         return redirect(url_for("eboard.tasks", username=user.username))       
     return render_template("eboard/task_edit.html", form=form)
 
@@ -93,13 +104,16 @@ def task_edit(user, task_id):
         data = { key: value for key, value in form.data.items() 
                             if key not in ("tags",)}
         data["tags"] = [ tag.strip() for tag in form.tags.data.split(",") ]
-        task.update(data)
+        task.update(data, timezone=timezone(user.timezone))
         return redirect(url_for("eboard.tasks", username=user.username))
 
     # Adjust tags for template
     if len(task.tags) > 0:
         form.tags.data = ",".join(tag.name for tag in task.tags)
 
+    # Adjust deadline in form to user time zone
+    form.deadline.data = pytz.utc.localize(form.deadline.data).\
+                             astimezone(timezone(user.timezone))
     return render_template("eboard/task_edit.html", form=form)
 
 
@@ -125,8 +139,18 @@ def projects(user):
     page = int(request.args.get("page", 1))
     pagination = user.projects.order_by(Project.deadline.desc()).paginate(\
         page, per_page = 10, error_out=False)
+    projects_db = pagination.items
+
+    # Convert deadlines to user time zone
+    user_tz = timezone(user.timezone)
+    for project in projects_db:
+        project.deadline = pytz.utc.localize(project.deadline).\
+                               astimezone(user_tz).replace(tzinfo=None)
+        project.created = pytz.utc.localize(project.created).\
+                              astimezone(user_tz).replace(tzinfo=None)
+
     return render_template("eboard/projects.html", pagination=pagination,
-                           projects=pagination.items, user=user)
+                           projects=projects_db, user=user)
 
 @eboard.route("/<username>/projects/new", methods=["GET", "POST"])
 @access_required(owner_only=True)
@@ -134,7 +158,7 @@ def project_create(user):
     form = ProjectForm(request.form)
     if form.validate_on_submit():
         data = request.form.to_dict()
-        user.add_project(**data)
+        user.add_project(timezone=timezone(user.timezone), **data)
         return redirect(url_for("eboard.projects", username=user.username))        
     return render_template("eboard/project_edit.html", form=form)
 
@@ -154,9 +178,14 @@ def project_edit(user, project_id):
         return render_template("404.html"), 404       
     form = ProjectForm(request.form, obj=project)
     if form.validate_on_submit():
-        project.update(form.data)
+        project.update(form.data, timezone=timezone(user.timezone))
         return redirect(url_for("eboard.project_show", username=user.username,
                                 project_id=project_id))
+
+    # Adjust deadline in form to user time zone
+    form.deadline.data = pytz.utc.localize(form.deadline.data).\
+                             astimezone(timezone(user.timezone))
+
     return render_template("eboard/project_edit.html", form=form,
                            projectid=project_id)
 
@@ -186,6 +215,12 @@ def notes(user):
     notes_all = notes_free.union_all(notes_pros)
     pagination = notes_all.order_by(Note.timestamp.desc()).paginate(
         page, per_page = 10, error_out=False)
+
+    user_tz = timezone(user.timezone)
+    for note in notes_all:
+        note.timestamp = pytz.utc.localize(note.timestamp).\
+                            astimezone(user_tz).replace(tzinfo=None)
+
     return render_template("eboard/notes.html", pagination=pagination,
                            notes=pagination.items, user=user)
 

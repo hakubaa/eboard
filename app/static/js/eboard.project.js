@@ -342,9 +342,15 @@ function initUI() {
         project.getTask(
             {taskId: taskId, milestoneId: milestoneId},
             function(data, status, xhr) {
+                // Deadline and created are in UTC, convert to local zone.
+                var deadline = moment.utc(data["deadline"], "YYYY-MM-DD HH:mm").
+                                   local().format("YYYY-MM-DD HH:mm");
+                var created = moment.utc(data["created"], "YYYY-MM-DD HH:mm").
+                                  local().format("YYYY-MM-DD HH:mm");
+
                 $modal.find("#task-show-main-title").html(data["title"]);
                 $modal.find("#task-show-title").html(data["title"]);
-                $modal.find("#task-show-deadline").html(data["deadline"] + 
+                $modal.find("#task-show-deadline").html(deadline + 
                     " (" + data["daysleft"] + " day(s) left)");
                 if (parseInt(data["daysleft"]) < 0) {
                     $modal.find("#task-show-deadline").css("color", "red");   
@@ -361,7 +367,7 @@ function initUI() {
                 } else {
                     $modal.find("#task-show-active").html("No");
                 }
-                $modal.find("#task-show-created").html(data["created"]);
+                $modal.find("#task-show-created").html(created);
                 var tags = data["tags"].map(
                         function(item) { return item["name"]; }
                     ).join(", ");
@@ -513,7 +519,7 @@ function initUI() {
             project.updateTask({
                 taskId: taskId, milestoneId: milestoneId,
                 title: title, body: body, deadline: deadline,
-                tags: tags
+                tags: tags, tzoffset: new Date().getTimezoneOffset()
             }, function(data, status, xhr) {
                 if (title !== "") { // Title have changed.
                     $milestone.find("li[data-taskid='" + taskId +"']").
@@ -528,7 +534,8 @@ function initUI() {
             } else {
                 project.addTask({
                     title: title, body: body, deadline: deadline,
-                    milestoneId: milestoneId, tags: tags
+                    milestoneId: milestoneId, tags: tags,
+                    tzoffset: new Date().getTimezoneOffset()
                 }, function(data, status, xhr) {
                     var uri = xhr.getResponseHeader("Location");
                     var tid = uri.split("/").pop();              

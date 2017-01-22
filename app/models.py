@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 import collections
+import pytz
 
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
@@ -26,6 +27,30 @@ notestags = db.Table("notestags",
     db.Column("tag_id", db.Integer, db.ForeignKey("tags.id"))
     )
 
+# Default date format used by models
+dtformat_default = "%Y-%m-%d %H:%M"
+
+
+def tz2utc(dt, tz, dtformat=dtformat_default):
+    '''
+    Converts datetime(dt) from given time zone(tz) to utc. If dt is a str,
+    parses dt in accordance with dtformat.
+    '''
+    if isinstance(dt, str):
+        dt = datetime.strptime(dt, dtformat)
+    dt_utc = tz.localize(dt).astimezone(pytz.utc)
+    return dt_utc
+
+def utc2tz(dt, tz, dtformat=dtformat_default):
+    '''
+    Converts datetime(dt) from utz to given time zone(tz). If dt is a str,
+    parses dt in accordance with dtformat.
+    '''
+    if isinstance(dt, str):
+        dt = datetime.strptime(dt, dtformat)
+    dt_utz = pytz.utc.localize(dt).astimezone(tz)
+    return dt_utz
+
 
 class Task(db.Model):
     __tablename__ = "tasks"
@@ -33,7 +58,7 @@ class Task(db.Model):
     id = db.Column(db.Integer(), primary_key=True)
     title = db.Column(db.String(256))
     created = db.Column(db.DateTime, default=datetime.utcnow)
-    deadline = db.Column(DateTimeString(dtformat="%Y-%m-%d %H:%M"))
+    deadline = db.Column(DateTimeString(dtformat=dtformat_default))
     notes = db.Column(db.String()) #remove
     body = db.Column(db.String())
     importance = db.Column(db.Integer())
@@ -54,7 +79,7 @@ class Task(db.Model):
         cascade = "all, delete, delete-orphan", single_parent = True,
         lazy="immediate")
 
-    def __init__(self, *args, deadline_event=True, **kwargs):
+    def __init__(self, *args, deadline_event=True, timezone=None, **kwargs):
         # Get rid of redundant fields in kwargs
         fields = [prop.key for prop in class_mapper(Task).iterate_properties]
         data = { key: value for key, value in kwargs.items() if key in fields }
@@ -64,23 +89,27 @@ class Task(db.Model):
             # Normalize tags, convert all items to Tag-s
             data["tags"] = list(map(Tag.find_or_create, data["tags"]))
 
+        if isinstance(data["deadline"], str):
+            data["deadline"] = datetime.strptime(data["deadline"], 
+                                                 dtformat_default)
+        if timezone:
+            data["deadline"] = tz2utc(data["deadline"], timezone)
+
         super().__init__(*args, **data)
 
         if deadline_event:
-            deadline = self.deadline
-            if isinstance(self.deadline, str):
-                deadline = datetime.strptime(self.deadline, 
-                                             Task.deadline.type.dtformat)
+            deadline = data["deadline"]
             self.deadline_event = Event(
                     title = "Task '" + self.title + "'", 
                     start = deadline - timedelta(minutes=30),
                     end = deadline, className = "fc-task-deadline",
                     desc = "Deadline of the task is on " 
-                           + deadline.strftime(Task.deadline.type.dtformat) + ".",
+                           + deadline.strftime(dtformat_default) + ".",
                     editable = False
                 )
 
-    def update(self, data=None, commit=True, **kwargs):
+
+    def update(self, data=None, timezone=None, commit=True, **kwargs):
         '''
         Update task on the base of dict or **kwargs.
         '''
@@ -89,6 +118,14 @@ class Task(db.Model):
         else:
             if not isinstance(data, collections.Mapping):
                 raise TypeError("first argument must be dictionary")
+
+        # Deadline requires some processing
+        if "deadline" in data:
+            if isinstance(data["deadline"], str):
+                data["deadline"] = datetime.strptime(data["deadline"], 
+                                                     dtformat_default)
+            if timezone:
+                data["deadline"] = tz2utc(data["deadline"], timezone)
 
         # Update fields which can be update (not read-only fields)
         update_possible = {"title", "deadline", "body", "importance", 
@@ -104,18 +141,15 @@ class Task(db.Model):
 
         # Update deadline event connected with task
         if self.deadline_event:
-            deadline = self.deadline
-            if isinstance(self.deadline, str):
-                deadline = datetime.strptime(self.deadline, 
-                                             Task.deadline.type.dtformat)
             if "title" in data:
                 self.deadline_event.title = "Task '" + self.title + "'"
             if "deadline" in data:
+                deadline = data["deadline"]
                 self.deadline_event.start = deadline - timedelta(minutes=30)
                 self.deadline_event.end = deadline
                 self.deadline_event.desc = \
                             "Deadline of the task is on " + \
-                            deadline.strftime("%Y-%m-%d %H:%M:%S") + "."
+                            deadline.strftime(dtformat_default) + "."
 
         if commit:
             db.session.commit()
@@ -148,24 +182,38 @@ class Task(db.Model):
         if tag_obj:
             self.tags.remove(tag_obj[0])
 
-    def to_dict(self):
+    def to_dict(self, timezone = None):
+        if timezone:
+            created = utc2tz(self.created, timezone)
+            deadline = utc2tz(self.deadline, timezone)
+        else:
+            created = self.created
+            deadline = self.deadline
+
         return {
                 "title": self.title, 
-                "created": self.created.strftime("%Y-%m-%d %H:%M"),
-                "deadline": self.deadline.strftime("%Y-%m-%d %H:%M"),
+                "created": created.strftime(dtformat_default),
+                "deadline": deadline.strftime(dtformat_default),
                 "body": self.body, 
-                "tags": [ tag.to_dict() for tag in self.tags ],
+                "tags": [ tag.to_dict(timezone) for tag in self.tags ],
                 "complete": self.complete, "active": self.active,
                 "daysleft": self.daysleft, "id": self.id, 
                 "importance": self.importance,
                 "urgency": self.urgency 
              }
 
-    def get_info(self):
+    def get_info(self, timezone=None):
+        if timezone:
+            created = utc2tz(self.created, timezone)
+            deadline = utc2tz(self.deadline, timezone)
+        else:
+            created = self.created
+            deadline = self.deadline
+
         return {
                 "title": self.title, 
-                "created": self.created.strftime("%Y-%m-%d %H:%M"),
-                "deadline": self.deadline.strftime("%Y-%m-%d %H:%M"),
+                "created": created.strftime(dtformat_default),
+                "deadline": deadline.strftime(dtformat_default),
                 "complete": self.complete, "active": self.active,
                 "daysleft": self.daysleft, "id": self.id
              }
@@ -201,11 +249,11 @@ class Tag(db.Model):
                 db.session.commit()
         return tag
 
-    def to_dict(self): 
+    def to_dict(self, timezone=None): 
         return { "id": self.id, "name": self.name }
 
-    def get_info(self):
-        return self.to_dict()
+    def get_info(self, timezone=None):
+        return self.to_dict(timezone)
 
 
 class User(UserMixin, db.Model):
@@ -215,6 +263,7 @@ class User(UserMixin, db.Model):
     username = db.Column(db.String(64), unique=True, index=True)
     password_hash = db.Column(db.String(128))
     public = db.Column(BooleanString(), unique=False, default=False)
+    timezone = db.Column(db.String(64), default="UTC")
 
     tasks = db.relationship("Task", back_populates="user",
         cascade = "all, delete, delete-orphan", lazy="dynamic")
@@ -225,12 +274,6 @@ class User(UserMixin, db.Model):
     events = db.relationship("Event", back_populates="user",
         cascade="all, delete, delete-orphan", lazy="dynamic")
 
-    def __init__(self, *args, **kwargs):
-        # Get rid of redundant fields in kwargs
-        # fields = [prop.key for prop in class_mapper(Milestone).iterate_properties]
-        # fields.append("password")
-        # data = { key: value for key, value in kwargs.items() if key in fields }
-        super().__init__(*args, **kwargs)
 
     @property
     def password(self):
@@ -346,19 +389,21 @@ class User(UserMixin, db.Model):
         if note:
             self.notes.remove(note)
 
-    def to_dict(self):
+    def to_dict(self, timezone=None):
         return {
             "id": self.id, "email": self.email,
             "username": self.username, "public": self.public,
-            "tasks": [ task.get_info() for task in self.tasks ],
-            "projects": [ project.get_info() for project in self.projects ],
-            "notes": [ note.get_info() for note in self.notes ]
+            "tasks": [ task.get_info(timezone) for task in self.tasks ],
+            "projects": [ project.get_info(timezone) for project in self.projects ],
+            "notes": [ note.get_info(timezone) for note in self.notes ],
+            "timezone": self.timezone
             }
 
-    def get_info(self):
+    def get_info(self, timezone=None):
         return {
             "id": self.id, "email": self.email,
-            "username": self.username, "public": self.public
+            "username": self.username, "public": self.public,
+            "timezone": self.timezone
             }      
 
     def __repr__(self):
@@ -370,7 +415,7 @@ class Note(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.Text)
     body = db.Column(db.Text)
-    timestamp = db.Column(DateTimeString(dtformat="%Y-%m-%d %H:%M"), index=True, 
+    timestamp = db.Column(DateTimeString(dtformat=dtformat_default), index=True, 
                           default=datetime.utcnow)
     tags = db.relationship("Tag", secondary=notestags, lazy="immediate")
     
@@ -405,6 +450,7 @@ class Note(db.Model):
         # Update fields which can be update (not read-only fields)
         update_possible = {"title", "body", "tags", "project", "project_id"}
         fields_to_update = update_possible & set(data.keys())
+
         # Normalize tags, convert all itmes to Tag-s
         if "tags" in fields_to_update:
             if isinstance(data["tags"], str):
@@ -445,18 +491,29 @@ class Note(db.Model):
         if tag_obj:
             self.tags.remove(tag_obj[0])
 
-    def to_dict(self):
+    def to_dict(self, timezone=None):
+        if timezone:
+            timestamp = utc2tz(self.timestamp, timezone)
+        else:
+            timestamp = self.timestamp
+
         return { 
             "id": self.id, "title": self.title, "body": self.body,
-            "timestamp": self.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+            "timestamp": timestamp.strftime(dtformat_default),
             "tags": [ tag.to_dict() for tag in self.tags ]
             }
 
-    def get_info(self):
+    def get_info(self, timezone=None):
+        if timezone:
+            timestamp = utc2tz(self.timestamp, timezone)
+        else:
+            timestamp = self.timestamp
+
         return { 
             "id": self.id, "title": self.title,
-            "timestamp": self.timestamp.strftime("%Y-%m-%d %H:%M:%S")
+            "timestamp": timestamp.strftime(dtformat_default)
             }
+
 
 class Project(db.Model):
     __tablename__ = "projects"
@@ -464,9 +521,9 @@ class Project(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(32))
     desc = db.Column(db.Text)
-    deadline = db.Column(DateTimeString(dtformat="%Y-%m-%d %H:%M"))
+    deadline = db.Column(DateTimeString(dtformat=dtformat_default))
     created = db.Column(db.DateTime, default=datetime.utcnow)
-    modified = db.Column(DateTimeString(dtformat="%Y-%m-%d %H:%M"), 
+    modified = db.Column(DateTimeString(dtformat=dtformat_default), 
                          default=datetime.utcnow)
     active = db.Column(BooleanString(), default=True)
     complete = db.Column(BooleanString(), default=False)
@@ -484,27 +541,32 @@ class Project(db.Model):
         cascade = "all, delete, delete-orphan", single_parent = True,
         lazy="immediate")
 
-    def __init__(self, *args, deadline_event=True, **kwargs):
+    def __init__(self, *args, deadline_event=True, timezone=None, **kwargs):
         # Get rid of redundant fields in kwargs
         fields = [prop.key for prop in class_mapper(Project).iterate_properties]
         data = { key: value for key, value in kwargs.items() if key in fields }
+
+        if isinstance(data["deadline"], str):
+            data["deadline"] = datetime.strptime(data["deadline"], 
+                                                 dtformat_default)
+        if timezone:
+            data["deadline"] = tz2utc(data["deadline"], timezone)
+
         super().__init__(*args, **data)
+        
         if deadline_event:
-            deadline = self.deadline
-            if isinstance(self.deadline, str):
-                deadline = datetime.strptime(self.deadline, 
-                                             Task.deadline.type.dtformat)
+            deadline = data["deadline"]
             self.deadline_event = Event(
                 title = "Project '" + self.name + ",", 
                 start = deadline - timedelta(minutes=30),
                 end = deadline,
                 className = "fc-project-deadline",
                 desc = "Deadline of the project is set on " + 
-                    deadline.strftime("%Y-%m-%d %H:%M:%S") + ".",
+                    deadline.strftime(dtformat_default) + ".",
                 editable = False)
 
 
-    def update(self, data=None, commit=True, **kwargs):
+    def update(self, data=None, commit=True, timezone=None, **kwargs):
         '''
         Update project on the base of dict or **kwargs.
         '''
@@ -513,6 +575,14 @@ class Project(db.Model):
         else:
             if not isinstance(data, collections.Mapping):
                 raise TypeError("first argument must be dictionary")
+
+        # Deadline requires some processing
+        if "deadline" in data:
+            if isinstance(data["deadline"], str):
+                data["deadline"] = datetime.strptime(data["deadline"], 
+                                                     dtformat_default)
+            if timezone:
+                data["deadline"] = tz2utc(data["deadline"], timezone)
 
         # Update fields which can be update (not read-only fields)
         update_possible = {"name", "desc", "deadline", 
@@ -523,18 +593,15 @@ class Project(db.Model):
 
         # Update deadline event connected with task
         if self.deadline_event:
-            deadline = self.deadline
-            if isinstance(self.deadline, str):
-                deadline = datetime.strptime(self.deadline, 
-                                             Task.deadline.type.dtformat)
             if "name" in data:
                 self.deadline_event.title = "Project '" + self.name + "'"
             if "deadline" in data:
+                deadline = data["deadline"]
                 self.deadline_event.start = deadline - timedelta(minutes=30)
                 self.deadline_event.end = deadline
                 self.deadline_event.desc = \
                             "Deadline of the project is on " + \
-                            deadline.strftime("%Y-%m-%d %H:%M:%S") + "."
+                            deadline.strftime(dtformat_default) + "."
 
         if commit:
             db.session.commit()
@@ -598,26 +665,44 @@ class Project(db.Model):
         if note:
             self.notes.remove(note)
 
-    def to_dict(self, with_tasks=False):
-         return {"id": self.id, "name": self.name, 
+    def to_dict(self, timezone=None, with_tasks=False):
+        if timezone:
+            created = utc2tz(self.created, timezone)
+            deadline = utc2tz(self.deadline, timezone)
+            modified = utc2tz(self.modified, timezone)
+        else:
+            created = self.created
+            deadline = self.deadline
+            modified = self.modified
+
+        return {"id": self.id, "name": self.name, 
                  "active": self.active, "complete": self.complete,
                  "desc": self.desc,
-                 "deadline": self.deadline.strftime("%Y-%m-%d %H:%M"),
-                 "created": self.created.strftime("%Y-%m-%d %H:%M"),
-                 "modified": self.modified.strftime("%Y-%m-%d %H:%M"),
-                 "milestones": [ milestone.to_dict() if with_tasks else 
-                                 milestone.get_info() for milestone in 
+                 "deadline": deadline.strftime(dtformat_default),
+                 "created": created.strftime(dtformat_default),
+                 "modified": modified.strftime(dtformat_default),
+                 "milestones": [ milestone.to_dict(timezone) if with_tasks else 
+                                 milestone.get_info(timezone) for milestone in 
                                  self.milestones ],
-                 "notes": [ note.get_info() for note in self.notes ] }       
+                 "notes": [ note.get_info(timezone) for note in self.notes ] }       
 
-    def get_info(self):
+    def get_info(self, timezone=None):
+        if timezone:
+            created = utc2tz(self.created, timezone)
+            deadline = utc2tz(self.deadline, timezone)
+            modified = utc2tz(self.modified, timezone)
+        else:
+            created = self.created
+            deadline = self.deadline
+            modified = self.modified
+
         return {
             "id": self.id, "name": self.name, 
             "active": self.active, "complete": self.complete,
             "desc": self.desc,
-            "deadline": self.deadline.strftime("%Y-%m-%d %H:%M"),
-            "created": self.created.strftime("%Y-%m-%d %H:%M"),
-            "modified": self.modified.strftime("%Y-%m-%d %H:%M")
+            "deadline": deadline.strftime(dtformat_default),
+            "created": created.strftime(dtformat_default),
+            "modified": modified.strftime(dtformat_default)
             }
 
     @property
@@ -695,19 +780,18 @@ class Milestone(db.Model):
         if commit:
             db.session.commit()
 
-    def to_dict(self):
+    def to_dict(self, timezone=None):
         return { 
             "id": self.id, "title": self.title, 
             "desc": self.desc, "position": self.position,
             # "project_id": self.project_id, 
-            "tasks": [ task.get_info() for task in self.tasks ]
+            "tasks": [ task.get_info(timezone) for task in self.tasks ]
             }
 
-    def get_info(self):
+    def get_info(self, timezone=None):
         return { 
             "id": self.id, "title": self.title, 
             "desc": self.desc, "position": self.position,
-            # "project_id": self.project_id, 
             }
 
 
@@ -717,8 +801,8 @@ class Event(db.Model):
     id = db.Column(db.Integer, primary_key = True)
     title = db.Column(db.String)
     allDay = db.Column(BooleanString(), default = False)
-    start = db.Column(DateTimeString(dtformat="%Y-%m-%d %H:%M"))
-    end = db.Column(DateTimeString(dtformat="%Y-%m-%d %H:%M"))
+    start = db.Column(DateTimeString(dtformat=dtformat_default))
+    end = db.Column(DateTimeString(dtformat=dtformat_default))
     editable = db.Column(BooleanString(), default = True)
     url = db.Column(db.String)
 
@@ -740,13 +824,24 @@ class Event(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
     user = db.relationship("User", back_populates="events")
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, timezone=None, **kwargs):
         # Get rid of redundant fields in kwargs
         fields = [prop.key for prop in class_mapper(Event).iterate_properties]
         data = { key: value for key, value in kwargs.items() if key in fields }
+
+        if isinstance(data["start"], str):
+            data["start"] = datetime.strptime(data["start"], dtformat_default)
+        if isinstance(data["end"], str):
+            data["end"] = datetime.strptime(data["end"], dtformat_default)
+
+        if timezone:
+            data["start"] = tz2utc(data["start"], timezone)
+            data["end"] = tz2utc(data["end"], timezone)
+
         super().__init__(*args, **data)
 
-    def update(self, data=None, commit=True, **kwargs):
+
+    def update(self, data=None, timezone=None, commit=True, **kwargs):
         '''
         Update event on the base of dict or **kwargs.
         '''
@@ -755,6 +850,21 @@ class Event(db.Model):
         else:
             if not isinstance(data, collections.Mapping):
                 raise TypeError("first argument must be dictionary")
+
+        # Datetimes requires some processing
+        if "start" in data:
+            if isinstance(data["start"], str):
+                data["start"] = datetime.strptime(data["start"], 
+                                                     dtformat_default)
+            if timezone:
+                data["start"] = tz2utc(data["start"], timezone)
+
+        if "end" in data:
+            if isinstance(data["end"], str):
+                data["end"] = datetime.strptime(data["end"], 
+                                                     dtformat_default)
+            if timezone:
+                data["end"] = tz2utc(data["end"], timezone)
 
         # Update fields which can be update (not read-only fields)
         update_possible = {"title", "allDay", "start", "end", "editable",
@@ -767,10 +877,17 @@ class Event(db.Model):
         if commit:
             db.session.commit()
 
-    def to_dict(self):
+    def to_dict(self, timezone=None):
+        if timezone:
+            start = utc2tz(self.start, timezone)
+            end = utc2tz(self.end, timezone)
+        else:
+            start = self.start
+            end = self.end
+
         return {"id": self.id, "title": self.title, "allDay": self.allDay,
-                "start": self.start.strftime("%Y-%m-%d %H:%M"),
-                "end": self.end.strftime("%Y-%m-%d %H:%M"),
+                "start": start.strftime(dtformat_default),
+                "end": end.strftime(dtformat_default),
                 "url": self.url, "desc": self.desc,
                 "className": self.className, "color": self.color,
                 "editable": self.editable,
@@ -778,14 +895,14 @@ class Event(db.Model):
                 "backgroundColor": self.backgroundColor,
                 "bordercolor": self.borderColor }
 
-    def get_info(self):
+    def get_info(self, timezone=None):
+        if timezone:
+            start = utc2tz(self.start, timezone)
+            end = utc2tz(self.end, timezone)
+        else:
+            start = self.start
+            end = self.end
+
         return {"id": self.id, "title": self.title,
-               "start": self.start.strftime("%Y-%m-%d %H:%M"),
-               "end": self.end.strftime("%Y-%m-%d %H:%M")}
-
-
-class Status(db.Model):
-    __tablename__ = "statuses"
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(32), unique=True)
-    label = db.Column(db.String(32))
+               "start": start.strftime(dtformat_default),
+               "end": end.strftime(dtformat_default)}

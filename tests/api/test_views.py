@@ -255,6 +255,18 @@ class TestApiTasks(ApiTestCase):
         task = user.tasks[0]
         self.assertEqual(len(task.tags), 3)
 
+    @unittest.skip
+    def test_create_task_accepts_tz_offest_and_converts_deadline_to_utc(self):
+        user = self.create_user(name="Test")
+        self.login(name="Test")
+        self.client.post(url_for("api.task_create", username="Test"), 
+                         data=dict(title="Test Task", 
+                                   deadline="2015-01-01 12:00",
+                                   tzoffset="-60"),
+                         follow_redirects=True)
+        task = user.tasks.one()
+        self.assertEqual(task.deadline, datetime(2015, 1, 1, 11, 0))  
+
 
 class TestApiTaskItem(ApiTestCase):
 

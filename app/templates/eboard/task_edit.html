@@ -69,7 +69,6 @@
                     </div>
                 {% endif %}
             </div>
-            <input type="hidden" name="tzoffset" id="tzoffset" value="00">
 
            <div class="form-group">
                 {{ form.body.label(class="control-label") }} 
@@ -129,23 +128,8 @@
         dateFormat: "yy-mm-dd",
         constrainInput: false,
         onSelect: function(dateText, inst) {
-            // $(this).val(dateText + " 23:59");
-            var offset = new Date().getTimezoneOffset();
-            alert(offset);
-            // alert(new Date(dateText + " 23:59").toISOString());
-
-            // alert(new Date(new Date(dateText + " 23:59").toISOString()).toLocaleString());
-
-            // var tzoffset = (new Date()).getTimezoneOffset() * 60000; //offset in milliseconds
-            // var localISOTime = (new Date(Date.now() - tzoffset)).toISOString().slice(0,-1);
+            $(this).val(dateText + " 23:59");
         }
     });
-
-    $("#task-form").submit(function() {
-        var offset = new Date().getTimezoneOffset();
-        $("#tzoffset").val(offset);
-        return true;
-    });
-
 </script>
 {% endblock %}
