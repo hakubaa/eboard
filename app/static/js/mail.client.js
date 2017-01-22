@@ -4,7 +4,7 @@
 
 var settings = {
     default_mailbox: "INBOX",
-    emails_per_page: 3,
+    emails_per_page: 25,
     enable_uid: true,
     enable_caching: true
 };
