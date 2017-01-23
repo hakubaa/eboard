@@ -7,6 +7,12 @@
 {% block styles %}
 {{ super() }}
 <link rel="stylesheet" href="{{url_for('static', filename='css/eboard.project.css')}}">
+<link rel="stylesheet" href="{{url_for('static', filename='css/jquery-ui.css')}}">
+<style>
+#task-deadline {
+    z-index: 100000;
+}
+</style>
 {% endblock %}
 
 {% block content %}
@@ -90,7 +96,8 @@
     <div class="modal-dialog  modal-lg" role="document">
         <div class="modal-content">
             <div class="modal-header">
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                <span aria-hidden="true">&times;</span></button>
                 <h4 class="modal-title" id="gridSystemModalLabel">Create/Edit Task</h4>
             </div>
             <div class="modal-body">
@@ -306,11 +313,22 @@
 {% endblock %}
 
 {% block body_scripts %}
+<script src="{{url_for('static', filename='js/jquery-ui.min.js')}}"></script>
 <script src="{{ url_for('static', filename='js/eboard.project.js') }}"></script>
 <script src="{{ url_for('static', filename='js/eboard.tags.js') }}"></script>
 <script>
     project.init({username: "{{user.username}}", projectId: {{project.id}} }, 
         showProject);
     initUI();
+
+    $("#task-deadline").datepicker({
+        changeMonth: true,
+        changeYear: true,
+        dateFormat: "yy-mm-dd",
+        constrainInput: false,
+        onSelect: function(dateText, inst) {
+            $(this).val(dateText + " 23:59");
+        }
+    });
 </script>
 {% endblock %}

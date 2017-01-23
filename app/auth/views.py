@@ -14,15 +14,15 @@ import app.mail.views as mail
 @auth.route("/login", methods=["GET", "POST"])
 @auth.route("/", methods=["GET", "POST"])
 def login():
+    if current_user.is_authenticated:
+        return redirect(url_for("eboard.index", username=current_user.username))
+
     form = SignInForm()
     if form.validate_on_submit():
         user = User.query.filter_by(username=form.username.data).first()
         if user is not None and user.verify_password(form.password.data):
             login_user(user, form.remember_me.data)
             return redirect(url_for("eboard.index", username=form.username.data))
-            # return redirect(request.args.get("next") \
-            #        or url_for("eboard.index", username=form.username.data))
-        flash("Invalid username or password.")
     return render_template("auth/login.html", form=form)
 
 @auth.route("/logout")
@@ -30,7 +30,6 @@ def login():
 def logout():
     mail.logout_from_imap()
     logout_user()
-    flash("You have been logged out.")
     return redirect(url_for("auth.login"))
 
 @login_manager.user_loader

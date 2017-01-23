@@ -34,66 +34,6 @@
 </style>
 {% endblock %}
 
-{% block body_scripts %}
-{{ super() }}
-<script src = "{{ url_for('static', filename='js/fullcalendar.js') }}"></script>
-<script>
-
-function getEventInfo(id, success) {
-    $.ajax({
-        url: "calendar/events/get",
-        type: "POST",
-        contentType: "application/json; charset=utf-8",
-        data: JSON.stringify({id: id}),
-        cache: false,
-        dataType: "json",
-        success: success
-    });
-}
-
-$('#calendar').fullCalendar({
-        header: {
-            left: 'prev,next today',
-            center: 'title',
-            right: ""
-        },
-        allDaySlot: true,
-        selectable: false,
-        selectHelper: false,
-        editable: false,
-
-        defaultView: "basicDay", //"agendaDay",
-
-        eventClick: function(event, jsEvent, view) {
-            getEventInfo(event._id, function(response) {
-                if (response.status == "success") {
-                    var data = response.data;
-                    $("#event-info-start").html(moment(data.start).format("LLL"));
-                    $("#event-info-end").html(moment(data.end).format("LLL"));
-                    $("#event-info-title").html(data.title);
-                    $("#event-info-title2").html(data.title);
-                    $("#event-info-description").html(data.description);
-                    $("#event-edit-btn, #event-remove-btn").hide();
-                    $(".event-bookmark").hide();
-                    $("#event-info").show();
-                    $("#event-model").modal("show");
-                } else {
-                    alert("FUCK. Sth went wrong!!!!");
-                }
-            });
-        },
-
-        // 24 hours please
-        timeFormat: 'H:mm', 
-        axisFormat: 'H:mm',
-        eventLimit: true, // allow "more" link when too many events
-        events: {
-            url: "calendar/events/source",
-            type: "POST"
-        }
-    });
-</script>
-{% endblock %}
 
 {% block content %}
 {{ super() }}
@@ -120,8 +60,9 @@ $('#calendar').fullCalendar({
                             <ul class="list-group">
                                 <li class="list-group-item">
                                     <h4 class="list-group-item-heading">{{project.name}}</h4>
-                                    <p class="list-group-item-text">{{project.description.split(" ")[:50] |join(" ")}} 
-                                        {% if project.description.split(" ")|length > 50 %}
+                                    <p class="list-group-item-text">
+                                        {{project.desc.split(" ")[:50] |join(" ")}} 
+                                        {% if project.desc.split(" ")|length > 50 %}
                                             (...)
                                         {% endif %}
                                     </p>
@@ -142,16 +83,20 @@ $('#calendar').fullCalendar({
                     {% if deadlines %}  
                     <ul class = "list-group">
                         {% for deadline in deadlines %}
-                            {% if moment(deadline.deadline).fromNow() %}
-                                {% if deadline.delayed %}
-                                    <li class="list-group-item list-group-item-danger">
+                            {% if deadline.delayed %}
+                                <li class="list-group-item list-group-item-danger">
+                            {% else %}
+                                <li class="list-group-item list-group-item-info">
+                            {% endif %}
+                                {{deadline.title}} on 
+                                {{deadline.deadline.strftime("%Y-%m-%d %H:%M")}}
+                                ({{deadline.daysleft|abs}} days
+                                {% if deadline.daysleft < 0 %}
+                                    delayed
                                 {% else %}
-                                    <li class="list-group-item list-group-item-info">
-                                {% endif %}
-                                    {{deadline.title}} on {{moment(deadline.deadline).format("YYYY-MM-DD HH:mm")}}
-                                    ({{moment(deadline.deadline).fromNow()}})
-                                </li> 
-                            {% endif %}  
+                                    left
+                                {% endif %})
+                            </li> 
                         {% endfor %}         
                     </ul>
                     {% else %}
@@ -188,4 +133,56 @@ $('#calendar').fullCalendar({
     </div>
 </div>
 {{ macros.newevent_model("event-model") }}
+{% endblock %}
+
+{% block body_scripts %}
+{{ super() }}
+<script src = "{{ url_for('static', filename='js/fullcalendar.js') }}"></script>
+<script>
+    function getEventInfo(data, callbackDone, callbackFail) {
+        $.ajax({
+            url: "/api/users/{{user.username}}/events/" + data.id,
+            type: "GET",
+        })
+            .done(callbackDone)
+            .fail(callbackFail);
+    }
+
+    $('#calendar').fullCalendar({
+        header: {
+            left: 'prev,next today',
+            center: 'title',
+            right: ""
+        },
+        allDaySlot: true,
+        selectable: false,
+        selectHelper: false,
+        editable: false,
+
+        defaultView: "basicDay", //"agendaDay",
+
+        eventClick: function(event, jsEvent, view) {
+            getEventInfo({id: event._id}, function(data, status, xhr) {
+                    $("#event-info-start").html(moment(data.start).format("LLL"));
+                    $("#event-info-end").html(moment(data.end).format("LLL"));
+                    $("#event-info-title").html(data.title);
+                    $("#event-info-title2").html(data.title);
+                    $("#event-info-description").html(data.desc);
+                    $("#event-edit-btn, #event-remove-btn").hide();
+                    $(".event-bookmark").hide();
+                    $("#event-info").show();
+                    $("#event-model").modal("show");
+                });
+        },
+
+        // 24 hours please
+        timeFormat: 'H:mm', 
+        axisFormat: 'H:mm',
+        eventLimit: true, // allow "more" link when too many events
+        events: {
+            url: "/api/users/{{user.username}}/events",
+            type: "GET"
+        }
+    });
+</script>
 {% endblock %}

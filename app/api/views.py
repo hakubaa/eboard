@@ -718,7 +718,13 @@ def tag_delete(name):
 @api.route("/users/<username>/events", methods=["GET"])
 @access_validator(owner_auth=False)
 def events(user):
-    data = [ event.get_info(timezone(user.timezone)) for event in user.events.all() ]
+    start_date = datetime.strptime(request.values.get("start", "0001-01-01"), 
+                                   "%Y-%m-%d")
+    end_date = datetime.strptime(request.values.get("end", "9999-12-31"), 
+                                 "%Y-%m-%d")
+    events = user.events.filter(Event.start >= start_date, 
+                                Event.end <= end_date).all()
+    data = [ event.get_info(timezone(user.timezone)) for event in events ]
     for event in data:
         event["uri"] = url_for("api.event_get", username=user.username,
                                event_id=event["id"])

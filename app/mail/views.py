@@ -48,7 +48,7 @@ def login():
                 session["imap_addr"] = imap_addr
                 return redirect(request.args.get("next") or url_for("mail.client"))
 
-    return render_template("mail/login.html", form=form)
+    return render_template("mail/login.html", form=form, user=current_user)
 
 def logout_from_imap():
     session.pop("imap_username", None)
@@ -95,7 +95,8 @@ def adjust_mailbox(mailbox):
 @imap_authentication(redirect_to_login=True)
 def client(imap_client):
     return render_template("mail/client.html", 
-                           username=imap_client.username)
+                           username=imap_client.username,
+                           user=current_user)
 
 @mail.route("/list", methods=["GET", "POST"])
 @imap_authentication()
@@ -466,9 +467,3 @@ def imap_list_mailbox(imap_client):
         return jsonify({"status": "ERROR", "data": {"msg": data}}) 
     else:
         return jsonify({"status": "OK", "data": data})
-
-
-@mail.route("/integration", methods=["GET", "POST"])
-@imap_authentication()
-def integration(imap_client):
-    return render_template("integration.html")    

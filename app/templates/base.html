@@ -57,17 +57,20 @@
                     <span class="icon-bar"></span>
                     <span class="icon-bar"></span>
                 </button>
-                <a class="navbar-brand" href="{{ url_for('eboard.index', username=current_user.username) }}">e-Board</a>
+                <a class="navbar-brand" href="{{ url_for('eboard.index', 
+                        username=user.username) }}">e-Board</a>
             </div>
 
             <div class="navbar-collapse collapse">
                 <ul class="nav navbar-nav" id="mainNavbar">
-                    <li><a href="{{ url_for('eboard.calendar') }}">Calendar</a></li>
-                    <li><a href="{{ url_for('eboard.projects', username=current_user.username) }}">
+                    <li><a href="{{ url_for('eboard.calendar', username=user.username) }}">
+                        Calendar</a></li>
+                    <li><a href="{{ url_for('eboard.projects', username=user.username) }}">
                         Projects</a></li>
-                    <li><a href="{{ url_for('eboard.tasks', username=current_user.username) }}">
+                    <li><a href="{{ url_for('eboard.tasks', username=user.username) }}">
                         Tasks</a></li>
-                    <li><a href="{{ url_for('eboard.notes', username=current_user.username) }}">Notes</a></li>
+                    <li><a href="{{ url_for('eboard.notes', username=user.username) }}">
+                        Notes</a></li>
                     <li><a href="{{ url_for('mail.client') }}">E-Mail</a></li>
                     <li><a href="#">Links</a></li>
                     <li><a href="#">Files</a></li>

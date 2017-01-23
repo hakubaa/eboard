@@ -11,7 +11,7 @@ from flask import render_template, flash, current_app, \
                     request
 from flask_login import login_required, current_user
 from werkzeug import secure_filename
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.orm import contains_eager, subqueryload, joinedload
 
 from app.eboard import eboard 
@@ -35,17 +35,52 @@ def access_required(owner_only=False):
                 user = db.session.query(User).filter_by(username=username).one()
             except sqlalchemy.orm.exc.NoResultFound:
                 return render_template("404.html"), 404
-            if not owner_only and not user.public and current_user.username != username:
+            if current_user.username != username and (user.public == False or owner_only):
                 return render_template("404.html"), 404 
             return func(user, *args, **kwargs)
         return access
     return wrapper
 
 
+
+################################################################################
+# Index
+
+@eboard.route("/", methods=["GET"])
+@access_required()
+def eboard_root(user):
+    return redirect(url_for("eboard.index", username=user.username))
+
 @eboard.route("/<username>/", methods=["GET"])
 @access_required()
 def index(user):
-    return render_template("eboard/index.html")
+
+    projects = user.projects.filter(Project.active == True).with_entities(
+                   Project.name, Project.desc, Project.deadline, 
+                   Project.created).order_by(
+                   Project.created).all()
+
+    notes = user.notes.order_by(Note.timestamp.asc()).limit(5).all()
+
+
+    tasks = user.tasks.filter(Task.active == True, Task.complete == False).\
+                order_by(Task.deadline.asc()).limit(5).\
+                with_entities(Task.title, Task.deadline).all()
+
+    deadlines = [ {"title": "Task '" + task.title + "'", 
+                   "deadline": task.deadline, 
+                   "daysleft": (task.deadline - datetime.now()).days,
+                   "delayed": task.deadline < datetime.now() } 
+                   for task in tasks ]
+    deadlines.extend([ {"title": "Project '" + project.name + "'",
+                        "deadline": project.deadline,
+                        "daysleft": (project.deadline - datetime.now()).days,
+                        "delayed": project.deadline < datetime.now() } 
+                        for project in projects ])
+    deadlines.sort(key = lambda x: x["deadline"])
+
+    return render_template("eboard/index.html", user=user, projects=projects,
+                           notes=notes, deadlines=deadlines)
 
 ################################################################################
 # Tasks
@@ -76,7 +111,7 @@ def task_show(user, task_id):
     task = user.tasks.filter(Task.id == task_id).one_or_none()
     if not task:
         return render_template("404.html"), 404
-    return render_template("eboard/task.html", task=task)
+    return render_template("eboard/task.html", task=task, user=user)
 
 
 @eboard.route("/<username>/tasks/new", methods=["GET", "POST"])
@@ -89,7 +124,7 @@ def task_create(user):
             data["tags"] = [ tag.strip() for tag in data["tags"].split(",") ]
         task = user.add_task(timezone=timezone(user.timezone), **data)
         return redirect(url_for("eboard.tasks", username=user.username))       
-    return render_template("eboard/task_edit.html", form=form)
+    return render_template("eboard/task_edit.html", form=form, user=user)
 
 
 @eboard.route("/<username>/tasks/<task_id>/edit", methods=["GET", "POST"])
@@ -114,7 +149,7 @@ def task_edit(user, task_id):
     # Adjust deadline in form to user time zone
     form.deadline.data = pytz.utc.localize(form.deadline.data).\
                              astimezone(timezone(user.timezone))
-    return render_template("eboard/task_edit.html", form=form)
+    return render_template("eboard/task_edit.html", form=form, user=user)
 
 
 @eboard.route("/<username>/tasks/<task_id>/delete", methods=["DELETE", "GET"])
@@ -160,7 +195,7 @@ def project_create(user):
         data = request.form.to_dict()
         user.add_project(timezone=timezone(user.timezone), **data)
         return redirect(url_for("eboard.projects", username=user.username))        
-    return render_template("eboard/project_edit.html", form=form)
+    return render_template("eboard/project_edit.html", form=form, user=user)
 
 @eboard.route("/<username>/projects/<project_id>", methods=["GET"])
 @access_required(owner_only=False)
@@ -187,7 +222,7 @@ def project_edit(user, project_id):
                              astimezone(timezone(user.timezone))
 
     return render_template("eboard/project_edit.html", form=form,
-                           projectid=project_id)
+                           projectid=project_id, user=user)
 
 @eboard.route("/<username>/projects/<project_id>/delete", methods=["GET", "POST"])
 @access_required(owner_only=True)
@@ -234,7 +269,7 @@ def note_create(user):
             data["tags"] = [ tag.strip() for tag in data["tags"].split(",") ]
         note = user.add_note(**data)
         return redirect(url_for("eboard.notes", username=user.username))
-    return render_template("eboard/note_edit.html", form=form)
+    return render_template("eboard/note_edit.html", form=form, user=user)
 
 @eboard.route("/<username>/notes/<note_id>/edit", methods=["GET", "POST"])
 @access_required(owner_only=True)
@@ -255,7 +290,7 @@ def note_edit(user, note_id):
     if len(note.tags) > 0:
         form.tags.data = ",".join(tag.name for tag in note.tags)
 
-    return render_template("eboard/note_edit.html", form=form)
+    return render_template("eboard/note_edit.html", form=form, user=user)
 
 @eboard.route("/<username>/notes/<note_id>/delete", methods=["GET", "DELETE"])
 @access_required(owner_only=True)
@@ -268,4 +303,15 @@ def note_delete(user, note_id):
     return redirect(url_for("eboard.notes", username=user.username)) 
 
 # Notes
+################################################################################
+
+################################################################################
+# Calendar
+
+@eboard.route("/<username>/calendar")
+@access_required(owner_only=False)
+def calendar(user):
+    return render_template("eboard/calendar.html", user=user)
+
+# Calendar
 ################################################################################

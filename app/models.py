@@ -713,6 +713,10 @@ class Project(db.Model):
             time_passed = datetime.now() - self.created
             project_dur = self.deadline - self.created
             return round(100*time_passed/project_dur, 2)
+    
+    @hybrid_property
+    def daysleft(self):
+        return (self.deadline - datetime.now()).days
 
 
 class Milestone(db.Model):

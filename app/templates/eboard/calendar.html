@@ -31,34 +31,61 @@
 </style>
 {% endblock %}
 
-{% block scripts %}
+{% block content %}
+<div class="container">
+    <div id='calendar'></div>
+</div>
+{{ macros.newevent_model("modal-event") }}
+{% endblock %}
+
+{% block body_scripts %}
 {{ super() }}
-<script src = "{{ url_for('static', filename='scripts/fullcalendar.min.js') }}"></script>
+<script src = "{{ url_for('static', filename='js/fullcalendar.min.js') }}"></script>
 <script>
-
-    function getEventInfo(id, success) {
-        $.ajax({
-            url: "calendar/events/get",
-            type: "POST",
-            contentType: "application/json; charset=utf-8",
-            data: JSON.stringify({id: id}),
-            cache: false,
-            dataType: "json",
-            success: success
-        });
+    function ajaxErrorsHandler(jqXHR, textStatus, errorThrown) {
+        var status = "ERROR";
+        if (textStatus !== null) status = textStatus.toUpperCase();
+        alert(status + ": " + errorThrown);  
     }
 
-    function updateEvent(event, success) {
+    function getEventInfo(data, callbackDone, callbackFail) {
         $.ajax({
-            url: "calendar/events/update",
-            type: "POST",
-            contentType: "application/json; charset-uf-8",
-            data: JSON.stringify(event),
-            cache: false,
-            dataType: "json",
-            success: success
-        });
+            url: "/api/users/{{user.username}}/events/" + data.id,
+            type: "GET",
+        })
+            .done(callbackDone)
+            .fail(callbackFail);
     }
+
+    function createEvent(data, callbackDone, callbackFail) {
+        $.ajax({
+            url: "/api/users/{{user.username}}/events",
+            type: "POST",
+            data: data
+        })
+            .done(callbackDone)
+            .fail(callbackFail);
+    }
+
+    function updateEvent(data, callbackDone, callbackFail) {
+        $.ajax({
+            url: "/api/users/{{user.username}}/events/" + data.id,
+            type: "PUT",
+            data: data
+        })
+            .done(callbackDone)
+            .fail(callbackFail);
+    }
+
+    function removeEvent(data, callbackDone, callbackFail) {
+        $.ajax({
+            url: "/api/users/{{user.username}}/events/" + data.id,
+            type: "DELETE",
+            data: data
+        })
+            .done(callbackDone)
+            .fail(callbackFail);
+    } 
 
     $('#calendar').fullCalendar({
         header: {
@@ -74,7 +101,7 @@
         timeFormat: 'H:mm', 
         axisFormat: 'H:mm',
 
-        timezone: "UTC",
+        timezone: "{{user.timezone}}",
 
         select: function(start, end) {
             $("#new-event-start").val(moment(start).format("YYYY-MM-DD HH:mm"));
@@ -92,18 +119,16 @@
             $(".event-bookmark").hide();
             $("#event-edit").show();
             $("#event-model-title").html("Add New Event");
-            $("#event-model").modal("show");
+            $("#modal-event").modal("show");
         },
 
         eventClick: function(event, jsEvent, view) {
-            getEventInfo(event._id, function(response) {
-                if (response.status == "success") {
-                    var data = response.data;
+            getEventInfo({id: event._id}, function(data, status, xhr) {
                     $("#event-info-start").html(moment(data.start).format("YYYY-MM-DD HH:mm"));
                     $("#event-info-end").html(moment(data.end).format("YYYY-MM-DD HH:mm"));
                     $("#event-info-title").html(data.title);
                     $("#event-info-title2").html(data.title);
-                    $("#event-info-description").html(data.description);
+                    $("#event-info-description").html(data.desc);
                     $("#event-info-id").val(data.id);
                     $("#new-event-id").val(data.id); // required when user wants to update event
                     $(".event-bookmark").hide();
@@ -116,11 +141,8 @@
                         $("#event-edit-btn").show();
                         $("#event-remove-btn").show();
                     }
-                    $("#event-model").modal("show");
-                } else {
-                    alert("FUCK. Sth went wrong!!!!");
-                }
-            });
+                    $("#modal-event").modal("show");
+                });
         },
 
         eventDrop: function(event, delta, revertFunc, jsEvent, ui, view ) {
@@ -131,11 +153,7 @@
                     end: event.end !== null ?
                         moment(event.end).format("YYYY-MM-DD HH:mm") : null, 
                     allday: !event.start.hasTime()
-                }, function(response) {
-                    if (response.status == "failure") {
-                        revertFunc();
-                    }
-                });
+                }, undefined, ajaxErrorsHandler);
         },
 
         eventResize: function(event, delta, revertFunc, jsEvent, ui, view ) {
@@ -143,132 +161,85 @@
                     id: event.id,
                     start: moment(event.start).format("YYYY-MM-DD HH:mm"),
                     end: moment(event.end).format("YYYY-MM-DD HH:mm"),
-                }, function(response) {
-                    if (response.status == "failure") {
-                        revertFunc();
-                    }
-                });
+                }, undefined, ajaxErrorsHandler);
         },
 
         editable: true,
         eventLimit: true, // allow "more" link when too many events
         events: {
-            url: "calendar/events/source",
-            type: "POST"
+            url: "/api/users/{{user.username}}/events",
+            type: "GET"
         }
     });
 
     $("#new-event-btn").click(function() {
+        var event_title = $("#new-event-title").val();
+        var event_desc = $("#new-event-description").val();
+        var event_start = $("#new-event-start").val();
+        var event_end = $("#new-event-end").val();
+        var event_allDay = $("#new-event-allday").val();
 
         if ($("#new-event-id").val() != "") { // update event
-            var eventData = {
-                id: $("#new-event-id").val(),
-                title: $("#new-event-title").val(),
-                description: $("#new-event-description").val(),      
-            };
-            updateEvent(eventData, function(response) {
-                if (response.status == "success") {
-                    $('#calendar').fullCalendar('removeEvents', response.data.id);
+            var event_id = $("#new-event-id").val();
+            updateEvent({
+                    id: event_id,
+                    title: event_title,
+                    desc: event_desc
+                }, function(data, status, xhr) {
+                    $('#calendar').fullCalendar('removeEvents', event_id);
                     var eventData = {
-                        id:  response.data.id,
-                        title: response.data.title,
-                        start: response.data.start,
-                        end: response.data.end,
-                        allDay: response.data.allDay
+                        id:  event_id, title: event_title,
+                        start: event_start, end: event_end,
+                        allDay: false
                     };
                     $("#calendar").fullCalendar("renderEvent", eventData, true); 
-                } else {
-                    alert("FUCK. Sth went wrong!!!");
-                }
-                $("#event-model").modal("hide");
-            });
+                }, ajaxErrorsHandler);
+            $("#modal-event").modal("hide");
         } else { // create new event
-            $.ajax({
-                url: "calendar/events/put",
-                type: "POST",
-                contentType: "application/json; charset=utf-8",
-                data: JSON.stringify({ 
-                    title: $("#new-event-title").val(),
-                    description: $("#new-event-description").val(),
-                    start: $("#new-event-start").val(),
-                    end: $("#new-event-end").val(),
-                    allday: $("#new-event-allday").val()
-                }),
-                cache: false,
-                dataType: "json",
-                success: function(response) {
-                    if (response.status == "success") {
-                        var eventData = {
-                            id:  response.data.id,
-                            title: response.data.title,
-                            start: response.data.start,
-                            end: response.data.end,
-                            allDay: response.data.allDay
-                        };
-                        $("#calendar").fullCalendar("renderEvent", eventData, true); 
-                    }
-                    $("#event-model").modal("hide");
-                },
-                error: function() {
-                    alert("FUCK. Sth went wrong!!! Run!!!");
-                    $("#event-model").modal("show");
-                }
-            });
+            createEvent({
+                    title: event_title, desc: event_desc,
+                    start: event_start, end: event_end,
+                    allday: event_allDay   
+                }, function(data, status, xhr) {
+                    var uri = xhr.getResponseHeader("Location");
+                    var event_id = uri.split("/").pop(); 
+                    var eventData = {
+                        id:  event_id, title: event_title,
+                        start: event_start, end: event_end,
+                        allDay: false
+                    };
+                    $("#calendar").fullCalendar("renderEvent", eventData, true);    
+                    $("#modal-event").modal("hide");
+                }, ajaxErrorsHandler);
         }
     });
 
     $("#event-edit-btn").click(function() {
-        getEventInfo($("#event-info-id").val(), function(response) {
-            if (response.status == "success") {
-                var data = response.data;
+        getEventInfo$({id: $("#event-info-id").val() }, 
+            function(data, status, xhr) {
                 $("#new-event-start").val(data.start);
                 $("#new-event-end").val(data.end);
                 $("#header-event-start").html(moment(data.start).format("YYYY-MM-DD HH:mm"));
                 $("#header-event-end").html(moment(data.end).format("YYYY-MM-DD HH:mm"));
                 $("#new-event-title").val(data.title);
-                $("#new-event-description").val(data.description);
+                $("#new-event-description").val(data.desc);
                 $(".event-bookmark").hide();
                 $("#event-edit").show();
                 $("#event-model").modal("show");
-                $('#calendar').fullCalendar('unselect');
-            } else {
-                alert("FUCK. Sth went wrong!!!!");
-            }
-        });     
+                $('#calendar').fullCalendar('unselect');  
+            }, ajaxErrorsHandler);
     });
 
     $("#event-remove-btn").click(function() {
         if (confirm("Are you sure you want to remove this event?")) {
-            var eventId = $("#event-info-id").val()
-            $.ajax({
-                url: "calendar/events/remove",
-                type: "POST",
-                contentType: "application/json; charset-uf-8",
-                data: JSON.stringify({id: eventId}),
-                cache: false,
-                dataType: "json",
-                success: function(response) {
-                    if (response.status == "success") {
-                        $('#calendar').fullCalendar('removeEvents', response.data.id);
-                    } else {
-                        alert("FUCK. Sth went wrong!!!!");
-                    }
-                    $("#event-model").modal("hide");
-                }
-            });
+            var eventId = $("#event-info-id").val();
+
+            removeEvent({id: eventId},
+                function(data, status, xhr) {
+                    $('#calendar').fullCalendar('removeEvents', eventId);
+                    $("#modal-event").modal("hide");
+                }, ajaxErrorsHandler);
         }
-    })
-
+    });
 </script>
-{% endblock %}
-
-{% block page_content %}
-<div class="container">
-    <div id='calendar'></div>
-</div>
-{% endblock %}
-
-{% block content %}
-{{ super() }}
-{{ macros.newevent_model("event-model") }}
 {% endblock %}

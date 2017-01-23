@@ -1435,6 +1435,24 @@ class TestEventsList(ApiTestCase):
         self.assertIn(event1.title, events_titles)
         self.assertIn(event2.title, events_titles)
 
+    def test_get_request_accepts_date_range_in_query(self):
+        user = self.create_user(name="Test")
+        event1 = user.add_event(title="My Second Event", 
+                                start=datetime(2017, 1, 1, 0, 0),
+                                end=datetime(2017, 1, 1, 0, 0))
+        event2 = user.add_event(title="My First Event",
+                                start=datetime(2019, 1, 1, 0, 0),
+                                end=datetime(2019, 1, 1, 12, 0))
+                                
+        self.login(name="Test")
+        response = self.client.get(url_for("api.events", username=user.username),
+                                   data=dict(start="2017-01-01",
+                                             end="2018-01-01"))
+        data = response.json
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]["title"], "My Second Event")
+
+
     def test_for_presence_of_uri_to_tasks(self):
         user = self.create_user(name="Test")
         event = user.add_event(title="My First Event", 
