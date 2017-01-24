@@ -30,7 +30,7 @@ TagsPicker.prototype.initOutputAndList = function() {
  */
 TagsPicker.prototype.initInput = function() {
     var self = this;
-    $.ajax({url: "/api/tags", type: "GET"})
+    $.ajax({url: "/api/tags", type: "GET", cache: false})
         .done(function(data, status, xhr) {
             self.input.empty();
             self.input.append("<option disabled selected value='none'>" +
@@ -132,7 +132,6 @@ TagsPicker.prototype.saveTags = function(tags) {
     this.output.val(tags.join());
 };
 
-
 $("#new-tag-btn").click(function(event) {
     var tagName = $("#new-tag-name").val();
     if (tagName) {
@@ -140,7 +139,7 @@ $("#new-tag-btn").click(function(event) {
             alert("Not allowed signs. Please use only letters, numbers " +
                   "and following signs: space, underscore.");
         } else {                             
-            $.ajax({url: "/api/tags/" + tagName, type: "PUT"})
+            $.ajax({url: "/api/tags/" + tagName, type: "PUT", cache: false})
                 .done(function(data, status, xhr) { 
                     var selectId = "#" + $("#modal-new-tag").data("tagslistid");
                     $(selectId).append(

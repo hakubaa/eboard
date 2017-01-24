@@ -21,7 +21,8 @@ var project = {
         $.ajax({
             url: "/api/users/" + options.username + "/projects/" + 
                  options.projectId + "?with_tasks=T",
-            type: "GET"
+            type: "GET",
+            cache: false
         })
             .done(callbackDone)
             .fail(callbackFail);
@@ -42,7 +43,8 @@ var project = {
             url: "/api/users/" + this.username + "/projects/" + 
                  this.projectId + "/milestones",
             type: "POST",
-            data: options
+            data: options,
+            cache: false
         })
             .done(callbackDone)
             .fail(callbackFail);
@@ -70,7 +72,8 @@ var project = {
                  this.projectId + "/milestones/" + options.milestoneId + 
                  "/tasks",
             type: "POST",
-            data: options
+            data: options,
+            cache: false
         })
             .done(callbackDone)
             .fail(callbackFail);
@@ -95,7 +98,8 @@ var project = {
                  this.projectId + "/milestones/" + options.milestoneId +
                  "/tasks/" + options.taskId,
             type: "PUT",
-            data: options
+            data: options,
+            cache: false
         })
             .done(callbackDone)
             .fail(callbackFail);
@@ -119,7 +123,8 @@ var project = {
             url: "/api/users/" + this.username + "/projects/" +
                  this.projectId + "/milestones/" + options.milestoneId + 
                  "/tasks/" + options.taskId,
-            type: "GET"
+            type: "GET",
+            cache: false
         })
             .done(callbackDone)
             .fail(callbackFail);
@@ -143,7 +148,8 @@ var project = {
             url: "/api/users/" + this.username + "/projects/" +
                  this.projectId + "/milestones/" + options.milestoneId + 
                  "/tasks/" + options.taskId,
-            type: "DELETE"
+            type: "DELETE",
+            cache: false
         })
             .done(callbackDone)
             .fail(callbackFail);
@@ -164,7 +170,8 @@ var project = {
             url: "/api/users/" + this.username + "/projects/" +
                  this.projectId + "/milestones/" + options.milestoneId,
             type: "PUT",
-            data: options
+            data: options,
+            cache: false
         })
             .done(callbackDone)
             .fail(callbackFail);
@@ -189,7 +196,8 @@ var project = {
                  this.projectId + "/milestones/" + options.milestoneId +
                  "/position",
             type: "POST",
-            data: options
+            data: options,
+            cache: false
         })
             .done(callbackDone)
             .fail(callbackFail);
@@ -209,7 +217,8 @@ var project = {
         $.ajax({
             url: "/api/users/" + this.username + "/projects/" +
                  this.projectId + "/milestones/" + options.milestoneId,
-            type: "DELETE"
+            type: "DELETE",
+            cache: false
         })
             .done(callbackDone)
             .fail(callbackFail);
@@ -229,7 +238,8 @@ var project = {
         $.ajax({
             url: "/api/users/" + this.username + "/projects/" +
                  this.projectId + "/milestones/" + options.milestoneId,
-            type: "GET"
+            type: "GET",
+            cache: false
         })
             .done(callbackDone)
             .fail(callbackFail);
@@ -249,7 +259,8 @@ var project = {
         $.ajax({
             url: "/api/users/" + this.username + "/projects/" +
                  this.projectId + "/notes/" + options.noteId,
-            type: "GET"
+            type: "GET",
+            cache: false
         })
             .done(callbackDone)
             .fail(callbackFail);
@@ -270,7 +281,8 @@ var project = {
             url: "/api/users/" + this.username + "/projects/" +
                  this.projectId + "/notes",
             type: "POST",
-            data: options
+            data: options,
+            cache: false
         })
             .done(callbackDone)
             .fail(callbackFail);
@@ -291,7 +303,8 @@ var project = {
             url: "/api/users/" + this.username + "/projects/" +
                  this.projectId + "/notes/" + options.noteId,
             type: "PUT",
-            data: options
+            data: options,
+            cache: false
         })
             .done(callbackDone)
             .fail(callbackFail);
@@ -311,7 +324,8 @@ var project = {
         $.ajax({
             url: "/api/users/" + this.username + "/projects/" +
                  this.projectId + "/notes/" + options.noteId,
-            type: "DELETE"
+            type: "DELETE",
+            cache: false
         })
             .done(callbackDone)
             .fail(callbackFail);
@@ -343,14 +357,14 @@ function initUI() {
             {taskId: taskId, milestoneId: milestoneId},
             function(data, status, xhr) {
                 // Deadline and created are in UTC, convert to local zone.
-                var deadline = moment.utc(data["deadline"], "YYYY-MM-DD HH:mm").
-                                   local().format("YYYY-MM-DD HH:mm");
-                var created = moment.utc(data["created"], "YYYY-MM-DD HH:mm").
-                                  local().format("YYYY-MM-DD HH:mm");
+                //var deadline = moment.utc(data["deadline"], "YYYY-MM-DD HH:mm").
+                //                   local().format("YYYY-MM-DD HH:mm");
+                //var created = moment.utc(data["created"], "YYYY-MM-DD HH:mm").
+                //                  local().format("YYYY-MM-DD HH:mm");
 
                 $modal.find("#task-show-main-title").html(data["title"]);
                 $modal.find("#task-show-title").html(data["title"]);
-                $modal.find("#task-show-deadline").html(deadline + 
+                $modal.find("#task-show-deadline").html(data["deadline"] + 
                     " (" + data["daysleft"] + " day(s) left)");
                 if (parseInt(data["daysleft"]) < 0) {
                     $modal.find("#task-show-deadline").css("color", "red");   
@@ -367,7 +381,8 @@ function initUI() {
                 } else {
                     $modal.find("#task-show-active").html("No");
                 }
-                $modal.find("#task-show-created").html(created);
+                $modal.find("#task-show-responsible").html(data["responsible"]);
+                $modal.find("#task-show-created").html(data["created"]);
                 var tags = data["tags"].map(
                         function(item) { return item["name"]; }
                     ).join(", ");
@@ -445,6 +460,7 @@ function initUI() {
             $modal.data("taskid", taskId);
             $modal.find("#task-title").val(data["title"]);
             $modal.find("#task-deadline").val(data["deadline"]);
+            $modal.find("#task-responsible").val(data["responsible"]);
             $modal.find("#task-body").val(data["body"]);
             $modal.find("#task-tags-output").val(
                 data["tags"].map(function(item) { 
@@ -508,6 +524,7 @@ function initUI() {
         var title = $("#task-title").val();
         var body = $("#task-body").val();
         var deadline = $("#task-deadline").val();
+        var responsible = $("#task-responsible").val();
         var milestoneId = $("#modal-task-edit").data("milestoneid");
         var taskId = $("#modal-task-edit").data("taskid");
         var tags = $("#task-tags-output").val();
@@ -519,7 +536,7 @@ function initUI() {
             project.updateTask({
                 taskId: taskId, milestoneId: milestoneId,
                 title: title, body: body, deadline: deadline,
-                tags: tags, tzoffset: new Date().getTimezoneOffset()
+                tags: tags, responsible: responsible
             }, function(data, status, xhr) {
                 if (title !== "") { // Title have changed.
                     $milestone.find("li[data-taskid='" + taskId +"']").
@@ -535,7 +552,7 @@ function initUI() {
                 project.addTask({
                     title: title, body: body, deadline: deadline,
                     milestoneId: milestoneId, tags: tags,
-                    tzoffset: new Date().getTimezoneOffset()
+                    responsible: responsible
                 }, function(data, status, xhr) {
                     var uri = xhr.getResponseHeader("Location");
                     var tid = uri.split("/").pop();              
@@ -983,6 +1000,7 @@ $("#modal-task-edit").on("show.bs.modal", function(event) {
     $modal.find("#task-title").val("");
     $modal.find("#task-body").val("");
     $modal.find("#task-deadline").val("");
+    $modal.find("#task-responsible").val("");
     $modal.data("milestoneid", "-1");
     $modal.data("taskid", "-1");
     $modal.find("#task-tags-output").val("");

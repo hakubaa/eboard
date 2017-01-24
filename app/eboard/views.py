@@ -134,7 +134,6 @@ def task_edit(user, task_id):
     if not task:
         return render_template("404.html"), 404       
     form = TaskForm(request.form, obj=task)
-
     if form.validate_on_submit():
         data = { key: value for key, value in form.data.items() 
                             if key not in ("tags",)}

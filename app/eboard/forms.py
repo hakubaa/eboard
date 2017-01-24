@@ -16,6 +16,7 @@ class TaskForm(Form):
     deadline = DateTimeField("Deadline", format=dtformat_default, \
         validators = [DataRequired()])
     body = TextAreaField("Body")
+    responsible = StringField("Responsible")
     submit = SubmitField("Submit")
     tags = StringField("Tags")
 
@@ -26,18 +27,6 @@ class NoteForm(Form):
     tags = StringField("Tags")
     submit = SubmitField("Submit")
 
-class NoteFilterForm(Form):
-    tag = SelectField("Tag", choices = [])
-    project = SelectField("Project", choices=[])
-
-    def __init__(self, tags = None, projects = None):
-        super(NoteFilterForm, self).__init__()
-
-        self.tag.choices = [ ("all", "-- All --")] +\
-            [ (str(tag.id), tag.name) for tag in tags ]
-        self.project.choices = [ ("all", "-- All Projects --"),
-            ("unbound", "-- Unbound Notes --")] +\
-            [ (str(project.id), project.name) for project in projects ]
 
 class ProjectForm(Form):
     name = StringField("Name", validators=[DataRequired()])

@@ -65,6 +65,7 @@ class Task(db.Model):
     urgency = db.Column(db.Integer())
     active = db.Column(BooleanString(), default=True)
     complete = db.Column(BooleanString(), default=False)
+    responsible = db.Column(db.String(256))
 
     tags = db.relationship("Tag", secondary=taskstags, lazy="immediate")
 
@@ -130,7 +131,7 @@ class Task(db.Model):
         # Update fields which can be update (not read-only fields)
         update_possible = {"title", "deadline", "body", "importance", 
                            "urgency", "active", "complete", "tags",
-                           "milestone", "milestone_id"}
+                           "milestone", "milestone_id", "responsible"}
         fields_to_update = update_possible & set(data.keys())
         if "tags" in fields_to_update:
             if isinstance(data["tags"], str):
@@ -199,7 +200,8 @@ class Task(db.Model):
                 "complete": self.complete, "active": self.active,
                 "daysleft": self.daysleft, "id": self.id, 
                 "importance": self.importance,
-                "urgency": self.urgency 
+                "urgency": self.urgency,
+                "responsible": self.responsible
              }
 
     def get_info(self, timezone=None):
@@ -215,7 +217,8 @@ class Task(db.Model):
                 "created": created.strftime(dtformat_default),
                 "deadline": deadline.strftime(dtformat_default),
                 "complete": self.complete, "active": self.active,
-                "daysleft": self.daysleft, "id": self.id
+                "daysleft": self.daysleft, "id": self.id,
+                "responsible": self.responsible
              }
 
     @hybrid_property
