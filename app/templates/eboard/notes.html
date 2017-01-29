@@ -27,6 +27,7 @@ div.note-date {
 }
 div.note-title {
     font-weight: bold;
+    font-size: 1.2em;
 }
 div.note-thumbnail {
     position: absolute;
@@ -71,17 +72,17 @@ select#project {
                             {% if note.project_id %}
                                 <a href="{{ url_for('eboard.project_show', username=user.username,
                                                     project_id=note.project_id) }}">
-                                (Go to project)
+                                <small>(Go to project)</small>
                                 </a>
                             {% endif %}
                         </div>
                         <div class="note-tags">{{note.tags | join(' ', attribute='name')}}</div>
-                        <div class="note-body">
+<!--                         <div class="note-body">
                             {{note.body[:250]}}
                             {% if note.body|length  > 250 %}
                                 (...)
                             {% endif %}
-                        </div>
+                        </div> -->
                         <div class="note-footer">
                             <a href="{{ url_for('eboard.note_edit', username=user.username, 
                                        note_id=note.id) }}">
@@ -162,7 +163,8 @@ $(document).on("click", ".note", function() {
             if (data["body"] === "" || data["body"] === null) {
                 $modal.find(".resource-body").text("No description."); 
             } else {
-                $modal.find(".resource-body").text(data["body"]);
+                $modal.find(".resource-body").empty();
+                $modal.find(".resource-body").append($.parseHTML(data["body"]));
             }
             var tags = data["tags"].map(function(item) { 
                     return item["name"]; 

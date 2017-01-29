@@ -13,6 +13,7 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from app import db
 from app.utils import merge_dicts
 from app.models_types import BooleanString, DateTimeString
+from app.bookmarks.models import Bookmark, Item
 
 
 # Association table for notes & tags

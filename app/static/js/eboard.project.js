@@ -394,7 +394,8 @@ function initUI() {
                 if (data["body"] === "" || data["body"] === null) {
                     $modal.find(".resource-body").text("No description."); 
                 } else {
-                    $modal.find(".resource-body").text(data["body"]);
+                    $modal.find(".resource-body").empty();
+                    $modal.find(".resource-body").append($.parseHTML(data["body"]));
                 }
             },
             ajaxErrorsHandler
@@ -561,17 +562,6 @@ function initUI() {
                             createTaskElement(id=tid, title=title, 
                                               complete=false));
                     $('#modal-task-edit').modal("hide");
-
-                    // Send next request for task info
-                    // project.getTask({
-                    //     taskId: tid, milestoneId: milestoneId
-                    // }, function(data, status, xhr) {
-                    //     $milestone.find(".milestone-tasks").append(
-                    //         createTaskElement(id=data["id"], title=data["title"], 
-                    //                           complete=data["complete"]));
-                    //     $('#modal-task-edit').modal("hide");
-                    // }, ajaxErrorsHandler);
-
                 }, ajaxErrorsHandler);
             }
         }
@@ -741,7 +731,8 @@ function initUI() {
                 if (data["body"] === "" || data["body"] === null) {
                     $modal.find(".resource-body").text("No description."); 
                 } else {
-                    $modal.find(".resource-body").text(data["body"]);
+                    $modal.find(".resource-body").empty();
+                    $modal.find(".resource-body").append($.parseHTML(data["body"]));
                 }
                 var tags = data["tags"].map(function(item) { 
                         return item["name"]; 
