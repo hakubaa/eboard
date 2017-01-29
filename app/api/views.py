@@ -9,6 +9,7 @@ import sqlalchemy
 from app import login_manager, db
 from app.api import api
 from app.models import User, Task, Note, Project, Milestone, Tag, Event
+from app.bookmarks.models import Bookmark, Item
 
 
 # Read This
@@ -786,4 +787,22 @@ def event_delete(user, event_id):
     db.session.commit()
     return "", 204
 
-###############################################################################
+################################################################################
+
+################################################################################
+# BOOKMARKS
+
+@api.route("/users/<username>/bookmarks", methods=["POST"])
+@access_validator(owner_auth=True)
+def bookmark_create(user):
+    data = request.form.to_dict()
+
+    try:
+        bookmark = user.add_bookmark(timezone=timezone(user.timezone), **data)
+    except (sqlalchemy.exc.StatementError, ValueError):
+        db.session.rollback()
+        return "", 400
+
+    return "", 201
+
+################################################################################

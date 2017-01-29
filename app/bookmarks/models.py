@@ -12,6 +12,7 @@ class Bookmark(db.Model):
     created = db.Column(db.DateTime, default=datetime.utcnow)
     items = db.relationship("Item", cascade="all,delete,delete-orphan", 
                             backref="bookmark")
+    user_id = db.Column(db.Integer(), db.ForeignKey("users.id"))
 
     def add_item(self, *args, commit=True, **kwargs):
         '''Adds item to the bookmark.'''

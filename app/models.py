@@ -277,7 +277,8 @@ class User(UserMixin, db.Model):
         cascade = "all, delete, delete-orphan", lazy="dynamic")
     events = db.relationship("Event", back_populates="user",
         cascade="all, delete, delete-orphan", lazy="dynamic")
-
+    bookmarks = db.relationship("Bookmark", backref="user",
+                                cascade="all,delete,delete-orphan")
 
     @property
     def password(self):
@@ -392,6 +393,32 @@ class User(UserMixin, db.Model):
             note = Note.query.get(note)
         if note:
             self.notes.remove(note)
+
+    def add_bookmark(self, *args, commit=True, **kwargs):
+        '''
+        Creates new bookmark for the user. Checks whether the first position
+        argument is Bookmark object.
+        '''
+        if len(args) > 0 and isinstance(args[0], Bookmark):
+            bookmark = args[0]
+        else:
+            bookmark = Bookmark(*args, **kwargs)
+            db.session.add(bookmark)
+
+        self.bookmarks.append(bookmark)
+        if commit:
+            db.session.commit()
+        return bookmark
+
+    def remove_bookmark(self, bookmark):
+        '''
+        Removes bookmark. Checks whether the first position is instance of 
+        Bookmark or id.
+        '''
+        if not isinstance(bookmark, Bookmark):
+            bookmark = Bookmark.query.get(bookmark)
+        if bookmark:
+            self.bookmarks.remove(bookmark)
 
     def to_dict(self, timezone=None):
         return {

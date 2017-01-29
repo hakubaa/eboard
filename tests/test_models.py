@@ -11,6 +11,7 @@ from app import create_app, db
 from app.models import (
     User, Task, Event, Project, Milestone, Tag, Note, dtformat_default
 )
+from app.bookmarks.models import Bookmark, Item
 
 
 class ModelTestCase(TestCase):
@@ -317,6 +318,47 @@ class TestUser(ModelTestCase):
         self.assertEqual(user.events.count(), 1)
         user.remove_project(project)
         self.assertEqual(user.events.count(), 0)
+
+    def test_add_bookmark_creates_new_project(self):
+        user = self.create_user()
+        user.add_bookmark(title="My 1st Bookmark")
+        self.assertEqual(db.session.query(Bookmark).count(), 1)
+        self.assertEqual(user.bookmarks[0], Bookmark.query.one())
+
+    def test_add_bookmark_returns_bookmark(self):
+        user = self.create_user()
+        bookmark = user.add_bookmark(title="My 1st Bookmark")
+        self.assertEqual(bookmark, Bookmark.query.one())
+
+    def test_add_bookmark_accepts_bookmark_object_as_first_argument(self):
+        user = self.create_user()
+        bookmark = Bookmark(title="My 2nd Bookmark")
+        db.session.add(bookmark)
+        db.session.commit()
+        user.add_bookmark(bookmark)
+        self.assertEqual(len(user.bookmarks), 1)
+        self.assertEqual(user.bookmarks[0], bookmark)
+
+    def test_remove_bookmark_by_id_from_user_bookmarks(self):
+        user = self.create_user()
+        bookmark = user.add_bookmark(title="My 1st Bookmark")
+        self.assertEqual(len(user.bookmarks), 1)
+        user.remove_bookmark(bookmark.id)
+        self.assertEqual(len(user.bookmarks), 0)
+
+    def test_remove_bookmark_by_object_from_user_bookmarks(self):
+        user = self.create_user()
+        bookmark = user.add_bookmark(title="My 1st Bookmark")
+        self.assertEqual(len(user.bookmarks), 1)
+        user.remove_bookmark(bookmark)
+        self.assertEqual(len(user.bookmarks), 0)
+
+    def test_remove_bookmark_does_not_raise_exception_when_invalid_id(self):
+        user = self.create_user()
+        bookmark = user.add_bookmark(title="My 1st Bookmark")
+        self.assertEqual(len(user.bookmarks), 1)
+        user.remove_bookmark(bookmark.id+2)
+        self.assertEqual(len(user.bookmarks), 1)
 
 
 class TestTask(ModelTestCase):
