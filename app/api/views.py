@@ -792,17 +792,177 @@ def event_delete(user, event_id):
 ################################################################################
 # BOOKMARKS
 
+@api.route("/users/<username>/bookmarks", methods=["GET"])
+@access_validator(owner_auth=False)
+def bookmarks(user):
+    data = [ bk.get_info(timezone=timezone(user.timezone)) 
+             for bk in user.bookmarks ]
+    for bk in data:
+        bk["uri"] = url_for("api.bookmark_get", username=user.username,
+                              bookmark_id=bk["id"]) 
+    return jsonify(data), 200
+
+
 @api.route("/users/<username>/bookmarks", methods=["POST"])
 @access_validator(owner_auth=True)
 def bookmark_create(user):
     data = request.form.to_dict()
+    if not "title" in data:
+        return "No title.", 400
 
     try:
-        bookmark = user.add_bookmark(timezone=timezone(user.timezone), **data)
+        bookmark = user.add_bookmark(**data)
     except (sqlalchemy.exc.StatementError, ValueError):
         db.session.rollback()
         return "", 400
 
-    return "", 201
+    response = Response("")
+    response.status_code = 201
+    response.headers["Location"] = url_for("api.bookmark_get", 
+                                           bookmark_id=bookmark.id,
+                                           username=user.username)
+    return response
+
+
+@api.route("/users/<username>/bookmarks/<bookmark_id>", methods=["GET"])
+@access_validator(owner_auth=False)
+def bookmark_get(user, bookmark_id):
+    bookmark = list(filter(lambda bk: bk.id == int(bookmark_id), user.bookmarks))
+    if not bookmark:
+        return "", 404
+    data = bookmark[0].to_dict(timezone=timezone(user.timezone))
+    return jsonify(data), 200
+
+
+@api.route("/users/<username>/bookmarks/<bookmark_id>", methods=["PUT"])
+@access_validator(owner_auth=True)
+def bookmark_edit(user, bookmark_id):
+    bookmark = db.session.query(Bookmark).join(User).filter(
+                   User.id == user.id, Bookmark.id == bookmark_id).one_or_none()
+    if not bookmark:
+        return "", 404
+
+    data = request.form.to_dict()
+    
+    try:
+        bookmark.update(**data)
+    except (sqlalchemy.exc.StatementError, ValueError):
+        db.session.rollback()
+        return "", 400  
+
+    return "", 204
+
+
+@api.route("/users/<username>/bookmarks/<bookmark_id>", methods=["DELETE"])
+@access_validator(owner_auth=True)
+def bookmark_delete(user, bookmark_id):
+    bookmark = db.session.query(Bookmark).join(User).filter(
+                   User.id == user.id, Bookmark.id == bookmark_id).one_or_none()
+    if not bookmark:
+        return "", 404
+
+    try:
+        user.remove_bookmark(bookmark)
+    except (sqlalchemy.exc.StatementError, ValueError):
+        db.session.rollback()
+        return "", 400
+    
+    return "", 204
+
+
+@api.route("/users/<username>/bookmarks/<bookmark_id>/items", methods=["GET"])
+@access_validator(owner_auth=False)
+def items(user, bookmark_id):
+    bookmark = db.session.query(Bookmark).join(User).filter(
+                   User.id == user.id, Bookmark.id == bookmark_id).one_or_none()
+    if not bookmark:
+        return "", 404
+
+    data = [item.get_info(timezone(user.timezone)) for item in bookmark.items]
+    for item in data:
+        item["uri"] = url_for("api.item_get", username=user.username,
+                              bookmark_id=bookmark.id, item_id=item["id"])
+    return jsonify(data), 200
+
+
+@api.route("/users/<username>/bookmarks/<bookmark_id>/items/<item_id>", 
+           methods=["GET"])
+@access_validator(owner_auth=False)
+def item_get(user, bookmark_id, item_id):
+    item = db.session.query(Item).join(Bookmark).join(User).filter(
+               User.id == user.id, Bookmark.id == bookmark_id,
+               Item.id == item_id).one_or_none()
+    if not item:
+        return "", 404
+ 
+    return jsonify(item.to_dict(timezone(user.timezone))), 200
+
+
+@api.route("/users/<username>/bookmarks/<bookmark_id>/items", methods=["POST"])
+@access_validator(owner_auth=True)
+def item_create(user, bookmark_id):
+    bookmark = db.session.query(Bookmark).join(User).filter(User.id == user.id,
+                   Bookmark.id == bookmark_id).one_or_none()
+    if not bookmark:
+        return "", 404
+
+    data = request.form.to_dict()
+    if not "value" in data:
+        return "No value", 400
+
+    try:
+        item = bookmark.add_item(**data)
+    except (sqlalchemy.exc.StatementError, ValueError):
+        db.session.rollback()
+        return "", 400
+
+    response = Response("")
+    response.status_code = 201
+    response.headers["Location"] = url_for("api.item_get", 
+                                           username=user.username,
+                                           bookmark_id=bookmark.id, 
+                                           item_id=item.id)
+    return response
+
+
+@api.route("/users/<username>/bookmarks/<bookmark_id>/items/<item_id>",
+           methods=["PUT"])
+@access_validator(owner_auth=True)
+def item_edit(user, bookmark_id, item_id):
+    item = db.session.query(Item).join(Bookmark).join(User).filter(
+               User.id == user.id, Bookmark.id == bookmark_id,
+               Item.id == item_id).one_or_none()
+    if not item:
+        return "", 404
+
+    data = request.form.to_dict()
+    try:
+        item.update(**data)
+    except (sqlalchemy.exc.StatementError, ValueError):
+        db.session.rollback()
+        return "", 400
+
+    return "", 204
+
+
+@api.route("/users/<username>/bookmarks/<bookmark_id>/items/<item_id>",
+           methods=["DELETE"])
+@access_validator(owner_auth=True)
+def item_delete(user, bookmark_id, item_id):
+    item = db.session.query(Item).join(Bookmark).join(User).filter(
+               User.id == user.id, Bookmark.id == bookmark_id,
+               Item.id == item_id).one_or_none()
+    if not item:
+        return "", 404
+
+    try:
+        db.session.delete(item)
+        db.session.commit()
+    except (sqlalchemy.exc.StatementError, ValueError):
+        db.session.rollback()
+        return "", 400
+  
+    return "", 204
+
 
 ################################################################################

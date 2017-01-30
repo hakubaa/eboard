@@ -1,8 +1,9 @@
+import unittest
+
 from app import db
+from app.bookmarks.models import Bookmark, Item
 
 from tests.base import EBoardTestCase
-
-from app.bookmarks.models import Bookmark, Item
 
 
 class BookmarkTest(EBoardTestCase):
@@ -56,6 +57,7 @@ class BookmarkTest(EBoardTestCase):
         self.assertEqual(len(bookmark.items), 0)
         self.assertEqual(db.session.query(Item).count(), 0)
 
+    @unittest.skip
     def test_add_items_to_bookmark_with_update_method(self):
         bookmark = Bookmark(title="My 6th Bookmark")
         db.session.add(bookmark)

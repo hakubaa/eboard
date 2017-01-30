@@ -5,6 +5,31 @@ import inspect
 import ctypes
 import binascii
 import socket
+from datetime import datetime
+import pytz
+
+from app import dtformat_default
+
+
+def tz2utc(dt, tz, dtformat=dtformat_default):
+    '''
+    Converts datetime(dt) from given time zone(tz) to utc. If dt is a str,
+    parses dt in accordance with dtformat.
+    '''
+    if isinstance(dt, str):
+        dt = datetime.strptime(dt, dtformat)
+    dt_utc = tz.localize(dt).astimezone(pytz.utc)
+    return dt_utc
+
+def utc2tz(dt, tz, dtformat=dtformat_default):
+    '''
+    Converts datetime(dt) from utz to given time zone(tz). If dt is a str,
+    parses dt in accordance with dtformat.
+    '''
+    if isinstance(dt, str):
+        dt = datetime.strptime(dt, dtformat)
+    dt_utz = pytz.utc.localize(dt).astimezone(tz)
+    return dt_utz
 
 
 def merge_dicts(*dict_args):

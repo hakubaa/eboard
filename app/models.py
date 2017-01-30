@@ -14,7 +14,8 @@ from app import db
 from app.utils import merge_dicts
 from app.models_types import BooleanString, DateTimeString
 from app.bookmarks.models import Bookmark, Item
-
+from app import dtformat_default
+from app.utils import tz2utc, utc2tz
 
 # Association table for notes & tags
 taskstags = db.Table("taskstags",
@@ -27,30 +28,6 @@ notestags = db.Table("notestags",
     db.Column("note_id", db.Integer, db.ForeignKey("notes.id")),
     db.Column("tag_id", db.Integer, db.ForeignKey("tags.id"))
     )
-
-# Default date format used by models
-dtformat_default = "%Y-%m-%d %H:%M"
-
-
-def tz2utc(dt, tz, dtformat=dtformat_default):
-    '''
-    Converts datetime(dt) from given time zone(tz) to utc. If dt is a str,
-    parses dt in accordance with dtformat.
-    '''
-    if isinstance(dt, str):
-        dt = datetime.strptime(dt, dtformat)
-    dt_utc = tz.localize(dt).astimezone(pytz.utc)
-    return dt_utc
-
-def utc2tz(dt, tz, dtformat=dtformat_default):
-    '''
-    Converts datetime(dt) from utz to given time zone(tz). If dt is a str,
-    parses dt in accordance with dtformat.
-    '''
-    if isinstance(dt, str):
-        dt = datetime.strptime(dt, dtformat)
-    dt_utz = pytz.utc.localize(dt).astimezone(tz)
-    return dt_utz
 
 
 class Task(db.Model):
