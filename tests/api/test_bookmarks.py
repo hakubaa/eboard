@@ -268,7 +268,7 @@ class GetItemTest(ApiTestCase):
                                            bookmark_id=bookmark.id+1, 
                                            item_id=item.id))
         self.assertEqual(response.status_code, 404)
-        
+
 
 class UpdateItemTest(ApiTestCase):
     

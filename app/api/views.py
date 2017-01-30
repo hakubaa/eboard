@@ -8,36 +8,14 @@ import sqlalchemy
 
 from app import login_manager, db
 from app.api import api
-from app.models import User, Task, Note, Project, Milestone, Tag, Event
-from app.bookmarks.models import Bookmark, Item
-
+from app.models import (
+    User, Task, Note, Project, Milestone, Tag, Event, Bookmark, Item
+)
+from app.utils import access_validator
 
 # Read This
 # http://michal.karzynski.pl/blog/2016/06/19/
 # building-beautiful-restful-apis-using-flask-swagger-ui-flask-restplus/
-
-
-# Create decorator for access restriction
-def access_validator(owner_auth=True):
-    '''
-    Decorator for restricting access to anonymouse users and logged in users
-    visiting private profiles.
-    '''
-    def wrapper(func):
-        @functools.wraps(func)
-        def access(username, *args, **kwargs):
-            if not current_user.is_authenticated:
-                return "", 401
-            try:
-                user = db.session.query(User).filter_by(username=username).one()
-            except sqlalchemy.orm.exc.NoResultFound:
-                return "", 404
-            if not owner_auth and not user.public \
-               and current_user.username != username:
-                return "", 404 
-            return func(user, *args, **kwargs)
-        return access
-    return wrapper
 
 
 ################################################################################

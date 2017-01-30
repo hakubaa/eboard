@@ -7,8 +7,37 @@ import binascii
 import socket
 from datetime import datetime
 import pytz
+import functools
 
-from app import dtformat_default
+import sqlalchemy
+from flask_login import current_user
+
+from app import db, dtformat_default
+import app.models
+
+# Create decorator for access restriction
+def access_validator(owner_auth=True):
+    '''
+    Decorator for restricting access to anonymouse users and logged in users
+    visiting private profiles.
+    '''
+    def wrapper(func):
+        @functools.wraps(func)
+        def access(username, *args, **kwargs):
+            if not current_user.is_authenticated:
+                return "", 401
+            try:
+                user = db.session.query(app.models.User).filter_by(
+                    username=username
+                ).one()
+            except sqlalchemy.orm.exc.NoResultFound:
+                return "", 404
+            if not owner_auth and not user.public \
+               and current_user.username != username:
+                return "", 404 
+            return func(user, *args, **kwargs)
+        return access
+    return wrapper
 
 
 def tz2utc(dt, tz, dtformat=dtformat_default):

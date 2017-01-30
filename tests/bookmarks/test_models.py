@@ -1,7 +1,7 @@
 import unittest
 
-from app import db
-from app.bookmarks.models import Bookmark, Item
+from app.models import Bookmark, Item
+# from app import db
 
 from tests.base import EBoardTestCase
 

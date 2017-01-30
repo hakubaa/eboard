@@ -2,9 +2,58 @@
 
 {% block title %}JAGO - e-Board - Bookmarks{% endblock %}
 
+{% block styles %}
+{{ super() }}
+<style>
+    .jumbotron {
+        background-color: #555;
+        color: white;
+        padding: 10px 0px;
+    }
+    #hide-jumbo-btn {
+        position: absolute;
+        top: 0px;
+        right: 0px;
+        color: white;
+    }
+    #hide-jumbo-btn:hover {
+        color: black;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 {{ super() }}
 <div class="container">
-    <h1>Bookmarks</h1>
+    <div class="jumbotron col-md-8 col-md-offset-2">
+        <h2>Create new bookmark!</h2>
+        <form method="post" action="" role="form" id="task-form">
+            {{ form.csrf_token }}
+
+            <div class="form-group required">
+                {{ form.title.label(class="control-label") }} 
+                {{ form.title(required="", class="form-control input-sm", autocomplete="off") }}
+                {% if form.title.errors %}
+                    <div class="has-error">
+                        <div class="help-block">{{ form.title.errors }}</div>
+                    </div>
+                {% endif %}
+            </div>
+
+            <div class="form-group">
+                {{ form.submit(class="btn btn-primary") }}
+            </div>
+        </form>
+        <a id="hide-jumbo-btn" class="btn btn-lg glyphicon glyphicon-remove"></a>
+    </div>
 </div>
+{% endblock %}
+
+{% block body_scripts %}
+{{ super() }}
+<script>
+    $("#hide-jumbo-btn").click(function() {
+        $(this).parent().hide();
+    });
+</script>
 {% endblock %}
