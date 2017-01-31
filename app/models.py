@@ -254,7 +254,8 @@ class User(UserMixin, db.Model):
     events = db.relationship("Event", back_populates="user",
         cascade="all, delete, delete-orphan", lazy="dynamic")
     bookmarks = db.relationship("Bookmark", backref="user",
-                                cascade="all,delete,delete-orphan")
+                                cascade="all,delete,delete-orphan",
+                                lazy="dynamic")
 
     @property
     def password(self):
@@ -969,7 +970,7 @@ class Bookmark(db.Model):
     title = db.Column(db.String(), unique=True)
     created = db.Column(db.DateTime, default=datetime.utcnow)
     items = db.relationship("Item", cascade="all,delete,delete-orphan", 
-                            backref="bookmark")
+                            backref="bookmark", lazy="dynamic")
     user_id = db.Column(db.Integer(), db.ForeignKey("users.id"))
 
     def add_item(self, *args, commit=True, **kwargs):

@@ -805,7 +805,7 @@ def bookmark_create(user):
 @api.route("/users/<username>/bookmarks/<bookmark_id>", methods=["GET"])
 @access_validator(owner_auth=False)
 def bookmark_get(user, bookmark_id):
-    bookmark = list(filter(lambda bk: bk.id == int(bookmark_id), user.bookmarks))
+    bookmark = user.bookmarks.filter(Bookmark.id == bookmark_id).one_or_none()
     if not bookmark:
         return "", 404
     data = bookmark[0].to_dict(timezone=timezone(user.timezone))
@@ -815,8 +815,7 @@ def bookmark_get(user, bookmark_id):
 @api.route("/users/<username>/bookmarks/<bookmark_id>", methods=["PUT"])
 @access_validator(owner_auth=True)
 def bookmark_edit(user, bookmark_id):
-    bookmark = db.session.query(Bookmark).join(User).filter(
-                   User.id == user.id, Bookmark.id == bookmark_id).one_or_none()
+    bookmark = user.bookmarks.filter(Bookmark.id == bookmark_id).one_or_none()
     if not bookmark:
         return "", 404
 
@@ -834,8 +833,7 @@ def bookmark_edit(user, bookmark_id):
 @api.route("/users/<username>/bookmarks/<bookmark_id>", methods=["DELETE"])
 @access_validator(owner_auth=True)
 def bookmark_delete(user, bookmark_id):
-    bookmark = db.session.query(Bookmark).join(User).filter(
-                   User.id == user.id, Bookmark.id == bookmark_id).one_or_none()
+    bookmark = user.bookmarks.filter(Bookmark.id == bookmark_id).one_or_none()
     if not bookmark:
         return "", 404
 
@@ -851,8 +849,7 @@ def bookmark_delete(user, bookmark_id):
 @api.route("/users/<username>/bookmarks/<bookmark_id>/items", methods=["GET"])
 @access_validator(owner_auth=False)
 def items(user, bookmark_id):
-    bookmark = db.session.query(Bookmark).join(User).filter(
-                   User.id == user.id, Bookmark.id == bookmark_id).one_or_none()
+    bookmark = user.bookmarks.filter(Bookmark.id == bookmark_id).one_or_none()
     if not bookmark:
         return "", 404
 
@@ -879,8 +876,7 @@ def item_get(user, bookmark_id, item_id):
 @api.route("/users/<username>/bookmarks/<bookmark_id>/items", methods=["POST"])
 @access_validator(owner_auth=True)
 def item_create(user, bookmark_id):
-    bookmark = db.session.query(Bookmark).join(User).filter(User.id == user.id,
-                   Bookmark.id == bookmark_id).one_or_none()
+    bookmark = user.bookmarks.filter(Bookmark.id == bookmark_id).one_or_none()
     if not bookmark:
         return "", 404
 

@@ -1,7 +1,7 @@
 import unittest
 
 from app.models import Bookmark, Item
-# from app import db
+from app import db
 
 from tests.base import EBoardTestCase
 
@@ -14,7 +14,7 @@ class BookmarkTest(EBoardTestCase):
         db.session.commit()
         bookmark.add_item(value="eboard@jago.com", desc="He is the boss.")
         self.assertEqual(db.session.query(Item).count(), 1)
-        self.assertEqual(len(bookmark.items), 1)
+        self.assertEqual(bookmark.items.count(), 1)
 
     def test_add_item_accepts_instance_of_item(self):
         bookmark = Bookmark(title="My Second Bookmark")
@@ -23,7 +23,7 @@ class BookmarkTest(EBoardTestCase):
         db.session.add(item)
         db.session.commit()
         bookmark.add_item(item)
-        self.assertEqual(len(bookmark.items), 1)
+        self.assertEqual(bookmark.items.count(), 1)
         self.assertEqual(bookmark.items[0].value, item.value)
 
     def test_add_item_returns_newly_created_item(self):
@@ -44,7 +44,7 @@ class BookmarkTest(EBoardTestCase):
                                  commit=False)
         db.session.rollback()
         self.assertEqual(db.session.query(Item).count(), 0)
-        self.assertEqual(len(bookmark.items), 0)
+        self.assertEqual(bookmark.items.count(), 0)
 
     def test_for_removing_item_from_bookmark(self):
         bookmark = Bookmark(title="My 5th Bookmark")
@@ -54,7 +54,7 @@ class BookmarkTest(EBoardTestCase):
                                  desc="He is the boss.",
                                  commit=False)
         bookmark.remove_item(item)
-        self.assertEqual(len(bookmark.items), 0)
+        self.assertEqual(bookmark.items.count(), 0)
         self.assertEqual(db.session.query(Item).count(), 0)
 
     @unittest.skip
@@ -67,7 +67,7 @@ class BookmarkTest(EBoardTestCase):
         item1 = Item(value="john@jago.com", desc="The employee of the year.")
         item2 = Item(value="kate@jago.com", desc="Nice, nice indeed.")
         bookmark.update(items=[item1, item2])
-        self.assertEqual(len(bookmark.items), 3)
+        self.assertEqual(bookmark.items.count(), 3)
         self.assertCountEqual(bookmark.items, [item0, item1, item2])
 
     def test_change_bookmarks_title_with_update_method(self):

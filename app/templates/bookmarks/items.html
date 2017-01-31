@@ -1,12 +1,13 @@
 {% extends "base.html" %}
 {% import "_macros.html" as macros %}
 
-{% block title %}JAGO - e-Board - Bookmarks{% endblock %}
+{% block title %}JAGO - e-Board - Items{% endblock %}
 
 {% block styles %}
 {{ super() }}
 <style>
     .jumbotron {
+        position: relative;
         background-color: #555;
         color: white;
         padding: 10px 0px;
@@ -29,20 +30,31 @@
 <div class="container col-md-8 col-md-offset-2">
     <div class="row">
         <button type="button" class="btn btn-success" id="show-jumbotron-btn">
-            Add New Bookmark
+            Add New Item
         </button>
     </div>
     <div class="row">
-        <div class="jumbotron" id="new-bookmark-jumbotron">
-            <h2>Create new bookmark!</h2>
+        <div class="jumbotron" id="new-item-jumbotron">
+            <h2>Create new item!</h2>
             <form method="post" action="" role="form">
                 {{ form.csrf_token }}
                 <div class="form-group required">
-                    {{ form.title.label(class="control-label") }} 
-                    {{ form.title(required="", class="form-control input-sm", autocomplete="off") }}
-                    {% if form.title.errors %}
+                    {{ form.value.label(class="control-label") }} 
+                    {{ form.value(required="", class="form-control input-sm", 
+                                  autocomplete="off") }}
+                    {% if form.value.errors %}
                         <div class="has-error">
-                            <div class="help-block">{{ form.title.errors }}</div>
+                            <div class="help-block">{{ form.value.errors }}</div>
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="form-group required">
+                    {{ form.desc.label(class="control-label") }} 
+                    {{ form.desc(class="form-control input-sm", 
+                                 autocomplete="off", rows="2") }}
+                    {% if form.desc.errors %}
+                        <div class="has-error">
+                            <div class="help-block">{{ form.desc.errors }}</div>
                         </div>
                     {% endif %}
                 </div>
@@ -55,24 +67,28 @@
     </div>
     <div class="row">
         <div class="panel panel-primary">
-            <div class="panel-heading">Bookmarks</div>
+            <div class="panel-heading">Items</div>
             <div class="list-group penel-body">
             {% if pagination.items %}
-                {% for bookmark in pagination.items %}
-                    <a href="{{ url_for('bookmarks.items', username=user.username, 
-                                         bookmark_id=bookmark.id) }}" 
-                       class="list-group-item">{{ bookmark.title }}</a>
+                {% for item in pagination.items %}
+                    <div class="list-group-item">
+                        <h4 class="list-group-item-heading">{{item.value}}</h4>
+                        {% if item.desc %}
+                            <p class="list-group-item-text">{{item.desc}}</p>
+                        {% endif %}
+                    </div>
                 {% endfor %}
             {% else %}
                 <div class="list-group-item">
-                    You have no bookmarks.
+                    You have no items in this bookmark.
                 </div>
             {% endif %}
             </div>
         </div>
-        {% if user.bookmarks %}
-            {{ macros.pagination_widget(pagination, 'bookmarks.index', 
-                                        username=user.username) }}
+        {% if bookmark.items %}
+            {{ macros.pagination_widget(pagination, 'bookmarks.items', 
+                                        username=user.username,
+                                        bookmark_id=bookmark.id) }}
         {% endif %}
     </div>
 </div>
@@ -87,7 +103,7 @@
     });
     $("#show-jumbotron-btn").click(function() {
         $(this).hide();
-        $("#new-bookmark-jumbotron").show();
+        $("#new-item-jumbotron").show();
     });
 </script>
 {% endblock %}
